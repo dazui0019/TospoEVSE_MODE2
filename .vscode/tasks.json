@@ -1,0 +1,55 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "rebuild",
+            "command": "${workspaceFolder}/.vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'",
+            "type": "shell",
+            "args": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "build",
+            "command": "${workspaceFolder}/.vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -b ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'",
+            "type": "shell",
+            "args": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "download",
+            "command": "${workspaceFolder}/.vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'",
+            "type": "shell",
+            "args": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "debug",
+            "command": "UV4 -d ${workspaceFolder}/MDK-ARM/mode2.uvprojx",
+            "type": "shell",
+            "args": [],
+            "presentation": {
+                "reveal": "never"
+            },
+            "group": "build"
+        },
+        {
+            "label": "run keil",
+            "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx",
+            "type": "shell",
+            "args": [],
+            "presentation": {
+                "reveal": "never"
+            },
+            "group": "build"
+        }
+    ]
+}
