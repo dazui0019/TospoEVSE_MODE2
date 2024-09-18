@@ -19,7 +19,6 @@
 #define __SYS_INCLUDES_H__
 
 #include "gd32f30x.h"
-#include "FreeRTOS.h"
 
 /* boolean type definitions */
 #ifndef TRUE

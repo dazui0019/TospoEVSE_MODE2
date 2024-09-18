@@ -5,6 +5,8 @@
 #include "evse_comm.h"
 #include "lwrb.h"
 #include "basic_os.h"
+#include "EventRecorder.h"
+#include "crc16.h"
 
 #define LOG_TAG "evse.comm"
 #include "elog.h"
@@ -14,6 +16,8 @@
 /* ring buffer for uart */
 static lwrb_t uart_rb;
 static uint8_t lwrb_buffer[COMM_BUFF_LENGTH]  = { 0x00 };
+
+/* 中断标志位 */
 __IO static uint8_t rx_cplt_flag = false;
 
 /* DMA缓冲区 */
@@ -25,7 +29,7 @@ uint8_t meter_buff[COMM_BUFF_LENGTH];
 void evse_comm_init(void)
 {
     lwrb_init(&uart_rb, lwrb_buffer, COMM_BUFF_LENGTH);
-    gd_usart_rx_init(COM2, 9600);
+    gd_usart_init(COM2, 9600);
     dma_rx_config(COM2, (uint32_t)meter_buff, COMM_BUFF_LENGTH);
 
     usart_flag_clear(USART2, USART_FLAG_TC);
@@ -37,6 +41,90 @@ void evse_comm_init(void)
     dma_interrupt_enable(DMA0, DMA_CH2, DMA_CHXCTL_HTFIE|DMA_CHXCTL_FTFIE);
 }
 
+/**
+ * @brief  计算校验和
+ * @param[in] {pack} 数据源指针
+ * @param[in] {pack_len} 计算校验和长度
+ * @return 校验和
+ */
+uint8_t get_check_sum(uint8_t pack[], uint16_t pack_len)
+{
+    uint16_t i;
+    uint8_t check_sum = 0;
+    
+    for(i = 0; i < pack_len; i ++) {
+        check_sum += *pack ++;
+    }
+    
+    return check_sum;
+}
+
+/**
+ * @brief  UI更新
+ * @param[in] {cmd} 功能码
+ * @param[in] {arg_int} 对于不同的功能码有不同的作用
+ * @param[in] {arg_ptr} 目前仅在更新电量的时候使用, 用来传递float变量指针
+ */
+uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
+{
+    float f_kwh;
+    uint16_t s_kwh;
+    /* 帧缓冲区 */
+    uint8_t frame_buff[FRAME_LEN_MAX] = {0x5A};
+    
+    switch (cmd)
+    {
+    case FUNC_CODE_UPDATE_ERR:
+        frame_buff[1] = FUNC_CODE_UPDATE_ERR;   // 功能码
+        frame_buff[2] = 0x01;                   // payload长度
+        frame_buff[3] = arg_int;
+        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[5] = 0x55;
+        UART_Transmit(USART2, frame_buff, 6);
+        break;
+    case FUNC_CODE_UPDATE_CHG:
+        frame_buff[1] = FUNC_CODE_UPDATE_CHG;   // 功能码
+        frame_buff[2] = 0x01;                   // payload长度
+        frame_buff[3] = arg_int;
+        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[5] = 0x55;
+        UART_Transmit(USART2, frame_buff, 6);
+        break;
+    case FUNC_CODE_UPDATE_DELAY:
+        frame_buff[1] = FUNC_CODE_UPDATE_DELAY; // 功能码
+        frame_buff[2] = 0x01;                   // payload长度
+        frame_buff[3] = arg_int;
+        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[5] = 0x55;
+        UART_Transmit(USART2, frame_buff, 6);
+        break;
+    case FUNC_CODE_UPDATE_CURRENT:
+        frame_buff[1] = FUNC_CODE_UPDATE_CURRENT;   // 功能码
+        frame_buff[2] = 0x01;                       // payload长度
+        frame_buff[3] = arg_int;
+        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[5] = 0x55;
+        UART_Transmit(USART2, frame_buff, 6);
+        break;
+    case FUNC_CODE_UPDATE_KWH:
+        f_kwh = *(float*)arg_ptr;
+        s_kwh = (uint16_t)(f_kwh*10);
+    
+        frame_buff[1] = FUNC_CODE_UPDATE_KWH;   // 功能码
+        frame_buff[2] = 0x02;                   // payload长度
+        frame_buff[3] = ((uint16_t)s_kwh) >> 8;
+        frame_buff[4] = ((uint16_t)s_kwh)&0x00FF;
+        frame_buff[5] = get_check_sum(frame_buff, 5);
+        frame_buff[6] = 0x55;
+        UART_Transmit(USART2, frame_buff, 7);
+        break;
+    default:
+        log_e("unknown cmd: 0x%02X.", cmd);
+        break;
+    }
+    
+    return 0;
+}
 
 /**
  * @brief       串口空闲中断和DMA中断回调函数
@@ -97,16 +185,60 @@ void DMA0_Channel2_IRQHandler(){
     }
 }
 
+void evse_key_process(uint8_t key_val)
+{
+    switch (key_val)
+    {
+    case 0x01:
+        /* 电流切换 */
+        log_d("current switching.");
+        break;
+    case 0x02:
+        /* 延时时间设置 */
+        log_d("delay time setting.");
+        break;
+    case 0x03:
+        /* 清除电量 */
+        log_d("clearing kwh.");
+        break;
+    default:
+        log_e("unknown key_val: 0x%02X.", key_val);
+        break;
+    };
+}
+
 static void task_entry_comm(void *parameter)
 {
     /* 初始化LCD板通信串口 */
     evse_comm_init();
-    uint8_t frame[16];
+    uint8_t frame[FRAME_LEN_MAX];
+    uint8_t rx_length;
     for(;;){
         if(rx_cplt_flag){
-            log_i("comm");
+            EventStartA(1);
             rx_cplt_flag = false;
-            lwrb_read(&uart_rb, frame, 16);
+            rx_length = lwrb_get_full(&uart_rb);    // 直接将ring buffer已使用的长度作为本次串口接收的长度, 不太可靠需要优化
+            lwrb_read(&uart_rb, frame, rx_length);
+            /* 检查帧头和帧尾 */
+            if(0x5A == frame[0] &&  0x55 == frame[rx_length-1]){
+                /* 检查校验位 */
+                if(get_check_sum(frame, rx_length-2) != frame[rx_length-2]){ // rx_length减去校验位本身和帧尾长度
+                    log_e("checksum error: 0x%02X, should be: 0x%02X.", frame[rx_length-2], get_check_sum(frame, rx_length-2));
+                    continue;
+                }
+                log_d("code: 0x%02X.", frame[1]);
+                switch (frame[1])
+                {
+                case 0x3A:
+                    evse_key_process(frame[3]);
+                    break;
+                default:
+                    log_e("code: 0x%02X.", frame[1]);
+                    break;
+                }
+            }
+            EventStopA(1);
+            continue;
         }else
             bos_delay_ms(1);
     }

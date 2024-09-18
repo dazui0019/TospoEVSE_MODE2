@@ -34,7 +34,7 @@
 #ifndef _CRC_H
 #define _CRC_H
 
-#include "main.h"
+#include <stdint.h>
 
 uint16_t crc16(uint8_t *buf, uint32_t bsize);
 

@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>GD32F30X_HD,PRINTF_INCLUDE_CONFIG_H</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb</IncludePath>
+              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -648,6 +648,36 @@
               <FileName>lwrb.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\lwrb\lwrb.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Libraries/crc16</GroupName>
+          <Files>
+            <File>
+              <FileName>crc16.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\crc16\crc16.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Libraries/fifo</GroupName>
+          <Files>
+            <File>
+              <FileName>fifo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\fifo\fifo.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Libraries/datetime</GroupName>
+          <Files>
+            <File>
+              <FileName>datetime.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\datetime\datetime.c</FilePath>
             </File>
           </Files>
         </Group>
