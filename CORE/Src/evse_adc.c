@@ -161,7 +161,7 @@ static void task_entry_voltage_sample(void *parameter)
         bos_delay_ms(100);
     }
 }
-bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
 
 
 /**
