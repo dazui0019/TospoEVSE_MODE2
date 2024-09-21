@@ -28,14 +28,20 @@ typedef enum{
 #define CP_PIN          (GPIO_PIN_5)
 #define CP_PORT_RCU     (RCU_GPIOB)
 
-/* CP检测 */
 #define CK_ADC          ADC0
-#define CK_CP_ADC_CH    ADC_CHANNEL_9
 #define CK_ADC_RCU      RCU_ADC0
-
+/* CP检测 */
 #define CK_CP_PORT      GPIOB
 #define CK_CP_RCU       RCU_GPIOB
 #define CK_CP_PIN       GPIO_PIN_1
+
+#define CK_CP_ADC_CH    ADC_CHANNEL_9
+/* 接地检测 */
+#define CK_GND_PORT     GPIOA
+#define CK_GND_RCU      RCU_GPIOA
+#define CK_GND_PIN      GPIO_PIN_6
+
+#define CK_GND_ADC_CH   ADC_CHANNEL_6
 
 // 定义CP电平阈值
 #define CP_12V_TH   4000
@@ -51,9 +57,10 @@ typedef enum{
 #define STATE_CP_UNK    (1<<4)  // 未知状态
 #define STATE_CP_ERROR  (1<<5)
 
-// 定义CC连接状态
-#define CC_CONNECTED                  ( 1 << 0 ) // cc已连接
-#define CC_DISCONNECTED               ( 1 << 1 ) // cc未连接
+// 车端二极管检测
+#define S1_CK_PORT     GPIOB
+#define S1_CK_RCU      RCU_GPIOB
+#define S1_CK_PIN      GPIO_PIN_15
 
 /**
  * @brief   PWM输出状态标志

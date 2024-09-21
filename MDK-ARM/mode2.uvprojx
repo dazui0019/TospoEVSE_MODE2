@@ -414,6 +414,11 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_comm.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_adc.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

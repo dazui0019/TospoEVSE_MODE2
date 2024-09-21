@@ -6,6 +6,8 @@
 #define LOG_TAG "evse.cp"
 #include "elog.h"
 
+uint16_t v_refint;  // 芯片内部1.2V参考电压的 ADC 原始值
+
 // 占空比表， 是CAR寄存器的数值, 表示最大电流值所对应的CP波形占空比数值
 // 其中第一个元素(50), 表示占空比为5%需要进行数字通信而不是电流
 const static uint16_t duty_table[] = {
@@ -28,10 +30,11 @@ cp_t cp = {
     .ck_ctrl    = ck_ctrl,
 };
 
-__IO uint16_t* p_cp_buff = NULL;
+/* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
+__IO uint16_t* p_adc_buff = NULL;
 
 // adc 采样数据DMA缓冲区
-__attribute((used)) uint16_t adc_buff[2][SAMPLE_NUM];
+__attribute((used)) uint16_t adc_buff[10][2];
 
 cp_state_t (*cp_state_func [])(uint16_t) = {
     cp_state_reboot, cp_state_12V, cp_state_9V, 
@@ -123,12 +126,58 @@ void cp_check_dma_config(void)
 }
 
 /**
- * @brief   CP检测初始化
+ * @brief   获取芯片内部1.2V基准电压值
+ */
+void adc_verf_config(void)
+{
+    adc_deinit(ADC0);
+    rcu_periph_clock_enable(RCU_ADC0);
+    /* ADC mode config */
+    adc_mode_config(ADC_MODE_FREE);
+    /* ADC data alignment config */
+    adc_data_alignment_config(ADC0, ADC_DATAALIGN_RIGHT);
+    /* ADC SCAN function enable */
+    adc_special_function_config(ADC0, ADC_SCAN_MODE, DISABLE);
+
+    /* ADC channel length config */
+    adc_channel_length_config(ADC0, ADC_INSERTED_CHANNEL, 1);
+    /* ADC internal reference voltage channel config */
+    adc_inserted_channel_config(ADC0, 0, ADC_CHANNEL_17, ADC_SAMPLETIME_239POINT5);
+
+    /* ADC external trigger enable */
+    adc_external_trigger_config(ADC0, ADC_INSERTED_CHANNEL, ENABLE);
+    /* ADC trigger config */
+    adc_external_trigger_source_config(ADC0, ADC_INSERTED_CHANNEL, ADC0_1_2_EXTTRIG_INSERTED_NONE);
+
+    /* ADC temperature and Vrefint enable */
+    adc_tempsensor_vrefint_enable();
+    
+    /* enable ADC interface */
+    adc_enable(ADC0);
+    bos_delay_ms(1);
+    /* ADC calibration and reset calibration */
+    adc_calibration_enable(ADC0);
+}
+
+/**
+ * @brief   检查车端二极管S1是否存在
+ */
+void s1_ck_init(void)
+{
+    rcu_periph_clock_enable(S1_CK_RCU);
+    gpio_init(S1_CK_PORT, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_MAX, S1_CK_PIN);
+}
+
+/**
+ * @brief   CP和接地检测初始化
 */
-void cp_check_init(void){
+void cp_check_init(void)
+{
+    adc_deinit(CK_ADC);
     /* GPIO配置 */
     rcu_periph_clock_enable(CK_CP_RCU);
-    gpio_init(CK_CP_PORT, GPIO_MODE_AIN, GPIO_OSPEED_50MHZ, CK_CP_PIN);
+    gpio_init(CK_CP_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, CK_CP_PIN);
+    gpio_init(CK_GND_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, CK_GND_PIN);
     /* enable ADC clock */
     rcu_periph_clock_enable(CK_ADC_RCU);
     /* config ADC clock */
@@ -138,19 +187,22 @@ void cp_check_init(void){
     /* ADC data alignment config */
     adc_data_alignment_config(CK_ADC, ADC_DATAALIGN_RIGHT);
     /* ADC SCAN function disable */
-    adc_special_function_config(CK_ADC, ADC_SCAN_MODE, DISABLE);
-    adc_special_function_config(CK_ADC, ADC_CONTINUOUS_MODE, DISABLE);  // 关闭连续模式(触发一次转换一次)
+    adc_special_function_config(CK_ADC, ADC_SCAN_MODE, ENABLE);
+    /* 关闭连续模式(触发一次转换一次) */
+    adc_special_function_config(CK_ADC, ADC_CONTINUOUS_MODE, DISABLE);
     /* ADC channel length config */
-    adc_channel_length_config(CK_ADC, ADC_REGULAR_CHANNEL, 1);
+    adc_channel_length_config(CK_ADC, ADC_REGULAR_CHANNEL, 2);
     /* ADC0_CHx config */
     adc_regular_channel_config(CK_ADC, 0, CK_CP_ADC_CH, ADC_SAMPLETIME_7POINT5);
+    adc_regular_channel_config(CK_ADC, 1, CK_GND_ADC_CH, ADC_SAMPLETIME_7POINT5);
     /* ADC trigger config */
     adc_external_trigger_source_config(CK_ADC, ADC_REGULAR_CHANNEL, ADC0_1_EXTTRIG_REGULAR_T2_TRGO); // 由TIMER2_TRGO触发
     /* ADC external trigger enable */
     adc_external_trigger_config(CK_ADC, ADC_REGULAR_CHANNEL, ENABLE);   // 软件触发也算外部触发的。
-
     /* enable ADC interface */
     adc_enable(CK_ADC);
+    
+    bos_delay_ms(1); // 延时一下
 
     /* ADC calibration and reset calibration */
     adc_calibration_enable(CK_ADC);
@@ -165,10 +217,10 @@ void DMA0_Channel0_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
-        p_cp_buff = adc_buff[0];
+        p_adc_buff = adc_buff[0];
     }else if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_HTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_HTF);
-        p_cp_buff = adc_buff[1];
+        p_adc_buff = adc_buff[1];
     }
 }
 
@@ -256,7 +308,7 @@ void cp_disable(void)
 }
 
 /**
- * @brief      设置充电电流最大值
+ * @brief      设置充电电流最大值(修改PWM占空比)
  * @param[in]  cur: 1 ~ 63
 */
 uint8_t cp_cur_set(uint8_t cur)
@@ -281,7 +333,7 @@ void ck_ctrl(ControlStatus status){
     switch(status){
     case ENABLE:
         TIMER_CTL1(CP_TIMER) &= (~(uint32_t)TIMER_CTL1_MMC);
-        TIMER_CTL1(CP_TIMER) |= (uint32_t)TIMER_TRI_OUT_SRC_UPDATE; // TRGO触发源为更新事件
+        TIMER_CTL1(CP_TIMER) |= (uint32_t)TIMER_TRI_OUT_SRC_UPDATE; // 由更新事件产生TRGO信号
         break;
     case DISABLE:
         TIMER_CTL1(CP_TIMER) &= (~(uint32_t)TIMER_CTL1_MMC);    // 关闭定时器TRGO输出
@@ -449,21 +501,45 @@ static void task_entry_cp_check(void *parameter)
     extern cp_state_t (*cp_state_func[])(uint16_t); // 状态函数数组
     cp_state_t cp_state = CP_INIT;                  // 默认状态为重启
     cp_state_t last_state = cp_state;               // 记录上一个状态
+    
+    adc_verf_config();
+    bos_delay_ms(500);
+
+    /* 获取内部1.2V基准电压的ADC值 */
+    for(int i = 10; i>0; i--){
+        adc_software_trigger_enable(ADC0, ADC_INSERTED_CHANNEL);
+        while(adc_flag_get(ADC0, ADC_FLAG_EOIC) == RESET){}
+        adc_flag_clear(ADC0, ADC_FLAG_EOIC);
+        log_i("Vrefint: %d", ADC_IDATA0(ADC0));
+        v_refint += ADC_IDATA0(ADC0);
+    }
+    v_refint /= 10;
+    log_i("Vrefint: %d", v_refint);
+
     cp.init(1000);          // CP输出和检测初始化
     cp.set_cur(16);         // 设置最大电流
     cp.pwm_ctrl(ENABLE);    // 输出PWM
     cp.ck_ctrl(ENABLE);
+
     log_i("CP init done.");
+     for(;;){
+        if(p_adc_buff == NULL){
+
+        }else{
+            p_adc_buff = NULL;
+        }
+        bos_delay_ms(1);
+     }
     for(;;){
-        if(p_cp_buff == NULL)
+        if(p_adc_buff == NULL)
             bos_delay_ms(1);
         else{
             // 处理ADC数据
             EventStartA(0);
-            ck_val = get_voltage(p_cp_buff, 10);
+            ck_val = get_voltage(p_adc_buff, 10);
             cp_state = cp_state_func[cp_state](ck_val);
             EventStopA(0);
-            p_cp_buff = NULL;
+            p_adc_buff = NULL;
 
             switch (cp_state)
             {
@@ -477,7 +553,7 @@ static void task_entry_cp_check(void *parameter)
                 log_d("CP_6V");
                 break;
             case CP_ERROR:
-                log_e("CP_ERROR, val=%d", ck_val+1);
+            //    log_e("CP_ERROR, val=%d", ck_val+1);
                 break;
             case CP_ERROR_CLEAR:
                 log_d("Clear CP Error.");
@@ -490,4 +566,4 @@ static void task_entry_cp_check(void *parameter)
         }
     }
 }
-//bos_task_export(cp_check, task_entry_cp_check, BOS_MAX_PRIORITY, NULL);
+bos_task_export(cp_check, task_entry_cp_check, BOS_MAX_PRIORITY, NULL);
