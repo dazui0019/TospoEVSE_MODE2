@@ -243,4 +243,4 @@ static void task_entry_comm(void *parameter)
             bos_delay_ms(1);
     }
 }
-bos_task_export(lcd_comm, task_entry_comm, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(lcd_comm, task_entry_comm, BOS_MAX_PRIORITY, NULL);

@@ -102,7 +102,7 @@ void cp_check_init(void);
  * @param   f PWM频率, 单位Hz(2 - 1000000)
  * @note    TIMERxCLK(TIMERx_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
 */
-void cp_init(uint32_t f);
+void cp_pwm_init(uint32_t f);
 /**
  * @brief   PWM输出控制
  * @param   status:

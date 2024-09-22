@@ -24,17 +24,17 @@ cp_t cp = {
     .pwm_state  = CP_HIGH,
     .ck_state   = CK_OFF,
     .state      = CP_INIT,
-    .init       = cp_init,
+    .init       = cp_pwm_init,
     .set_cur    = cp_cur_set,
     .pwm_ctrl   = pwm_ctrl,
     .ck_ctrl    = ck_ctrl,
 };
 
 /* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
-__IO uint16_t* p_adc_buff = NULL;
+__IO uint16_t (*p_adc_buff)[2] = NULL;
 
 // adc 采样数据DMA缓冲区
-__attribute((used)) uint16_t adc_buff[10][2];
+__attribute((used)) uint16_t adc_buff[2][10][2];
 
 cp_state_t (*cp_state_func [])(uint16_t) = {
     cp_state_reboot, cp_state_12V, cp_state_9V, 
@@ -47,7 +47,7 @@ cp_state_t (*cp_state_func [])(uint16_t) = {
  * @param   f PWM频率, 单位Hz(2 - 1000000)
  * @note    TIMERxCLK(TIMERx_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
 */
-void cp_init(uint32_t f)
+void cp_pwm_init(uint32_t f)
 {
     timer_parameter_struct timer_initpara;      // 定时器基本参数
     timer_oc_parameter_struct timer_ocintpara;  // 定时器输出设置
@@ -96,7 +96,7 @@ void cp_init(uint32_t f)
 /**
  * @brief   ADC DMA配置
 */
-void cp_check_dma_config(void)
+static void cp_check_dma_config(void)
 {
     /* ADC_DMA_channel configuration */
     dma_parameter_struct dma_data_parameter;
@@ -113,7 +113,7 @@ void cp_check_dma_config(void)
     dma_data_parameter.periph_width = DMA_PERIPHERAL_WIDTH_16BIT;
     dma_data_parameter.memory_width = DMA_MEMORY_WIDTH_16BIT;
     dma_data_parameter.direction    = DMA_PERIPHERAL_TO_MEMORY;
-    dma_data_parameter.number       = SAMPLE_NUM*2;
+    dma_data_parameter.number       = SAMPLE_NUM*4;
     dma_data_parameter.priority     = DMA_PRIORITY_HIGH;
     dma_flag_clear(DMA0, DMA_CH0, DMA_FLAG_HTF|DMA_FLAG_FTF);
     dma_init(DMA0, DMA_CH0, &dma_data_parameter);
@@ -217,10 +217,10 @@ void DMA0_Channel0_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
-        p_adc_buff = adc_buff[0];
+        p_adc_buff = adc_buff[1];
     }else if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_HTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_HTF);
-        p_adc_buff = adc_buff[1];
+        p_adc_buff = adc_buff[0];
     }
 }
 
@@ -343,9 +343,45 @@ void ck_ctrl(ControlStatus status){
     }
 }
 
+uint16_t get_vol(__IO uint16_t pBuff[][2], uint16_t length)
+{
+    static uint16_t voltage;
+    uint16_t temp = 0;
+    uint32_t sum = 0, count = 0;
+    uint16_t temp_buff[SAMPLE_NUM] = {0};
+
+    /* 检测CP */
+    /**
+     * 在采样数据中找到第一个大于100的数(正常的ADC_RAW值会大于2000)，赋值给temp，作为滤波器的初始值。
+     * 这一步是为了防止temp设置过小，导致滤波结果不准确。
+    */
+    for(uint32_t i = 0; i < (length-1); i++){
+        if(abs(pBuff[i][0] - pBuff[i+1][0]) <= ADC_TH){
+            temp = pBuff[i][0];
+            if (temp > 100){
+                break;
+            }
+        }
+    }
+
+    for(uint32_t i = 0; i < length; i++){
+        if(abs((int32_t)(pBuff[i][0] - temp)) <= ADC_TH){
+            sum += pBuff[i][0];
+            temp = pBuff[i][0];
+            temp_buff[i] = pBuff[i][0];
+            count++;
+        }
+    }
+
+    if(count >= (length/2))  // 如果求和数量太少的话(小于一半), 本次计算出来的数据可信度就会比较低，因此直接忽略
+        voltage = (uint16_t)(sum/count);
+
+    return voltage;
+}
+
 /**
  * @brief   获取CP采样电压值
- * @param[out]   *pBuff[2], pBuff[0]: CC_Voltage, pBuff[1]: CP_Voltage
+ * @param[in]  pBuff: 电压采样缓冲区
  * @return  滤波后的电压值数组
  * @note    滤波算法暂定为限幅平均滤波
 */
@@ -522,25 +558,19 @@ static void task_entry_cp_check(void *parameter)
     cp.ck_ctrl(ENABLE);
 
     log_i("CP init done.");
-     for(;;){
-        if(p_adc_buff == NULL){
 
-        }else{
-            p_adc_buff = NULL;
-        }
-        bos_delay_ms(1);
-     }
     for(;;){
-        if(p_adc_buff == NULL)
-            bos_delay_ms(1);
-        else{
+        if(p_adc_buff != NULL){
             // 处理ADC数据
             EventStartA(0);
-            ck_val = get_voltage(p_adc_buff, 10);
+            ck_val = get_vol(p_adc_buff, 10);
             cp_state = cp_state_func[cp_state](ck_val);
             EventStopA(0);
             p_adc_buff = NULL;
-
+            log_d("raw: %d, vol: %.2f", ck_val, (ck_val*2.5)/4096.0);
+            if(last_state == cp_state)
+                continue;
+            
             switch (cp_state)
             {
             case CP_12V:
@@ -553,7 +583,7 @@ static void task_entry_cp_check(void *parameter)
                 log_d("CP_6V");
                 break;
             case CP_ERROR:
-            //    log_e("CP_ERROR, val=%d", ck_val+1);
+               log_e("CP_ERROR, val=%d", ck_val+1);
                 break;
             case CP_ERROR_CLEAR:
                 log_d("Clear CP Error.");
@@ -564,6 +594,7 @@ static void task_entry_cp_check(void *parameter)
             // 保存上一次的状态
             last_state = cp_state;
         }
+        bos_delay_ms(1);
     }
 }
-bos_task_export(cp_check, task_entry_cp_check, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(cp_check, task_entry_cp_check, BOS_MAX_PRIORITY, NULL);

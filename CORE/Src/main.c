@@ -38,7 +38,7 @@ int main(){
     elog_init();
     elog_start();
 
-    print_clock();
+//    print_clock();
     
     /* 启动BasicOS */
     systick_config();
@@ -57,13 +57,3 @@ static void task_entry_blink(void *parameter)
     }
 }
 bos_task_export(blink, task_entry_blink, BOS_MAX_PRIORITY, NULL);
-
-static void task_entry_comm_test(void *parameter)
-{
-    float kwh = 99.7;
-    for(;;){
-        bos_delay_ms(500);
-        evse_comm_ui_update(FUNC_CODE_UPDATE_KWH, NULL, &kwh);
-    }
-}
-bos_task_export(comm_test, task_entry_comm_test, BOS_MAX_PRIORITY, NULL);

@@ -218,15 +218,7 @@
       <pMultCmdsp></pMultCmdsp>
       <SystemViewers>
         <Entry>
-          <Name>System Viewer\ADC0</Name>
-          <WinId>35902</WinId>
-        </Entry>
-        <Entry>
-          <Name>System Viewer\ADC1</Name>
-          <WinId>35905</WinId>
-        </Entry>
-        <Entry>
-          <Name>System Viewer\TIMER2</Name>
+          <Name>System Viewer\ADC2</Name>
           <WinId>35903</WinId>
         </Entry>
         <Entry>
