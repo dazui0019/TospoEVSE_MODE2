@@ -419,6 +419,11 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_adc.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_relay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_relay.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -39,14 +39,14 @@ typedef enum{
 /* 接地检测 */
 #define CK_GND_PORT     GPIOA
 #define CK_GND_RCU      RCU_GPIOA
-#define CK_GND_PIN      GPIO_PIN_6
+#define CK_GND_PIN      GPIO_PIN_7
 
-#define CK_GND_ADC_CH   ADC_CHANNEL_6
+#define CK_GND_ADC_CH   ADC_CHANNEL_7
 
 // 定义CP电平阈值
-#define CP_12V_TH   4000
-#define CP_9V_TH    2940
-#define CP_6V_TH    2150
+#define CP_12V_TH   3500
+#define CP_9V_TH    2590
+#define CP_6V_TH    1680
 #define CP_OFFSET   100
 
 // 定义CP电压状态

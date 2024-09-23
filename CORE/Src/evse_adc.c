@@ -2,6 +2,7 @@
 #include "basic_os.h"
 #include "drv_timer.h"
 #include "printf.h"
+#include "evse_cp.h"
 
 #define LOG_TAG "evse.adc"
 #include "elog.h"
@@ -49,10 +50,12 @@
 #define FREQ_IN_PIN         GPIO_PIN_6
 
 /* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
-__IO uint16_t* p_adc2_buff = NULL;
+__IO uint16_t (*p_adc2_buff)[2] = NULL;
+
+uint16_t v_refint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
 
 // adc 采样数据DMA缓冲区
-__attribute((used)) uint16_t adc2_buff[50];
+__attribute((used)) uint16_t adc2_buff[100][2];
 
 void freq_exti_config(void)
 {
@@ -97,6 +100,50 @@ void timer7_trgo_config(uint16_t f){
 }
 
 /**
+ * @brief   timer1 pwm初始化
+ * @param   f 定时器更新频率, 单位Hz(2 - 1000000)
+ * @note    TIMER1CLK(TIMER1_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
+*/
+void timer1_pwm_config(uint16_t f)
+{
+    timer_parameter_struct timer_initpara;      // 定时器基本参数
+    timer_oc_parameter_struct timer_ocintpara;  // 定时器输出设置
+
+    rcu_periph_clock_enable(RCU_TIMER1);
+
+    timer_deinit(TIMER1);
+    /* TIMER configuration */
+    timer_initpara.prescaler         = ((timer_source_clock_get(TIMER1)/1000000U)-1); // TIMER2CLK(TIMER2_CK/PSC) is 100KHz
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
+    timer_initpara.counterdirection  = TIMER_COUNTER_DOWN;
+    timer_initpara.period            = (1000000U/f)-1;
+    timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
+    timer_initpara.repetitioncounter = 0;
+    timer_init(TIMER1,&timer_initpara);
+
+    /* CH0 configuration in PWM mode0 */
+    timer_ocintpara.ocpolarity  = TIMER_OC_POLARITY_HIGH;
+    timer_ocintpara.outputstate = TIMER_CCX_ENABLE;
+    timer_channel_output_config(TIMER1, TIMER_CH_2, &timer_ocintpara);
+
+    timer_channel_output_pulse_value_config(TIMER1, TIMER_CH_2, 100);
+    timer_channel_output_mode_config(TIMER1, TIMER_CH_2, TIMER_OC_MODE_PWM0);
+    timer_channel_output_shadow_config(TIMER1, TIMER_CH_2, TIMER_OC_SHADOW_DISABLE);
+
+    timer_update_event_enable(TIMER1);                                  // 配置TIMERx_CTL0的UPDIS
+    timer_single_pulse_mode_config(TIMER1, TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
+    timer_update_source_config(TIMER1, TIMER_UPDATE_SRC_REGULAR);       // 配置TIMERx_CTL0的UPS
+
+    /* TIMER1 primary output enable */
+    timer_primary_output_config(TIMER1, ENABLE);
+    /* auto-reload preload enable */
+    timer_auto_reload_shadow_enable(TIMER1); 
+
+    /* auto-reload preload enable */
+    timer_enable(TIMER1);
+}
+
+/**
  * @brief   ADC DMA配置
 */
 static void adc2_dma_config(void)
@@ -116,7 +163,7 @@ static void adc2_dma_config(void)
     dma_data_parameter.periph_width = DMA_PERIPHERAL_WIDTH_16BIT;
     dma_data_parameter.memory_width = DMA_MEMORY_WIDTH_16BIT;
     dma_data_parameter.direction    = DMA_PERIPHERAL_TO_MEMORY;
-    dma_data_parameter.number       = 50;
+    dma_data_parameter.number       = 100*2;
     dma_data_parameter.priority     = DMA_PRIORITY_HIGH;
     dma_flag_clear(DMA1, DMA_CH4, DMA_FLAG_HTF|DMA_FLAG_FTF);
     dma_init(DMA1, DMA_CH4, &dma_data_parameter);
@@ -134,8 +181,8 @@ void DMA1_Channel3_4_IRQHandler(void)
         dma_interrupt_flag_clear(DMA1, DMA_CH4, DMA_INT_FLAG_FTF);
         p_adc2_buff = adc2_buff;
         exti_interrupt_enable(EXTI_6);
-        timer_disable(TIMER7);
-        timer_counter_value_config(TIMER7, 0);
+        timer_disable(TIMER1);
+        timer_counter_value_config(TIMER1, 0);
     }
 }
 
@@ -147,7 +194,8 @@ void evse_adc_voltage_config(void)
     adc_deinit(ADC2);
 
     rcu_periph_clock_enable(RCU_GPIOA);
-    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_MAX, GPIO_PIN_0);
+    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_MAX, GPIO_PIN_1);
+    gpio_init(GPIOA, GPIO_MODE_AIN, GPIO_OSPEED_MAX, GPIO_PIN_3);
     
     rcu_periph_clock_enable(RCU_AF);
     rcu_periph_clock_enable(RCU_ADC2);
@@ -159,15 +207,16 @@ void evse_adc_voltage_config(void)
     /* ADC data alignment config */
     adc_data_alignment_config(ADC2, ADC_DATAALIGN_RIGHT);
     /* ADC SCAN function enable */
-    adc_special_function_config(ADC2, ADC_SCAN_MODE, DISABLE);
+    adc_special_function_config(ADC2, ADC_SCAN_MODE, ENABLE);
     /* 关闭连续模式(触发一次转换一次) */
     adc_special_function_config(ADC2, ADC_CONTINUOUS_MODE, DISABLE);
 
-    adc_channel_length_config(ADC2, ADC_REGULAR_CHANNEL, 1);
-    adc_regular_channel_config(ADC2, 0, ADC_CHANNEL_0, ADC_SAMPLETIME_239POINT5);
+    adc_channel_length_config(ADC2, ADC_REGULAR_CHANNEL, 2);
+    adc_regular_channel_config(ADC2, 0, ADC_CHANNEL_1, ADC_SAMPLETIME_239POINT5);
+    adc_regular_channel_config(ADC2, 1, ADC_CHANNEL_3, ADC_SAMPLETIME_239POINT5);
 
     /* ADC trigger config */
-    adc_external_trigger_source_config(ADC2, ADC_REGULAR_CHANNEL, ADC2_EXTTRIG_REGULAR_T7_TRGO);
+    adc_external_trigger_source_config(ADC2, ADC_REGULAR_CHANNEL, ADC2_EXTTRIG_REGULAR_T1_CH2);
     /* ADC external trigger enable */
     adc_external_trigger_config(ADC2, ADC_REGULAR_CHANNEL, ENABLE);
     
@@ -194,31 +243,60 @@ void EXTI5_9_IRQHandler(void)
     if(RESET != exti_interrupt_flag_get(EXTI_6)) {
         // exti6_flag = true;
         exti_interrupt_disable(EXTI_6);
-        dma_transfer_number_config(DMA1, DMA_CH4, 50);  // DMA重新开始计数
-        timer_enable(TIMER7);
+        dma_transfer_number_config(DMA1, DMA_CH4, 200);  // DMA重新开始计数
+        timer_enable(TIMER1);
     }
     exti_interrupt_flag_clear(EXTI_6);
 }
 
+/**
+ * @brief   获取正弦波正半波电压的平均值
+ */
+uint16_t get_sin_vol(__IO uint16_t pBuff[][2], uint16_t length, uint16_t index)
+{
+    static uint16_t voltage;
+    uint16_t base_voltage;
+    uint16_t temp = 0;
+    uint32_t sum = 0, count = 0;
+
+    for(uint32_t i = 0; i < length; i++){
+        sum += pBuff[i][index];
+    }
+    base_voltage = (uint16_t)(sum/length);
+
+    for(uint32_t i = 0; i < length; i++){
+        voltage += abs((int32_t)pBuff[i][index]-(int32_t)base_voltage);
+    }
+    voltage /= length;
+
+    return voltage;
+}
+
 static void task_entry_voltage_sample(void *parameter)
 {
-    uint32_t l_voltage = 0;
+    uint16_t l_voltage = 0, c_voltage = 0;
     evse_adc_voltage_config();
     freq_exti_config();
-    timer7_trgo_config(2500);
+    timer1_pwm_config(5000);
 
-    /* timer7 trigger event config */
-    timer_master_slave_mode_config(TIMER7, TIMER_MASTER_SLAVE_MODE_ENABLE);
-    timer_master_output_trigger_source_select(TIMER7, TIMER_TRI_OUT_SRC_UPDATE);	// 更新事件作为TRGO的触发信号源
+    /* 等待vrefint读取完毕 */
+    while (v_refint == 0)
+    {
+        bos_delay_ms(1);
+    }
 
     for(;;){
         if(p_adc2_buff != NULL) {
-            l_voltage = 0;
-            for(int i = 0; i < 50; i++) {
-                l_voltage += p_adc2_buff[i];
-            }
-            l_voltage /= 50;
-            printf("raw: %d, vol: %.2f\r\n", l_voltage, (l_voltage*2.5)/4096.0);
+            // l_voltage = 0;
+            // for(int i = 0; i < 50; i++) {
+            //     l_voltage += p_adc2_buff[i][1];
+            // }
+            // l_voltage /= 50;
+            l_voltage = get_sin_vol(p_adc2_buff, 100, 0);
+            c_voltage = get_sin_vol(p_adc2_buff, 100, 1);
+            // log_i("l_raw: %d, l_vol: %.3f", l_voltage, ((1.2*((float)l_voltage/(float)v_refint))*10000)/21.0 - 3.3);
+            // log_i("c_raw: %d, c_vol: %.3f", c_voltage, 1.2*((float)c_voltage/(float)v_refint));
+            log_i("c_raw: %d, c_vol: %.3f", c_voltage, ((1200.0*((float)c_voltage/(float)v_refint))*2.0)/51.0);
             p_adc2_buff = NULL;
         }
         bos_delay_ms(1);

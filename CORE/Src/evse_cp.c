@@ -2,11 +2,13 @@
 #include "delay.h"
 #include "EventRecorder.h"
 #include "basic_os.h"
+#include "evse_relay.h"
 
 #define LOG_TAG "evse.cp"
 #include "elog.h"
 
-uint16_t v_refint;  // 芯片内部1.2V参考电压的 ADC 原始值
+extern uint16_t v_refint;  // 芯片内部1.2V参考电压的 ADC 原始值
+uint16_t gnd_base = 0;
 
 // 占空比表， 是CAR寄存器的数值, 表示最大电流值所对应的CP波形占空比数值
 // 其中第一个元素(50), 表示占空比为5%需要进行数字通信而不是电流
@@ -80,7 +82,7 @@ void cp_pwm_init(uint32_t f)
 
     /* TIMERx channelx duty cycle = (((TIMER_CAR(CP_TIMER)+1)/20)/ TIMER_CAR(CP_TIMER))* 100  = 5% */    
     timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, (1000000U/f)/2);
-    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_LOW);        // 先输出低电平
+    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_PWM1);        // 先输出低电平
     timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_ENABLE);  // 使能CHxCV寄存器的影子寄存器
 
     timer_primary_output_config(CP_TIMER, ENABLE);
@@ -253,22 +255,22 @@ void cp_enable(void)
     /* configure TIMER_CH_0 */
     case TIMER_CH_0:
         TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH0COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_PWM0;
+        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_PWM1;
         break;
     /* configure TIMER_CH_1 */
     case TIMER_CH_1:
         TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH1COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_PWM0) << 8U);
+        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_PWM1) << 8U);
         break;
     /* configure TIMER_CH_2 */
     case TIMER_CH_2:
         TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH2COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_PWM0;
+        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_PWM1;
         break;
     /* configure TIMER_CH_3 */
     case TIMER_CH_3:
         TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH3COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_PWM0) << 8U);
+        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_PWM1) << 8U);
         break;
     default:
         break;
@@ -343,7 +345,7 @@ void ck_ctrl(ControlStatus status){
     }
 }
 
-uint16_t get_vol(__IO uint16_t pBuff[][2], uint16_t length)
+uint16_t get_cp_vol(__IO uint16_t pBuff[][2], uint16_t length)
 {
     static uint16_t voltage;
     uint16_t temp = 0;
@@ -375,6 +377,26 @@ uint16_t get_vol(__IO uint16_t pBuff[][2], uint16_t length)
 
     if(count >= (length/2))  // 如果求和数量太少的话(小于一半), 本次计算出来的数据可信度就会比较低，因此直接忽略
         voltage = (uint16_t)(sum/count);
+
+    return voltage;
+}
+
+uint16_t get_gnd_vol(__IO uint16_t pBuff[][2], uint16_t length)
+{
+    static uint16_t voltage;
+    uint16_t base_voltage;
+    uint16_t temp = 0;
+    uint32_t sum = 0, count = 0;
+
+    for(uint32_t i = 0; i < length; i++){
+        sum += pBuff[i][1];
+    }
+    base_voltage = (uint16_t)(sum/length);
+
+    for(uint32_t i = 0; i < length; i++){
+        voltage += abs((int32_t)pBuff[i][1]-(int32_t)base_voltage);
+    }
+    voltage /= length;
 
     return voltage;
 }
@@ -533,11 +555,14 @@ void quickSort(uint16_t arr[], int low, int high) {
 /* Basic OS 任务函数 */
 static void task_entry_cp_check(void *parameter)
 {
-    uint16_t ck_val, last_val;                      // CP电平的ADC Raw值。
+    uint16_t cp_val, gnd_val;                       // CP电平和接地检测的ADC Raw值。
     extern cp_state_t (*cp_state_func[])(uint16_t); // 状态函数数组
     cp_state_t cp_state = CP_INIT;                  // 默认状态为重启
     cp_state_t last_state = cp_state;               // 记录上一个状态
     
+    evse_relay_init();
+    evse_relay_ctrl(open);
+
     adc_verf_config();
     bos_delay_ms(500);
 
@@ -546,28 +571,37 @@ static void task_entry_cp_check(void *parameter)
         adc_software_trigger_enable(ADC0, ADC_INSERTED_CHANNEL);
         while(adc_flag_get(ADC0, ADC_FLAG_EOIC) == RESET){}
         adc_flag_clear(ADC0, ADC_FLAG_EOIC);
-        log_i("Vrefint: %d", ADC_IDATA0(ADC0));
+        // log_i("Vrefint: %d", ADC_IDATA0(ADC0));
         v_refint += ADC_IDATA0(ADC0);
     }
     v_refint /= 10;
-    log_i("Vrefint: %d", v_refint);
+    log_d("Vrefint: %d", v_refint);
+
+    bos_delay_ms(3000);
+    evse_relay_ctrl(close);
+
+    for(;;){
+        bos_delay_ms(10);
+    }
 
     cp.init(1000);          // CP输出和检测初始化
     cp.set_cur(16);         // 设置最大电流
     cp.pwm_ctrl(ENABLE);    // 输出PWM
     cp.ck_ctrl(ENABLE);
 
-    log_i("CP init done.");
+    log_d("CP init done.");
 
     for(;;){
         if(p_adc_buff != NULL){
             // 处理ADC数据
             EventStartA(0);
-            ck_val = get_vol(p_adc_buff, 10);
-            cp_state = cp_state_func[cp_state](ck_val);
+            cp_val = get_cp_vol(p_adc_buff, 10);
+            cp_state = cp_state_func[cp_state](cp_val);
+            gnd_val = get_gnd_vol(p_adc_buff, 10);
             EventStopA(0);
             p_adc_buff = NULL;
-            log_d("raw: %d, vol: %.2f", ck_val, (ck_val*2.5)/4096.0);
+            // log_d("raw: %d, vol: %.2f", ck_val, 1.2*((float)ck_val/(float)v_refint));
+            // log_d("raw: %d, vol: %.2f", gnd_val, 1.2*((float)gnd_val/(float)v_refint));
             if(last_state == cp_state)
                 continue;
             
@@ -583,7 +617,7 @@ static void task_entry_cp_check(void *parameter)
                 log_d("CP_6V");
                 break;
             case CP_ERROR:
-               log_e("CP_ERROR, val=%d", ck_val+1);
+               log_e("CP_ERROR, val=%d", cp_val);
                 break;
             case CP_ERROR_CLEAR:
                 log_d("Clear CP Error.");
@@ -597,4 +631,4 @@ static void task_entry_cp_check(void *parameter)
         bos_delay_ms(1);
     }
 }
-// bos_task_export(cp_check, task_entry_cp_check, BOS_MAX_PRIORITY, NULL);
+bos_task_export(cp_check, task_entry_cp_check, BOS_MAX_PRIORITY, NULL);

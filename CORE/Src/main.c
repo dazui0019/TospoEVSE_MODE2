@@ -39,7 +39,7 @@ int main(){
     elog_start();
 
 //    print_clock();
-    
+    log_d("Test.");
     /* 启动BasicOS */
     systick_config();
     basic_os_init(stack, sizeof(stack));

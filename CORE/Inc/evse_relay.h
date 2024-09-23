@@ -17,5 +17,5 @@ typedef enum{
 }relay_state_t;
 
 
-void evse_realy_init();
+void evse_relay_init();
 void evse_relay_ctrl(relay_state_t state);
