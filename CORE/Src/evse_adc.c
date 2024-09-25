@@ -49,10 +49,13 @@
 #define FREQ_IN_PORT_RCU    RCU_GPIOB
 #define FREQ_IN_PIN         GPIO_PIN_6
 
-/* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
-__IO uint16_t (*p_adc2_buff)[2] = NULL;
+#define CH_NUM              (4)
+#define SAMPLE_NUM          (100)
 
-uint16_t v_refint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
+/* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
+__IO uint16_t (*g_p_adc2_buff)[2] = NULL;
+
+uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
 
 // adc 采样数据DMA缓冲区
 __attribute((used)) uint16_t adc2_buff[100][2];
@@ -179,7 +182,7 @@ void DMA1_Channel3_4_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA1, DMA_CH4, DMA_INT_FLAG_FTF)){
         dma_interrupt_flag_clear(DMA1, DMA_CH4, DMA_INT_FLAG_FTF);
-        p_adc2_buff = adc2_buff;
+        g_p_adc2_buff = adc2_buff;
         exti_interrupt_enable(EXTI_6);
         timer_disable(TIMER1);
         timer_counter_value_config(TIMER1, 0);
@@ -238,16 +241,16 @@ __IO uint8_t exti6_flag = false; // 正弦波一个周期开始的标志
     \param[out] none
     \retval     none
 */
-void EXTI5_9_IRQHandler(void)
-{
-    if(RESET != exti_interrupt_flag_get(EXTI_6)) {
-        // exti6_flag = true;
-        exti_interrupt_disable(EXTI_6);
-        dma_transfer_number_config(DMA1, DMA_CH4, 200);  // DMA重新开始计数
-        timer_enable(TIMER1);
-    }
-    exti_interrupt_flag_clear(EXTI_6);
-}
+// void EXTI5_9_IRQHandler(void)
+// {
+//     if(RESET != exti_interrupt_flag_get(EXTI_6)) {
+//         // exti6_flag = true;
+//         exti_interrupt_disable(EXTI_6);
+//         dma_transfer_number_config(DMA1, DMA_CH4, 200);  // DMA重新开始计数
+//         timer_enable(TIMER1);
+//     }
+//     exti_interrupt_flag_clear(EXTI_6);
+// }
 
 /**
  * @brief   获取正弦波正半波电压的平均值
@@ -280,30 +283,29 @@ static void task_entry_voltage_sample(void *parameter)
     timer1_pwm_config(5000);
 
     /* 等待vrefint读取完毕 */
-    while (v_refint == 0)
+    while (g_Vrefint == 0)
     {
         bos_delay_ms(1);
     }
 
     for(;;){
-        if(p_adc2_buff != NULL) {
+        if(g_p_adc2_buff != NULL) {
             // l_voltage = 0;
             // for(int i = 0; i < 50; i++) {
-            //     l_voltage += p_adc2_buff[i][1];
+            //     l_voltage += g_p_adc2_buff[i][1];
             // }
             // l_voltage /= 50;
-            l_voltage = get_sin_vol(p_adc2_buff, 100, 0);
-            c_voltage = get_sin_vol(p_adc2_buff, 100, 1);
+            l_voltage = get_sin_vol(g_p_adc2_buff, 100, 0);
+            c_voltage = get_sin_vol(g_p_adc2_buff, 100, 1);
             // log_i("l_raw: %d, l_vol: %.3f", l_voltage, ((1.2*((float)l_voltage/(float)v_refint))*10000)/21.0 - 3.3);
             // log_i("c_raw: %d, c_vol: %.3f", c_voltage, 1.2*((float)c_voltage/(float)v_refint));
-            log_i("c_raw: %d, c_vol: %.3f", c_voltage, ((1200.0*((float)c_voltage/(float)v_refint))*2.0)/51.0);
-            p_adc2_buff = NULL;
+            log_i("c_raw: %d, c_vol: %.3f", c_voltage, ((1200.0*((float)c_voltage/(float)g_Vrefint))*2.0)/51.0);
+            g_p_adc2_buff = NULL;
         }
         bos_delay_ms(1);
     }
 }
-bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
-
+// bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
 
 /**
  * @brief   温度采集通道

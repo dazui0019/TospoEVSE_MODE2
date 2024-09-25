@@ -424,6 +424,16 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_relay.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_adh.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_adh.c</FilePath>
+            </File>
+            <File>
+              <FileName>evse_charge.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_charge.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

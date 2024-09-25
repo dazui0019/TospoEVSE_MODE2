@@ -3,11 +3,62 @@
 #include "EventRecorder.h"
 #include "basic_os.h"
 #include "evse_relay.h"
+#include "evse_charge.h"
+#include "evse_gndd.h"
 
 #define LOG_TAG "evse.cp"
 #include "elog.h"
 
-extern uint16_t v_refint;  // 芯片内部1.2V参考电压的 ADC 原始值
+#define SAMPLE_NUM      (10)    // 采样次数(SAMPLE_NUM个CP周期)
+#define ADC_TH          (0x30)  // ADC限幅滤波阈值
+
+/* CP输出 */
+#define CP_TIMER        (TIMER2)
+#define CP_TIMER_RCU    (RCU_TIMER2)
+#define CP_TIMER_CH     (TIMER_CH_1)
+#define CP_PORT         (GPIOB)
+#define CP_PIN          (GPIO_PIN_5)
+#define CP_PORT_RCU     (RCU_GPIOB)
+
+#define CK_ADC          ADC0
+#define CK_ADC_RCU      RCU_ADC0
+/* CP检测 */
+#define CK_CP_PORT      GPIOB
+#define CK_CP_RCU       RCU_GPIOB
+#define CK_CP_PIN       GPIO_PIN_1
+
+#define CK_CP_ADC_CH    ADC_CHANNEL_9
+/* 接地检测 */
+#define CK_GND_PORT     GPIOA
+#define CK_GND_RCU      RCU_GPIOA
+#define CK_GND_PIN      GPIO_PIN_7
+
+#define CK_GND_ADC_CH   ADC_CHANNEL_7
+
+// 定义CP电平阈值
+#define CP_12V_TH   3500
+#define CP_9V_TH    2590
+#define CP_6V_TH    1680
+#define CP_OFFSET   100
+
+// 定义CP电压状态
+#define STATE_CP_12V    (1<<0)
+#define STATE_CP_9V     (1<<1)
+#define STATE_CP_6V     (1<<2)
+#define STATE_CP_3V     (1<<3)
+#define STATE_CP_UNK    (1<<4)  // 未知状态
+#define STATE_CP_ERROR  (1<<5)
+
+// 车端二极管检测
+#define S1_CK_PORT     GPIOB
+#define S1_CK_RCU      RCU_GPIOB
+#define S1_CK_PIN      GPIO_PIN_15
+
+// 全局变量
+__IO gndd_state_t g_gndd_state = EVSE_GNDD_OK;    // 接地检测状态
+__IO cp_event_t g_cp_event = EVENT_CP_NONE;       // CP电压状态
+
+extern uint16_t g_Vrefint;  // 芯片内部1.2V参考电压的 ADC 原始值
 uint16_t gnd_base = 0;
 
 // 占空比表， 是CAR寄存器的数值, 表示最大电流值所对应的CP波形占空比数值
@@ -22,7 +73,7 @@ const static uint16_t duty_table[] = {
     880, 884, 888, 892, 896, 900
 };
 
-cp_t cp = {
+cp_t g_cp = {
     .pwm_state  = CP_HIGH,
     .ck_state   = CK_OFF,
     .state      = CP_INIT,
@@ -33,16 +84,10 @@ cp_t cp = {
 };
 
 /* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
-__IO uint16_t (*p_adc_buff)[2] = NULL;
+__IO uint16_t (*p_cp_adc_buff)[2] = NULL;
 
 // adc 采样数据DMA缓冲区
 __attribute((used)) uint16_t adc_buff[2][10][2];
-
-cp_state_t (*cp_state_func [])(uint16_t) = {
-    cp_state_reboot, cp_state_12V, cp_state_9V, 
-    cp_state_6V, cp_state_error, cp_state_err_clear,
-    cp_state_error
-};
 
 /**
  * @brief   CP PWM 输出初始化, 默认输出低电平
@@ -219,10 +264,10 @@ void DMA0_Channel0_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
-        p_adc_buff = adc_buff[1];
+        p_cp_adc_buff = adc_buff[1];
     }else if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_HTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_HTF);
-        p_adc_buff = adc_buff[0];
+        p_cp_adc_buff = adc_buff[0];
     }
 }
 
@@ -316,7 +361,7 @@ void cp_disable(void)
 uint8_t cp_cur_set(uint8_t cur)
 {
     /* duty(%) =  ((TIMER_CAR(CP_TIMER) + 1)/TIMER_CH0CV(CP_TIMER)) * 100 */
-    cp.current = cur; // 更新电流大小
+    g_cp.current = cur; // 更新电流大小
     if(cur < 1 || cur > 63){
         log_e("param error.");
         return 1;
@@ -453,7 +498,15 @@ uint16_t get_voltage(__IO uint16_t pBuff[], uint16_t length)
     return voltage;
 }
 
-/* CP状态机 ----------- */
+cp_state_t get_cp_state(uint16_t vol)
+{
+    if((CP_12V_TH-CP_OFFSET < vol) && (vol < CP_12V_TH+CP_OFFSET))      {return CP_12V;}
+    else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
+    else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
+    else                                                                {return CP_ERROR;}
+}
+
+/* CP状态机(感觉有点复杂化了) ----------- */
 
 /**
  * @brief   充电桩重启后的状态
@@ -466,47 +519,6 @@ cp_state_t cp_state_reboot(uint16_t vol)
     else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
     else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
     else                                                                {return CP_ERROR;}
-}
-
-/**
- * @brief   未插枪状态
- * @note    对应CP状态: CP12V
-*/
-cp_state_t cp_state_12V(uint16_t vol)
-{
-    if((CP_12V_TH-CP_OFFSET < vol) && (vol < CP_12V_TH+CP_OFFSET))      {return CP_12V;}
-    else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;}     // 检测到插枪
-    else                                                                {return CP_ERROR;}  // 检测到异常
-}
-
-/**
- * @brief   插枪状态
- * @note    对应CP状态: CP9V
-*/
-cp_state_t cp_state_9V(uint16_t vol)
-{
-    if((CP_12V_TH-CP_OFFSET < vol) && (vol < CP_12V_TH+CP_OFFSET))      {return CP_12V;}
-    else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
-    else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
-    else                                                                {return CP_ERROR;}
-}
-
-/**
- * @brief   充电状态
- * @note    对应CP状态: CP6V
-*/
-cp_state_t cp_state_6V(uint16_t vol)
-{
-    if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))        {return CP_9V;} // 检测到插枪
-    else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
-    else                                                                {return CP_ERROR;}
-}
-
-cp_state_t cp_state_error(uint16_t vol)
-{
-    // 拔枪后，解除CP报错
-    if((CP_12V_TH-CP_OFFSET < vol) && (vol < CP_12V_TH+CP_OFFSET))  {return CP_ERROR_CLEAR;}
-    else                                                            {return CP_ERROR;}
 }
 
 /**
@@ -553,15 +565,12 @@ void quickSort(uint16_t arr[], int low, int high) {
 }
 
 /* Basic OS 任务函数 */
-static void task_entry_cp_check(void *parameter)
+static void task_entry_evse_cp(void *parameter)
 {
     uint16_t cp_val, gnd_val;                       // CP电平和接地检测的ADC Raw值。
     extern cp_state_t (*cp_state_func[])(uint16_t); // 状态函数数组
-    cp_state_t cp_state = CP_INIT;                  // 默认状态为重启
+    cp_state_t cp_state = CP_INIT;                  // 默认为重启状态
     cp_state_t last_state = cp_state;               // 记录上一个状态
-    
-    evse_relay_init();
-    evse_relay_ctrl(open);
 
     adc_verf_config();
     bos_delay_ms(500);
@@ -572,63 +581,80 @@ static void task_entry_cp_check(void *parameter)
         while(adc_flag_get(ADC0, ADC_FLAG_EOIC) == RESET){}
         adc_flag_clear(ADC0, ADC_FLAG_EOIC);
         // log_i("Vrefint: %d", ADC_IDATA0(ADC0));
-        v_refint += ADC_IDATA0(ADC0);
+        g_Vrefint += ADC_IDATA0(ADC0);
     }
-    v_refint /= 10;
-    log_d("Vrefint: %d", v_refint);
+    g_Vrefint /= 10;
+    log_d("Vrefint: %d", g_Vrefint);
 
-    bos_delay_ms(3000);
-    evse_relay_ctrl(close);
+    // bos_delay_ms(500);
+    // evse_relay_ctrl(close);
 
-    for(;;){
-        bos_delay_ms(10);
-    }
+    // for(;;){
+    //     bos_delay_ms(10);
+    // }
 
-    cp.init(1000);          // CP输出和检测初始化
-    cp.set_cur(16);         // 设置最大电流
-    cp.pwm_ctrl(ENABLE);    // 输出PWM
-    cp.ck_ctrl(ENABLE);
+    g_cp.init(1000);          // CP输出和检测初始化
+    g_cp.set_cur(16);         // 设置最大电流
+    g_cp.pwm_ctrl(DISABLE);
+    g_cp.ck_ctrl(ENABLE);
 
     log_d("CP init done.");
 
     for(;;){
-        if(p_adc_buff != NULL){
+        bos_delay_ms(1);
+        if(p_cp_adc_buff != NULL){
             // 处理ADC数据
             EventStartA(0);
-            cp_val = get_cp_vol(p_adc_buff, 10);
-            cp_state = cp_state_func[cp_state](cp_val);
-            gnd_val = get_gnd_vol(p_adc_buff, 10);
+            cp_val = get_cp_vol(p_cp_adc_buff, 10);
+            cp_state = get_cp_state(cp_val);
+            gnd_val = get_gnd_vol(p_cp_adc_buff, 10);
             EventStopA(0);
-            p_adc_buff = NULL;
-            // log_d("raw: %d, vol: %.2f", ck_val, 1.2*((float)ck_val/(float)v_refint));
-            // log_d("raw: %d, vol: %.2f", gnd_val, 1.2*((float)gnd_val/(float)v_refint));
+            p_cp_adc_buff = NULL;
+            // log_d("cp_val: %d, gnd_val: %d", cp_val, gnd_val);
+            // log_d("cp_raw: %d, cp_vol: %.2f", cp_val, 1.2*((float)cp_val/(float)g_Vrefint));
+            // log_d("gnd_raw: %d, gnd_vol: %.2f", gnd_val, 1.2*((float)gnd_val/(float)g_Vrefint));
+            
+            // 处理接地检测
+            if(gnd_val >= 10){
+                if(g_gndd_state == EVSE_GNDD_OK){
+                    g_gndd_state = EVSE_GNDD_LOST;
+                    log_e("gndd lost, val=%d", gnd_val);
+                }
+                // continue; // 先不管CP状态，立即处理接地检测
+            }else{
+                if(g_gndd_state == EVSE_GNDD_LOST){
+                    g_gndd_state = EVSE_GNDD_OK;
+                    log_i("gndd ok.");
+                }
+            }
+
+            // 更新CP状态
             if(last_state == cp_state)
                 continue;
-            
+                
             switch (cp_state)
             {
             case CP_12V:
                 log_d("CP_12V");
+                g_cp_event = EVENT_CP_12V;
                 break;
             case CP_9V:
                 log_d("CP_9V");
+                g_cp_event = EVENT_CP_9V;
                 break;
             case CP_6V:
                 log_d("CP_6V");
+                g_cp_event = EVENT_CP_6V;
                 break;
             case CP_ERROR:
-               log_e("CP_ERROR, val=%d", cp_val);
-                break;
-            case CP_ERROR_CLEAR:
-                log_d("Clear CP Error.");
-                break;
             default:
+                log_e("CP_ERROR, val=%d", cp_val);
+                g_cp_event = EVENT_CP_ERROR;
                 break;
             }
             // 保存上一次的状态
             last_state = cp_state;
         }
-        bos_delay_ms(1);
     }
 }
-bos_task_export(cp_check, task_entry_cp_check, BOS_MAX_PRIORITY, NULL);
+bos_task_export(evse_cp, task_entry_evse_cp, BOS_MAX_PRIORITY, NULL);

@@ -13,7 +13,6 @@
 typedef enum{
     open = RESET,
     close = SET,
-    adh_error
 }relay_state_t;
 
 
