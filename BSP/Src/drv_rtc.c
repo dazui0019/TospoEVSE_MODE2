@@ -1,8 +1,8 @@
-#include "gd32f303x_rtc.h"
+#include "drv_rtc.h"
 #include "datetime.h"
 
-//#define LOG_TAG    "rtc"
-//#include "elog.h"
+#define LOG_TAG "driver.rtc"
+#include "elog.h"
 
 #define RTC_CLOCK_SOURCE_LXTAL
 
@@ -50,9 +50,20 @@ void rtc_configuration(void)
             rtc_lwoff_wait();
             /* set RTC prescaler: set RTC period to 1s */
             rtc_prescaler_set(32767);   // 外部晶振 32.768 kHz
-        #elif defined (RTC_CLOCK_SOURCE_LXTAL)
-            // todo
-        #else   // 使用内部低速RC振荡器
+        #elif defined (RTC_CLOCK_SOURCE_IRC40K) // 使用内部低速RC振荡器
+            /* enable RCU_IRC40K */
+            rcu_osci_on(RCU_IRC40K);
+            /* wait till RCU_IRC40K is ready */
+            rcu_osci_stab_wait(RCU_IRC40K);
+            /* select RCU_IRC40K as RTC clock source */
+            rcu_rtc_clock_config(RCU_RTCSRC_IRC40K);
+            /* wait for RTC registers synchronization */
+            rtc_register_sync_wait();
+            /* wait until last write operation on RTC registers has finished */
+            rtc_lwoff_wait();
+            /* set RTC prescaler: set RTC period to 1s */
+            rtc_prescaler_set(39999);   // 内部低速晶振 40 kHz
+        #else
             #error RTC clock source should be defined.
         #endif
 

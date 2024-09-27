@@ -8,7 +8,6 @@ typedef enum{
     CP_9V,
     CP_6V,
     CP_ERROR,
-    CP_ERROR_CLEAR,
 } cp_state_t;
 
 /**

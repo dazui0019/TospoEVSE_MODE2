@@ -308,6 +308,35 @@ static void task_entry_voltage_sample(void *parameter)
 // bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
 
 /**
+ * @brief   用定时器(TIEMR3)触发ADC对NTC采样
+ */
+void evse_ntc_timer_config(uint16_t f)
+{
+    timer_parameter_struct timer_initpara;      // 定时器基本参数
+
+    rcu_periph_clock_enable(RCU_TIMER3);
+    timer_deinit(TIMER3);
+
+    /* TIMER configuration */
+    timer_initpara.prescaler         = ((timer_source_clock_get(TIMER3)/100000U)-1); // TIMERxCLK(TIMERx_CK/PSC) is 1000KHz
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
+    timer_initpara.counterdirection  = TIMER_COUNTER_DOWN;
+    timer_initpara.period            = (100000U/f)-1;
+    timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
+    timer_initpara.repetitioncounter = 0;
+    timer_init(TIMER3, &timer_initpara);
+    
+    timer_update_event_enable(TIMER3);                                  // 配置TIMERx_CTL0的UPDIS
+    timer_single_pulse_mode_config(TIMER3, TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
+    timer_update_source_config(TIMER3, TIMER_UPDATE_SRC_GLOBAL);        // 配置TIMERx_CTL0的UPS
+    
+    timer_primary_output_config(TIMER3, ENABLE);
+    /* auto-reload preload enable */
+    timer_auto_reload_shadow_enable(TIMER3);
+    // timer_enable(TIMER3);
+}
+
+/**
  * @brief   温度采集通道
  */
 void evse_adc_ntc_config(void)
@@ -334,8 +363,13 @@ void evse_adc_ntc_config(void)
     /* ADC external trigger enable */
     adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE);
     /* ADC trigger config */
-    adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_2_EXTTRIG_INSERTED_NONE);
+    adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T3_TRGO);
     
+    /* 开启中断 */
+    adc_interrupt_flag_clear(ADC1, ADC_INT_EOIC);
+    adc_interrupt_enable(ADC1, ADC_INT_EOIC);
+    nvic_irq_enable(ADC0_1_IRQn, 4, 0);
+
     /* enable ADC interface */
     adc_enable(ADC1);
     bos_delay_ms(1);
@@ -343,16 +377,37 @@ void evse_adc_ntc_config(void)
     adc_calibration_enable(ADC1);
 }
 
+uint8_t g_ntc_cplt = false;
+
+void ADC0_1_IRQHandler(void){
+    if(adc_interrupt_flag_get(ADC1, ADC_INT_EOIC)){
+        adc_interrupt_flag_clear(ADC1, ADC_INT_EOIC);
+        g_ntc_cplt = true;
+    }
+}
+
 static void task_entry_ntc_sample(void *parameter)
 {
     evse_adc_ntc_config();
+    evse_ntc_timer_config(2); // 500ms
+
+    while (g_Vrefint == 0){
+        bos_delay_ms(10);
+    }
+    
+
+    TIMER_CTL1(TIMER3) &= (~(uint32_t)TIMER_CTL1_MMC);
+    TIMER_CTL1(TIMER3) |= (uint32_t)TIMER_TRI_OUT_SRC_UPDATE; // 由更新事件产生TRGO信号
+
+    timer_enable(TIMER3);
+
     for(;;){
-        bos_delay_ms(500);
-        adc_software_trigger_enable(ADC1, ADC_INSERTED_CHANNEL);
-        while(adc_flag_get(ADC1, ADC_FLAG_EOIC) == RESET){}
-        adc_flag_clear(ADC1, ADC_FLAG_EOIC);
-        log_d("on_board ntc: %d", ADC_IDATA0(ADC1));
-        log_d("plug ntc: %d", ADC_IDATA1(ADC1));
+        bos_delay_ms(100);
+        if(g_ntc_cplt){
+            g_ntc_cplt = false;
+            log_d("on_board ntc: %.2f V", (1.2*(float)ADC_IDATA0(ADC1)/(float)g_Vrefint));
+            // log_d("plug ntc: %d", ADC_IDATA1(ADC1));
+        }
     }
 }
-// bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);
+bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);

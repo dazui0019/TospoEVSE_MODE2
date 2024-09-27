@@ -28,13 +28,14 @@ typedef enum{
     EVSE_FM_IDLE,          // 未插枪
     EVSE_FM_READY_9V,      // 9v
     EVSE_FM_READY_6V,      // 6v
-    EVSE_FM_FAULT,         // 充电故障
-    EVSE_FM_WAIT_S2,       // 9vPWM(等待S2闭合)
     EVSE_FM_CHARGING,      // 6vPWM
-    EVSE_FM_PAUSE,         // 充电中刷卡/涂鸦APP关闭充电
-    EVSE_FM_S2_TIMEOUT,    // S2超时未断开
     EVSE_FM_DONE,          // CP电平从6vPWM切换至9v(PWM)
+    EVSE_FM_FAULT,         // 充电故障(CP电压不在规定范围内)
+    EVSE_FM_CP_LOST,       // CP断线(6V直接变成12V)
+    EVSE_FM_S2_TIMEOUT,    // S2超时未断开
     EVSE_FM_CLEAR_FAULT,   // 清除充电故障
+    EVSE_FM_PAUSE,         // 充电中刷卡/涂鸦APP关闭充电
+    EVSE_FM_WAIT_S2,       // 9vPWM(等待S2闭合)
 }evse_fm_state_t;
 
 /**
@@ -57,3 +58,6 @@ evse_fm_state_t evse_state_idle(cp_event_t event);
 evse_fm_state_t evse_state_ready_9v(cp_event_t event);
 evse_fm_state_t evse_state_ready_6v(cp_event_t event);
 evse_fm_state_t evse_state_fault(cp_event_t event);
+evse_fm_state_t evse_state_charging(cp_event_t event);
+evse_fm_state_t evse_state_cp_lost(cp_event_t event);
+evse_fm_state_t evse_state_done(cp_event_t event);

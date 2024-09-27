@@ -84,7 +84,7 @@ cp_t g_cp = {
 };
 
 /* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
-__IO uint16_t (*p_cp_adc_buff)[2] = NULL;
+__IO uint16_t (*g_p_adc01_buff)[2] = NULL;
 
 // adc 采样数据DMA缓冲区
 __attribute((used)) uint16_t adc_buff[2][10][2];
@@ -264,10 +264,10 @@ void DMA0_Channel0_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
-        p_cp_adc_buff = adc_buff[1];
+        g_p_adc01_buff = adc_buff[1];
     }else if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_HTF)){
         dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_HTF);
-        p_cp_adc_buff = adc_buff[0];
+        g_p_adc01_buff = adc_buff[0];
     }
 }
 
@@ -366,7 +366,7 @@ uint8_t cp_cur_set(uint8_t cur)
         log_e("param error.");
         return 1;
     }
-    TIMER_CH0CV(CP_TIMER) = duty_table[cur];
+    TIMER_CH1CV(CP_TIMER) = (1000-duty_table[cur]);
     return 0;
 }
 
@@ -506,30 +506,6 @@ cp_state_t get_cp_state(uint16_t vol)
     else                                                                {return CP_ERROR;}
 }
 
-/* CP状态机(感觉有点复杂化了) ----------- */
-
-/**
- * @brief   充电桩重启后的状态
- * @param   val[2]: 电压值, 其中val[0]为CC电压, val[1]为CP电压
- * @retval  None
-*/
-cp_state_t cp_state_reboot(uint16_t vol)
-{
-    if((CP_12V_TH-CP_OFFSET < vol) && (vol < CP_12V_TH+CP_OFFSET))      {return CP_12V;}
-    else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
-    else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
-    else                                                                {return CP_ERROR;}
-}
-
-/**
- * @brief   用来清除异常状态
-*/
-cp_state_t cp_state_err_clear(uint16_t vol)
-{
-    if((CP_12V_TH-CP_OFFSET < vol) && (vol < CP_12V_TH+CP_OFFSET))  {return CP_12V;}
-    else                                                            {return CP_ERROR;}
-}
-
 /* 快速排序算法 ------------------------ */
 int32_t abs(int32_t x) {
     int32_t y = x >> 31;
@@ -571,6 +547,7 @@ static void task_entry_evse_cp(void *parameter)
     extern cp_state_t (*cp_state_func[])(uint16_t); // 状态函数数组
     cp_state_t cp_state = CP_INIT;                  // 默认为重启状态
     cp_state_t last_state = cp_state;               // 记录上一个状态
+    uint8_t gndd_error_cnt = 0;
 
     adc_verf_config();
     bos_delay_ms(500);
@@ -602,26 +579,28 @@ static void task_entry_evse_cp(void *parameter)
 
     for(;;){
         bos_delay_ms(1);
-        if(p_cp_adc_buff != NULL){
+        if(g_p_adc01_buff != NULL){
             // 处理ADC数据
             EventStartA(0);
-            cp_val = get_cp_vol(p_cp_adc_buff, 10);
+            cp_val = get_cp_vol(g_p_adc01_buff, 10);
             cp_state = get_cp_state(cp_val);
-            gnd_val = get_gnd_vol(p_cp_adc_buff, 10);
+            gnd_val = get_gnd_vol(g_p_adc01_buff, 10);
             EventStopA(0);
-            p_cp_adc_buff = NULL;
+            g_p_adc01_buff = NULL;
             // log_d("cp_val: %d, gnd_val: %d", cp_val, gnd_val);
             // log_d("cp_raw: %d, cp_vol: %.2f", cp_val, 1.2*((float)cp_val/(float)g_Vrefint));
             // log_d("gnd_raw: %d, gnd_vol: %.2f", gnd_val, 1.2*((float)gnd_val/(float)g_Vrefint));
             
             // 处理接地检测
-            if(gnd_val >= 10){
-                if(g_gndd_state == EVSE_GNDD_OK){
+            if(gnd_val >= 50){
+                gndd_error_cnt += 1;
+                if(g_gndd_state == EVSE_GNDD_OK && gndd_error_cnt > 2){
                     g_gndd_state = EVSE_GNDD_LOST;
                     log_e("gndd lost, val=%d", gnd_val);
                 }
                 // continue; // 先不管CP状态，立即处理接地检测
             }else{
+                gndd_error_cnt = 0;
                 if(g_gndd_state == EVSE_GNDD_LOST){
                     g_gndd_state = EVSE_GNDD_OK;
                     log_i("gndd ok.");

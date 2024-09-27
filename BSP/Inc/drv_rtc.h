@@ -1,6 +1,6 @@
 #pragma once
 
-#include "main.h"
+#include "gd32f30x.h"
 
 #define UTC_OFFSET (28800U)
 
