@@ -84,7 +84,7 @@ static void evse_adh_adc_dma_config(void)
 }
 
 /**
- * @brief   CP和接地检测初始化
+ * @brief   粘连检测
 */
 void evse_adh_adc_config(void)
 {

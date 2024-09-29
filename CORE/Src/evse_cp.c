@@ -81,6 +81,8 @@ cp_t g_cp = {
     .set_cur    = cp_cur_set,
     .pwm_ctrl   = pwm_ctrl,
     .ck_ctrl    = ck_ctrl,
+    .get_cp_vol = get_cp_vol,
+    .get_cp_state = get_cp_state
 };
 
 /* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
@@ -170,40 +172,6 @@ static void cp_check_dma_config(void)
     nvic_irq_enable(DMA0_Channel0_IRQn,5,0);
     /* enable DMA channel */
     dma_channel_enable(DMA0, DMA_CH0);
-}
-
-/**
- * @brief   获取芯片内部1.2V基准电压值
- */
-void adc_verf_config(void)
-{
-    adc_deinit(ADC0);
-    rcu_periph_clock_enable(RCU_ADC0);
-    /* ADC mode config */
-    adc_mode_config(ADC_MODE_FREE);
-    /* ADC data alignment config */
-    adc_data_alignment_config(ADC0, ADC_DATAALIGN_RIGHT);
-    /* ADC SCAN function enable */
-    adc_special_function_config(ADC0, ADC_SCAN_MODE, DISABLE);
-
-    /* ADC channel length config */
-    adc_channel_length_config(ADC0, ADC_INSERTED_CHANNEL, 1);
-    /* ADC internal reference voltage channel config */
-    adc_inserted_channel_config(ADC0, 0, ADC_CHANNEL_17, ADC_SAMPLETIME_239POINT5);
-
-    /* ADC external trigger enable */
-    adc_external_trigger_config(ADC0, ADC_INSERTED_CHANNEL, ENABLE);
-    /* ADC trigger config */
-    adc_external_trigger_source_config(ADC0, ADC_INSERTED_CHANNEL, ADC0_1_2_EXTTRIG_INSERTED_NONE);
-
-    /* ADC temperature and Vrefint enable */
-    adc_tempsensor_vrefint_enable();
-    
-    /* enable ADC interface */
-    adc_enable(ADC0);
-    bos_delay_ms(1);
-    /* ADC calibration and reset calibration */
-    adc_calibration_enable(ADC0);
 }
 
 /**
@@ -541,99 +509,99 @@ void quickSort(uint16_t arr[], int low, int high) {
 }
 
 /* Basic OS 任务函数 */
-static void task_entry_evse_cp(void *parameter)
-{
-    uint16_t cp_val, gnd_val;                       // CP电平和接地检测的ADC Raw值。
-    extern cp_state_t (*cp_state_func[])(uint16_t); // 状态函数数组
-    cp_state_t cp_state = CP_INIT;                  // 默认为重启状态
-    cp_state_t last_state = cp_state;               // 记录上一个状态
-    uint8_t gndd_error_cnt = 0;
+// static void task_entry_evse_cp(void *parameter)
+// {
+//     uint16_t cp_val, gnd_val;                       // CP电平和接地检测的ADC Raw值。
+//     extern cp_state_t (*cp_state_func[])(uint16_t); // 状态函数数组
+//     cp_state_t cp_state = CP_INIT;                  // 默认为重启状态
+//     cp_state_t last_state = cp_state;               // 记录上一个状态
+//     uint8_t gndd_error_cnt = 0;
 
-    adc_verf_config();
-    bos_delay_ms(500);
+//     adc_verf_config();
+//     bos_delay_ms(500);
 
-    /* 获取内部1.2V基准电压的ADC值 */
-    for(int i = 10; i>0; i--){
-        adc_software_trigger_enable(ADC0, ADC_INSERTED_CHANNEL);
-        while(adc_flag_get(ADC0, ADC_FLAG_EOIC) == RESET){}
-        adc_flag_clear(ADC0, ADC_FLAG_EOIC);
-        // log_i("Vrefint: %d", ADC_IDATA0(ADC0));
-        g_Vrefint += ADC_IDATA0(ADC0);
-    }
-    g_Vrefint /= 10;
-    log_d("Vrefint: %d", g_Vrefint);
+//     /* 获取内部1.2V基准电压的ADC值 */
+//     for(int i = 10; i>0; i--){
+//         adc_software_trigger_enable(ADC0, ADC_INSERTED_CHANNEL);
+//         while(adc_flag_get(ADC0, ADC_FLAG_EOIC) == RESET){}
+//         adc_flag_clear(ADC0, ADC_FLAG_EOIC);
+//         // log_i("Vrefint: %d", ADC_IDATA0(ADC0));
+//         g_Vrefint += ADC_IDATA0(ADC0);
+//     }
+//     g_Vrefint /= 10;
+//     log_d("Vrefint: %d", g_Vrefint);
 
-    // bos_delay_ms(500);
-    // evse_relay_ctrl(close);
+//     // bos_delay_ms(500);
+//     // evse_relay_ctrl(close);
 
-    // for(;;){
-    //     bos_delay_ms(10);
-    // }
+//     // for(;;){
+//     //     bos_delay_ms(10);
+//     // }
 
-    g_cp.init(1000);          // CP输出和检测初始化
-    g_cp.set_cur(16);         // 设置最大电流
-    g_cp.pwm_ctrl(DISABLE);
-    g_cp.ck_ctrl(ENABLE);
+//     g_cp.init(1000);          // CP输出和检测初始化
+//     g_cp.set_cur(16);         // 设置最大电流
+//     g_cp.pwm_ctrl(DISABLE);
+//     g_cp.ck_ctrl(ENABLE);
 
-    log_d("CP init done.");
+//     log_d("CP init done.");
 
-    for(;;){
-        bos_delay_ms(1);
-        if(g_p_adc01_buff != NULL){
-            // 处理ADC数据
-            EventStartA(0);
-            cp_val = get_cp_vol(g_p_adc01_buff, 10);
-            cp_state = get_cp_state(cp_val);
-            gnd_val = get_gnd_vol(g_p_adc01_buff, 10);
-            EventStopA(0);
-            g_p_adc01_buff = NULL;
-            // log_d("cp_val: %d, gnd_val: %d", cp_val, gnd_val);
-            // log_d("cp_raw: %d, cp_vol: %.2f", cp_val, 1.2*((float)cp_val/(float)g_Vrefint));
-            // log_d("gnd_raw: %d, gnd_vol: %.2f", gnd_val, 1.2*((float)gnd_val/(float)g_Vrefint));
+//     for(;;){
+//         bos_delay_ms(1);
+//         if(g_p_adc01_buff != NULL){
+//             // 处理ADC数据
+//             EventStartA(0);
+//             cp_val = get_cp_vol(g_p_adc01_buff, 10);
+//             cp_state = get_cp_state(cp_val);
+//             gnd_val = get_gnd_vol(g_p_adc01_buff, 10);
+//             EventStopA(0);
+//             g_p_adc01_buff = NULL;
+//             // log_d("cp_val: %d, gnd_val: %d", cp_val, gnd_val);
+//             // log_d("cp_raw: %d, cp_vol: %.2f", cp_val, 1.2*((float)cp_val/(float)g_Vrefint));
+//             // log_d("gnd_raw: %d, gnd_vol: %.2f", gnd_val, 1.2*((float)gnd_val/(float)g_Vrefint));
             
-            // 处理接地检测
-            if(gnd_val >= 50){
-                gndd_error_cnt += 1;
-                if(g_gndd_state == EVSE_GNDD_OK && gndd_error_cnt > 2){
-                    g_gndd_state = EVSE_GNDD_LOST;
-                    log_e("gndd lost, val=%d", gnd_val);
-                }
-                // continue; // 先不管CP状态，立即处理接地检测
-            }else{
-                gndd_error_cnt = 0;
-                if(g_gndd_state == EVSE_GNDD_LOST){
-                    g_gndd_state = EVSE_GNDD_OK;
-                    log_i("gndd ok.");
-                }
-            }
+//             // 处理接地检测
+//             if(gnd_val >= 50){
+//                 gndd_error_cnt += 1;
+//                 if(g_gndd_state == EVSE_GNDD_OK && gndd_error_cnt > 2){
+//                     g_gndd_state = EVSE_GNDD_LOST;
+//                     log_e("gndd lost, val=%d", gnd_val);
+//                 }
+//                 // continue; // 先不管CP状态，立即处理接地检测
+//             }else{
+//                 gndd_error_cnt = 0;
+//                 if(g_gndd_state == EVSE_GNDD_LOST){
+//                     g_gndd_state = EVSE_GNDD_OK;
+//                     log_i("gndd ok.");
+//                 }
+//             }
 
-            // 更新CP状态
-            if(last_state == cp_state)
-                continue;
+//             // 更新CP状态
+//             if(last_state == cp_state)
+//                 continue;
                 
-            switch (cp_state)
-            {
-            case CP_12V:
-                log_d("CP_12V");
-                g_cp_event = EVENT_CP_12V;
-                break;
-            case CP_9V:
-                log_d("CP_9V");
-                g_cp_event = EVENT_CP_9V;
-                break;
-            case CP_6V:
-                log_d("CP_6V");
-                g_cp_event = EVENT_CP_6V;
-                break;
-            case CP_ERROR:
-            default:
-                log_e("CP_ERROR, val=%d", cp_val);
-                g_cp_event = EVENT_CP_ERROR;
-                break;
-            }
-            // 保存上一次的状态
-            last_state = cp_state;
-        }
-    }
-}
-bos_task_export(evse_cp, task_entry_evse_cp, BOS_MAX_PRIORITY, NULL);
+//             switch (cp_state)
+//             {
+//             case CP_12V:
+//                 log_d("CP_12V");
+//                 g_cp_event = EVENT_CP_12V;
+//                 break;
+//             case CP_9V:
+//                 log_d("CP_9V");
+//                 g_cp_event = EVENT_CP_9V;
+//                 break;
+//             case CP_6V:
+//                 log_d("CP_6V");
+//                 g_cp_event = EVENT_CP_6V;
+//                 break;
+//             case CP_ERROR:
+//             default:
+//                 log_e("CP_ERROR, val=%d", cp_val);
+//                 g_cp_event = EVENT_CP_ERROR;
+//                 break;
+//             }
+//             // 保存上一次的状态
+//             last_state = cp_state;
+//         }
+//     }
+// }
+// bos_task_export(evse_cp, task_entry_evse_cp, BOS_MAX_PRIORITY, NULL);

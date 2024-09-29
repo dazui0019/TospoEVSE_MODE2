@@ -1,6 +1,6 @@
 /**
  * @file        evse_comm.c
- * @brief       与LCD板通信的串口驱动
+ * @brief       与LCD板通信的串口驱动, 任务void task_entry_comm(void *parameter)用于串口接收。
  */
 #include "evse_comm.h"
 #include "lwrb.h"

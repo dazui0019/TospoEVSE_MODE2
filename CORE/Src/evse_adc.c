@@ -1,3 +1,8 @@
+/**
+ * @file        evse_adc.c
+ * @brief       充电桩的ADC采样部分, 除了CP和接地检测以外, 全在这个文件里
+ * @todo        后面CP和接地检测部分也可以放在这个文件里
+ */
 #include "evse_adc.h"
 #include "basic_os.h"
 #include "drv_timer.h"
@@ -59,6 +64,40 @@ uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
 
 // adc 采样数据DMA缓冲区
 __attribute((used)) uint16_t adc2_buff[100][2];
+
+/**
+ * @brief   获取芯片内部1.2V基准电压值
+ */
+void adc_verf_config(void)
+{
+    adc_deinit(ADC0);
+    rcu_periph_clock_enable(RCU_ADC0);
+    /* ADC mode config */
+    adc_mode_config(ADC_MODE_FREE);
+    /* ADC data alignment config */
+    adc_data_alignment_config(ADC0, ADC_DATAALIGN_RIGHT);
+    /* ADC SCAN function enable */
+    adc_special_function_config(ADC0, ADC_SCAN_MODE, DISABLE);
+
+    /* ADC channel length config */
+    adc_channel_length_config(ADC0, ADC_INSERTED_CHANNEL, 1);
+    /* ADC internal reference voltage channel config */
+    adc_inserted_channel_config(ADC0, 0, ADC_CHANNEL_17, ADC_SAMPLETIME_239POINT5);
+
+    /* ADC external trigger enable */
+    adc_external_trigger_config(ADC0, ADC_INSERTED_CHANNEL, ENABLE);
+    /* ADC trigger config */
+    adc_external_trigger_source_config(ADC0, ADC_INSERTED_CHANNEL, ADC0_1_2_EXTTRIG_INSERTED_NONE);
+
+    /* ADC temperature and Vrefint enable */
+    adc_tempsensor_vrefint_enable();
+    
+    /* enable ADC interface */
+    adc_enable(ADC0);
+    bos_delay_ms(1);
+    /* ADC calibration and reset calibration */
+    adc_calibration_enable(ADC0);
+}
 
 void freq_exti_config(void)
 {
