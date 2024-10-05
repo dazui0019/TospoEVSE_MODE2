@@ -15,19 +15,20 @@
 /* CP输出 */
 #define CP_TIMER        (TIMER2)
 #define CP_TIMER_RCU    (RCU_TIMER2)
-#define CP_TIMER_CH     (TIMER_CH_1)
-#define CP_PORT         (GPIOB)
-#define CP_PIN          (GPIO_PIN_5)
-#define CP_PORT_RCU     (RCU_GPIOB)
+#define CP_TIMER_CH     (TIMER_CH_0)
+#define CP_TIMER_IRQ    (TIMER2_IRQn)
+#define CP_PORT         (GPIOA)
+#define CP_PIN          (GPIO_PIN_6)
+#define CP_PORT_RCU     (RCU_GPIOA)
 
-#define CK_ADC          ADC0
-#define CK_ADC_RCU      RCU_ADC0
+#define CK_ADC          ADC2
+#define CK_ADC_RCU      RCU_ADC2
 /* CP检测 */
-#define CK_CP_PORT      GPIOB
-#define CK_CP_RCU       RCU_GPIOB
-#define CK_CP_PIN       GPIO_PIN_1
+#define CK_CP_PORT      GPIOA
+#define CK_CP_RCU       RCU_GPIOA
+#define CK_CP_PIN       GPIO_PIN_0
 
-#define CK_CP_ADC_CH    ADC_CHANNEL_9
+#define CK_CP_ADC_CH    ADC_CHANNEL_0
 /* 接地检测 */
 #define CK_GND_PORT     GPIOA
 #define CK_GND_RCU      RCU_GPIOA
@@ -86,10 +87,10 @@ cp_t g_cp = {
 };
 
 /* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
-__IO uint16_t (*g_p_adc01_buff)[2] = NULL;
+__IO uint16_t *g_p_adc01_buff = NULL;
 
 // adc 采样数据DMA缓冲区
-__attribute((used)) uint16_t adc_buff[2][10][2];
+__attribute((used)) uint16_t adc_buff[2][10];
 
 /**
  * @brief   CP PWM 输出初始化, 默认输出低电平
@@ -104,7 +105,7 @@ void cp_pwm_init(uint32_t f)
     /*Configure PIN as remap function*/
     rcu_periph_clock_enable(CP_PORT_RCU);
     rcu_periph_clock_enable(RCU_AF);
-    gpio_pin_remap_config(GPIO_TIMER2_PARTIAL_REMAP, ENABLE);       // 开启TIMER2的REMAP
+    // gpio_pin_remap_config(GPIO_TIMER2_PARTIAL_REMAP, ENABLE);       // 开启TIMER2的REMAP
     gpio_init(CP_PORT, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, CP_PIN); // 配置GPIO AF功能
 
     rcu_periph_clock_enable(CP_TIMER_RCU);
@@ -128,18 +129,34 @@ void cp_pwm_init(uint32_t f)
     timer_update_source_config(CP_TIMER, TIMER_UPDATE_SRC_GLOBAL);        // 配置TIMERx_CTL0的UPS
 
     /* TIMERx channelx duty cycle = (((TIMER_CAR(CP_TIMER)+1)/20)/ TIMER_CAR(CP_TIMER))* 100  = 5% */    
-    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, (1000000U/f)/2);
-    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_PWM1);        // 先输出低电平
+    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 100); //
+    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_PWM0);        // 先输出低电平
     timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_ENABLE);  // 使能CHxCV寄存器的影子寄存器
 
-    timer_primary_output_config(CP_TIMER, ENABLE);
+    timer_primary_output_config(CP_TIMER, DISABLE);
     /* auto-reload preload enable */
     timer_auto_reload_shadow_enable(CP_TIMER);
+
+    timer_interrupt_flag_clear(CP_TIMER, TIMER_INT_UP);
+    // timer_interrupt_enable(CP_TIMER, TIMER_INT_UP);
+    nvic_irq_enable(CP_TIMER_IRQ, 5, 0);
 
     timer_enable(CP_TIMER);
 
     /* CP电平检测初始化 */
     cp_check_init();
+}
+
+void TIMER2_IRQHandler(void)
+{
+    /* TIMER2只开了一个中断，所以就不判断了 */
+    ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
+    TIMER_INTF(TIMER2) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
+    // if(timer_interrupt_flag_get(TIMER2, TIMER_INT_UP) != RESET){
+    //     timer_interrupt_flag_clear(TIMER2, TIMER_INT_UP);
+    //     adc_software_trigger_enable(CK_ADC, ADC_REGULAR_CHANNEL);
+    //     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;
+    // }
 }
 
 /**
@@ -151,36 +168,27 @@ static void cp_check_dma_config(void)
     dma_parameter_struct dma_data_parameter;
     
     /* ADC_DMA_channel deinit */
-    dma_deinit(DMA0, DMA_CH0);
+    dma_deinit(DMA1, DMA_CH4);
 
-    rcu_periph_clock_enable(RCU_DMA0);
+    rcu_periph_clock_enable(RCU_DMA1);
     /* initialize DMA single data mode */
-    dma_data_parameter.periph_addr  = (uint32_t)(&ADC_RDATA(CK_ADC));
+    dma_data_parameter.periph_addr  = (uint32_t)(&ADC_RDATA(ADC2));
     dma_data_parameter.periph_inc   = DMA_PERIPH_INCREASE_DISABLE;
     dma_data_parameter.memory_addr  = (uint32_t)(adc_buff);
     dma_data_parameter.memory_inc   = DMA_MEMORY_INCREASE_ENABLE;
     dma_data_parameter.periph_width = DMA_PERIPHERAL_WIDTH_16BIT;
     dma_data_parameter.memory_width = DMA_MEMORY_WIDTH_16BIT;
     dma_data_parameter.direction    = DMA_PERIPHERAL_TO_MEMORY;
-    dma_data_parameter.number       = SAMPLE_NUM*4;
+    dma_data_parameter.number       = 10*2;
     dma_data_parameter.priority     = DMA_PRIORITY_HIGH;
-    dma_flag_clear(DMA0, DMA_CH0, DMA_FLAG_HTF|DMA_FLAG_FTF);
-    dma_init(DMA0, DMA_CH0, &dma_data_parameter);
+    dma_flag_clear(DMA1, DMA_CH4, DMA_FLAG_HTF|DMA_FLAG_FTF);
+    dma_init(DMA1, DMA_CH4, &dma_data_parameter);
   
-    dma_circulation_enable(DMA0, DMA_CH0);
-    dma_interrupt_enable(DMA0,DMA_CH0, DMA_CHXCTL_HTFIE|DMA_CHXCTL_FTFIE);
-    nvic_irq_enable(DMA0_Channel0_IRQn,5,0);
+    dma_circulation_enable(DMA1, DMA_CH4);
+    dma_interrupt_enable(DMA1,DMA_CH4, DMA_FLAG_HTF|DMA_CHXCTL_FTFIE);
+    nvic_irq_enable(DMA1_Channel3_Channel4_IRQn,5,0);
     /* enable DMA channel */
-    dma_channel_enable(DMA0, DMA_CH0);
-}
-
-/**
- * @brief   检查车端二极管S1是否存在
- */
-void s1_ck_init(void)
-{
-    rcu_periph_clock_enable(S1_CK_RCU);
-    gpio_init(S1_CK_PORT, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_MAX, S1_CK_PIN);
+    dma_channel_enable(DMA1, DMA_CH4);
 }
 
 /**
@@ -192,7 +200,6 @@ void cp_check_init(void)
     /* GPIO配置 */
     rcu_periph_clock_enable(CK_CP_RCU);
     gpio_init(CK_CP_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, CK_CP_PIN);
-    gpio_init(CK_GND_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, CK_GND_PIN);
     /* enable ADC clock */
     rcu_periph_clock_enable(CK_ADC_RCU);
     /* config ADC clock */
@@ -202,22 +209,21 @@ void cp_check_init(void)
     /* ADC data alignment config */
     adc_data_alignment_config(CK_ADC, ADC_DATAALIGN_RIGHT);
     /* ADC SCAN function disable */
-    adc_special_function_config(CK_ADC, ADC_SCAN_MODE, ENABLE);
+    adc_special_function_config(CK_ADC, ADC_SCAN_MODE, DISABLE);
     /* 关闭连续模式(触发一次转换一次) */
     adc_special_function_config(CK_ADC, ADC_CONTINUOUS_MODE, DISABLE);
     /* ADC channel length config */
-    adc_channel_length_config(CK_ADC, ADC_REGULAR_CHANNEL, 2);
+    adc_channel_length_config(CK_ADC, ADC_REGULAR_CHANNEL, 1);
     /* ADC0_CHx config */
     adc_regular_channel_config(CK_ADC, 0, CK_CP_ADC_CH, ADC_SAMPLETIME_7POINT5);
-    adc_regular_channel_config(CK_ADC, 1, CK_GND_ADC_CH, ADC_SAMPLETIME_7POINT5);
     /* ADC trigger config */
-    adc_external_trigger_source_config(CK_ADC, ADC_REGULAR_CHANNEL, ADC0_1_EXTTRIG_REGULAR_T2_TRGO); // 由TIMER2_TRGO触发
+    adc_external_trigger_source_config(CK_ADC, ADC_REGULAR_CHANNEL, ADC0_1_2_EXTTRIG_REGULAR_NONE); // 由软件触发
     /* ADC external trigger enable */
     adc_external_trigger_config(CK_ADC, ADC_REGULAR_CHANNEL, ENABLE);   // 软件触发也算外部触发的。
     /* enable ADC interface */
     adc_enable(CK_ADC);
     
-    bos_delay_ms(1); // 延时一下
+    // bos_delay_ms(1); // 延时一下
 
     /* ADC calibration and reset calibration */
     adc_calibration_enable(CK_ADC);
@@ -228,13 +234,13 @@ void cp_check_init(void)
     cp_check_dma_config();      // 配置DMA
 }
 
-void DMA0_Channel0_IRQHandler(void)
+void DMA1_Channel3_4_IRQHandler(void)
 {
-    if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){
-        dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
+    if(dma_interrupt_flag_get(DMA1, DMA_CH4, DMA_INT_FLAG_FTF)){
+        dma_interrupt_flag_clear(DMA1, DMA_CH4, DMA_INT_FLAG_FTF);
         g_p_adc01_buff = adc_buff[1];
-    }else if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_HTF)){
-        dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_HTF);
+    }else if(dma_interrupt_flag_get(DMA1, DMA_CH4, DMA_INT_FLAG_HTF)){
+        dma_interrupt_flag_clear(DMA1, DMA_CH4, DMA_INT_FLAG_HTF);
         g_p_adc01_buff = adc_buff[0];
     }
 }
@@ -334,7 +340,16 @@ uint8_t cp_cur_set(uint8_t cur)
         log_e("param error.");
         return 1;
     }
-    TIMER_CH1CV(CP_TIMER) = (1000-duty_table[cur]);
+
+    if(TIMER_OC_MODE_PWM0 == (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL))){
+        timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
+        log_d("PWM0");
+    }
+    else if (TIMER_OC_MODE_PWM1 == (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL))){
+        timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 1000-duty_table[cur]);
+        log_d("PWM1");
+    }
+
     return 0;
 }
 
@@ -347,11 +362,10 @@ uint8_t cp_cur_set(uint8_t cur)
 void ck_ctrl(ControlStatus status){
     switch(status){
     case ENABLE:
-        TIMER_CTL1(CP_TIMER) &= (~(uint32_t)TIMER_CTL1_MMC);
-        TIMER_CTL1(CP_TIMER) |= (uint32_t)TIMER_TRI_OUT_SRC_UPDATE; // 由更新事件产生TRGO信号
+        timer_interrupt_enable(CP_TIMER, TIMER_INT_UP); // 开启更新中断
         break;
     case DISABLE:
-        TIMER_CTL1(CP_TIMER) &= (~(uint32_t)TIMER_CTL1_MMC);    // 关闭定时器TRGO输出
+        timer_interrupt_disable(CP_TIMER, TIMER_INT_UP); // 关闭更新中断
         break;
     default:
         break;
@@ -472,6 +486,15 @@ cp_state_t get_cp_state(uint16_t vol)
     else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
     else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
     else                                                                {return CP_ERROR;}
+}
+
+/**
+ * @brief   检查车端二极管S1是否存在
+ */
+void s1_ck_init(void)
+{
+    rcu_periph_clock_enable(S1_CK_RCU);
+    gpio_init(S1_CK_PORT, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_MAX, S1_CK_PIN);
 }
 
 /* 快速排序算法 ------------------------ */
@@ -605,3 +628,19 @@ void quickSort(uint16_t arr[], int low, int high) {
 //     }
 // }
 // bos_task_export(evse_cp, task_entry_evse_cp, BOS_MAX_PRIORITY, NULL);
+
+void task_entry_cp_test(void *parameter)
+{
+    uint16_t vol;
+    cp_pwm_init(1000);
+    cp_cur_set(6);
+    timer_interrupt_enable(TIMER2, TIMER_INT_UP);
+    for(;;){
+        if(g_p_adc01_buff != NULL){
+            vol = get_voltage(g_p_adc01_buff, 10);
+            log_i("vol: %d", vol);
+        }
+        bos_delay_ms(1);
+    }
+}
+bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);

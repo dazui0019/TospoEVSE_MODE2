@@ -217,16 +217,16 @@ static void adc2_dma_config(void)
     dma_channel_enable(DMA1, DMA_CH4);
 }
 
-void DMA1_Channel3_4_IRQHandler(void)
-{
-    if(dma_interrupt_flag_get(DMA1, DMA_CH4, DMA_INT_FLAG_FTF)){
-        dma_interrupt_flag_clear(DMA1, DMA_CH4, DMA_INT_FLAG_FTF);
-        g_p_adc2_buff = adc2_buff;
-        exti_interrupt_enable(EXTI_6);
-        timer_disable(TIMER1);
-        timer_counter_value_config(TIMER1, 0);
-    }
-}
+// void DMA1_Channel3_4_IRQHandler(void)
+// {
+//     if(dma_interrupt_flag_get(DMA1, DMA_CH4, DMA_INT_FLAG_FTF)){
+//         dma_interrupt_flag_clear(DMA1, DMA_CH4, DMA_INT_FLAG_FTF);
+//         g_p_adc2_buff = adc2_buff;
+//         exti_interrupt_enable(EXTI_6);
+//         timer_disable(TIMER1);
+//         timer_counter_value_config(TIMER1, 0);
+//     }
+// }
 
 /**
  * @brief   电压采集通道
@@ -378,75 +378,75 @@ void evse_ntc_timer_config(uint16_t f)
 /**
  * @brief   温度采集通道
  */
-void evse_adc_ntc_config(void)
-{
-    adc_deinit(ADC1);
+// void evse_adc_ntc_config(void)
+// {
+//     adc_deinit(ADC1);
 
-    rcu_periph_clock_enable(ON_BOARD_NTC_PORT_RCU);
-    rcu_periph_clock_enable(PLUG_NTC_PORT_RCU);
-    gpio_init(ON_BOARD_NTC_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, ON_BOARD_NTC_PIN);
-    gpio_init(PLUG_NTC_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, PLUG_NTC_PIN);
+//     rcu_periph_clock_enable(ON_BOARD_NTC_PORT_RCU);
+//     rcu_periph_clock_enable(PLUG_NTC_PORT_RCU);
+//     gpio_init(ON_BOARD_NTC_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, ON_BOARD_NTC_PIN);
+//     gpio_init(PLUG_NTC_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, PLUG_NTC_PIN);
 
-    rcu_periph_clock_enable(RCU_ADC1);
-    /* ADC mode config */
-    adc_mode_config(ADC_MODE_FREE);
-    /* ADC data alignment config */
-    adc_data_alignment_config(ADC1, ADC_DATAALIGN_RIGHT);
-    /* ADC SCAN function enable */
-    adc_special_function_config(ADC1, ADC_SCAN_MODE, ENABLE);
+//     rcu_periph_clock_enable(RCU_ADC1);
+//     /* ADC mode config */
+//     adc_mode_config(ADC_MODE_FREE);
+//     /* ADC data alignment config */
+//     adc_data_alignment_config(ADC1, ADC_DATAALIGN_RIGHT);
+//     /* ADC SCAN function enable */
+//     adc_special_function_config(ADC1, ADC_SCAN_MODE, ENABLE);
 
-    adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 2);
-    adc_inserted_channel_config(ADC1, 0, ON_BOARD_NTC_ADC_CH, ADC_SAMPLETIME_239POINT5);
-    adc_inserted_channel_config(ADC1, 1, PLUG_NTC_ADC_CH, ADC_SAMPLETIME_239POINT5);
+//     adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 2);
+//     adc_inserted_channel_config(ADC1, 0, ON_BOARD_NTC_ADC_CH, ADC_SAMPLETIME_239POINT5);
+//     adc_inserted_channel_config(ADC1, 1, PLUG_NTC_ADC_CH, ADC_SAMPLETIME_239POINT5);
 
-    /* ADC external trigger enable */
-    adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE);
-    /* ADC trigger config */
-    adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T3_TRGO);
+//     /* ADC external trigger enable */
+//     adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE);
+//     /* ADC trigger config */
+//     adc_external_trigger_source_config(ADC1, ADC_INSERTED_CHANNEL, ADC0_1_EXTTRIG_INSERTED_T3_TRGO);
     
-    /* 开启中断 */
-    adc_interrupt_flag_clear(ADC1, ADC_INT_EOIC);
-    adc_interrupt_enable(ADC1, ADC_INT_EOIC);
-    nvic_irq_enable(ADC0_1_IRQn, 4, 0);
+//     /* 开启中断 */
+//     adc_interrupt_flag_clear(ADC1, ADC_INT_EOIC);
+//     adc_interrupt_enable(ADC1, ADC_INT_EOIC);
+//     nvic_irq_enable(ADC0_1_IRQn, 4, 0);
 
-    /* enable ADC interface */
-    adc_enable(ADC1);
-    bos_delay_ms(1);
-    /* ADC calibration and reset calibration */
-    adc_calibration_enable(ADC1);
-}
+//     /* enable ADC interface */
+//     adc_enable(ADC1);
+//     bos_delay_ms(1);
+//     /* ADC calibration and reset calibration */
+//     adc_calibration_enable(ADC1);
+// }
 
-uint8_t g_ntc_cplt = false;
+// uint8_t g_ntc_cplt = false;
 
-void ADC0_1_IRQHandler(void){
-    if(adc_interrupt_flag_get(ADC1, ADC_INT_EOIC)){
-        adc_interrupt_flag_clear(ADC1, ADC_INT_EOIC);
-        g_ntc_cplt = true;
-    }
-}
+// void ADC0_1_IRQHandler(void){
+//     if(adc_interrupt_flag_get(ADC1, ADC_INT_EOIC)){
+//         adc_interrupt_flag_clear(ADC1, ADC_INT_EOIC);
+//         g_ntc_cplt = true;
+//     }
+// }
 
-static void task_entry_ntc_sample(void *parameter)
-{
-    evse_adc_ntc_config();
-    evse_ntc_timer_config(2); // 500ms
+// static void task_entry_ntc_sample(void *parameter)
+// {
+//     evse_adc_ntc_config();
+//     evse_ntc_timer_config(2); // 500ms
 
-    while (g_Vrefint == 0){
-        bos_delay_ms(10);
-    }
+//     while (g_Vrefint == 0){
+//         bos_delay_ms(10);
+//     }
     
 
-    TIMER_CTL1(TIMER3) &= (~(uint32_t)TIMER_CTL1_MMC);
-    TIMER_CTL1(TIMER3) |= (uint32_t)TIMER_TRI_OUT_SRC_UPDATE; // 由更新事件产生TRGO信号
+//     TIMER_CTL1(TIMER3) &= (~(uint32_t)TIMER_CTL1_MMC);
+//     TIMER_CTL1(TIMER3) |= (uint32_t)TIMER_TRI_OUT_SRC_UPDATE; // 由更新事件产生TRGO信号
 
-    timer_enable(TIMER3);
+//     timer_enable(TIMER3);
 
-    for(;;){
-        bos_delay_ms(100);
-        if(g_ntc_cplt){
-            g_ntc_cplt = false;
-            log_d("on_board ntc: %.2f V", (1.2*(float)ADC_IDATA0(ADC1)/(float)g_Vrefint));
-            // log_d("plug ntc: %d", ADC_IDATA1(ADC1));
-        }
-    }
-}
-bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);
+//     for(;;){
+//         bos_delay_ms(100);
+//         if(g_ntc_cplt){
+//             g_ntc_cplt = false;
+//             log_d("on_board ntc: %.2f V", (1.2*(float)ADC_IDATA0(ADC1)/(float)g_Vrefint));
+//             // log_d("plug ntc: %d", ADC_IDATA1(ADC1));
+//         }
+//     }
+// }
+// bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);

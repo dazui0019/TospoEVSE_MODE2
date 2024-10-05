@@ -434,6 +434,11 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_charge.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_ntc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_ntc.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

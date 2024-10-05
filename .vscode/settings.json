@@ -49,7 +49,8 @@
         "evse_relay.h": "c",
         "evse_adh.h": "c",
         "drv_timer.h": "c",
-        "evse_charge.h": "c"
+        "evse_charge.h": "c",
+        "evse_ntc.h": "c"
     },
     "C_Cpp.default.includePath": [
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS\\GD\\GD32F30x\\Include",
