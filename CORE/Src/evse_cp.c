@@ -15,11 +15,11 @@
 /* CP输出 */
 #define CP_TIMER        (TIMER2)
 #define CP_TIMER_RCU    (RCU_TIMER2)
-#define CP_TIMER_CH     (TIMER_CH_0)
+#define CP_TIMER_CH     (TIMER_CH_1)
 #define CP_TIMER_IRQ    (TIMER2_IRQn)
-#define CP_PORT         (GPIOA)
-#define CP_PIN          (GPIO_PIN_6)
-#define CP_PORT_RCU     (RCU_GPIOA)
+#define CP_PORT         (GPIOB)
+#define CP_PIN          (GPIO_PIN_5)
+#define CP_PORT_RCU     (RCU_GPIOB)
 
 #define CK_ADC          ADC2
 #define CK_ADC_RCU      RCU_ADC2
@@ -105,7 +105,7 @@ void cp_pwm_init(uint32_t f)
     /*Configure PIN as remap function*/
     rcu_periph_clock_enable(CP_PORT_RCU);
     rcu_periph_clock_enable(RCU_AF);
-    // gpio_pin_remap_config(GPIO_TIMER2_PARTIAL_REMAP, ENABLE);       // 开启TIMER2的REMAP
+    gpio_pin_remap_config(GPIO_TIMER2_PARTIAL_REMAP, ENABLE);       // 开启TIMER2的REMAP
     gpio_init(CP_PORT, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, CP_PIN); // 配置GPIO AF功能
 
     rcu_periph_clock_enable(CP_TIMER_RCU);
@@ -129,8 +129,8 @@ void cp_pwm_init(uint32_t f)
     timer_update_source_config(CP_TIMER, TIMER_UPDATE_SRC_GLOBAL);        // 配置TIMERx_CTL0的UPS
 
     /* TIMERx channelx duty cycle = (((TIMER_CAR(CP_TIMER)+1)/20)/ TIMER_CAR(CP_TIMER))* 100  = 5% */    
-    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 100); //
-    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_PWM0);        // 先输出低电平
+    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_PWM1);        // 先输出低电平
+    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 950); //
     timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_ENABLE);  // 使能CHxCV寄存器的影子寄存器
 
     timer_primary_output_config(CP_TIMER, DISABLE);
@@ -138,7 +138,7 @@ void cp_pwm_init(uint32_t f)
     timer_auto_reload_shadow_enable(CP_TIMER);
 
     timer_interrupt_flag_clear(CP_TIMER, TIMER_INT_UP);
-    // timer_interrupt_enable(CP_TIMER, TIMER_INT_UP);
+    timer_interrupt_disable(CP_TIMER, TIMER_INT_UP);
     nvic_irq_enable(CP_TIMER_IRQ, 5, 0);
 
     timer_enable(CP_TIMER);
@@ -223,7 +223,7 @@ void cp_check_init(void)
     /* enable ADC interface */
     adc_enable(CK_ADC);
     
-    // bos_delay_ms(1); // 延时一下
+    bos_delay_ms(1); // 延时一下
 
     /* ADC calibration and reset calibration */
     adc_calibration_enable(CK_ADC);
@@ -334,20 +334,33 @@ void cp_disable(void)
 */
 uint8_t cp_cur_set(uint8_t cur)
 {
+    uint16_t pwm_flag;
     /* duty(%) =  ((TIMER_CAR(CP_TIMER) + 1)/TIMER_CH0CV(CP_TIMER)) * 100 */
-    g_cp.current = cur; // 更新电流大小
     if(cur < 1 || cur > 63){
         log_e("param error.");
         return 1;
     }
+    g_cp.current = cur; // 更新电流大小
 
-    if(TIMER_OC_MODE_PWM0 == (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL))){
+    if(CP_TIMER_CH == TIMER_CH_0){
+        pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL));
+    }else if(CP_TIMER_CH == TIMER_CH_1){
+        pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH1COMCTL));
+        pwm_flag >>= 8;
+    }else{
+        log_e("timer_ch_%d is not supported", CP_TIMER_CH);
+        return 1;
+    }
+
+    if(TIMER_OC_MODE_PWM0 == pwm_flag){
         timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
         log_d("PWM0");
     }
-    else if (TIMER_OC_MODE_PWM1 == (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL))){
+    else if (TIMER_OC_MODE_PWM1 == (pwm_flag)){
         timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 1000-duty_table[cur]);
         log_d("PWM1");
+    }else{
+        log_e("CH%dCOMCTL[2:0]: 0x%X", CP_TIMER_CH, pwm_flag);
     }
 
     return 0;
@@ -639,6 +652,7 @@ void task_entry_cp_test(void *parameter)
         if(g_p_adc01_buff != NULL){
             vol = get_voltage(g_p_adc01_buff, 10);
             log_i("vol: %d", vol);
+            g_p_adc01_buff = NULL;
         }
         bos_delay_ms(1);
     }
