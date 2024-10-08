@@ -1,6 +1,7 @@
 #include "evse_ntc.h"
 #include "basic_os.h"
 #include "EventRecorder.h"
+#include "drv_timer.h"
 
 #define LOG_TAG "evse.ntc"
 #include "elog.h"
@@ -9,14 +10,12 @@
 #define ON_BOARD_NTC_PORT       GPIOB
 #define ON_BOARD_NTC_PORT_RCU   RCU_GPIOB
 #define ON_BOARD_NTC_PIN        GPIO_PIN_0
-
 #define ON_BOARD_NTC_ADC_CH     ADC_CHANNEL_8
 /* 电源插头NTC */
 #define PLUG_NTC_PORT           GPIOA
 #define PLUG_NTC_PORT_RCU       RCU_GPIOA
-#define PLUG_NTC_PIN            GPIO_PIN_1
-
-#define PLUG_NTC_ADC_CH         ADC_CHANNEL_1
+#define PLUG_NTC_PIN            GPIO_PIN_2
+#define PLUG_NTC_ADC_CH         ADC_CHANNEL_2
 
 /**
  * @brief   温度采集通道
@@ -54,6 +53,36 @@ void evse_ntc_config(void)
     adc_calibration_enable(ADC1);
 }
 
+/**
+ * @brief   用定时器(TIEMR3)触发ADC对NTC采样
+ * @note    目前没用到
+ */
+void evse_ntc_timer_config(uint16_t f)
+{
+    timer_parameter_struct timer_initpara;      // 定时器基本参数
+
+    rcu_periph_clock_enable(RCU_TIMER3);
+    timer_deinit(TIMER3);
+
+    /* TIMER configuration */
+    timer_initpara.prescaler         = ((timer_source_clock_get(TIMER3)/100000U)-1); // TIMERxCLK(TIMERx_CK/PSC) is 1000KHz
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
+    timer_initpara.counterdirection  = TIMER_COUNTER_DOWN;
+    timer_initpara.period            = (100000U/f)-1;
+    timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
+    timer_initpara.repetitioncounter = 0;
+    timer_init(TIMER3, &timer_initpara);
+    
+    timer_update_event_enable(TIMER3);                                  // 配置TIMERx_CTL0的UPDIS
+    timer_single_pulse_mode_config(TIMER3, TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
+    timer_update_source_config(TIMER3, TIMER_UPDATE_SRC_GLOBAL);        // 配置TIMERx_CTL0的UPS
+    
+    timer_primary_output_config(TIMER3, ENABLE);
+    /* auto-reload preload enable */
+    timer_auto_reload_shadow_enable(TIMER3);
+    // timer_enable(TIMER3);
+}
+
 void evse_ntc_get_raw1(uint16_t *ob_raw, uint16_t *pl_raw)
 {
     // adc_flag_clear(ADC1, ADC_FLAG_EOIC);
@@ -89,6 +118,8 @@ void evse_ntc_get_raw2(uint16_t *ob_raw, uint16_t *pl_raw)
     *pl_raw = ADC_IDATA1(ADC1);
 }
 
+__IO uint8_t g_overheat_flag = false;
+
 static void task_entry_ntc_sample(void *parameter)
 {
     uint16_t ob_ntc, pl_ntc;
@@ -96,16 +127,19 @@ static void task_entry_ntc_sample(void *parameter)
     evse_ntc_config();
 
     for(;;){
-        EventStartA(0);
+        EventStartA(2);
         evse_ntc_get_raw1(&ob_ntc, &pl_ntc);
-        EventStopA(0);
-
-        EventStartA(1);
-        evse_ntc_get_raw2(&ob_ntc, &pl_ntc);
-        EventStopA(1);
+        EventStopA(2);
 
         log_d("ob=%d, pl=%d", ob_ntc, pl_ntc);
-        bos_delay_ms(1000);
+
+        if(ob_ntc < 1000 || pl_ntc < 1500){
+            g_overheat_flag = true;
+            bos_delay_ms(500);  // 如果过热了, 就提高检测的频率
+        }else{
+            g_overheat_flag = false;
+            bos_delay_ms(1000);
+        }
     }
 }
 bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);

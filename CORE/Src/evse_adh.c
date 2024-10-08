@@ -1,7 +1,7 @@
 #include "evse_adh.h"
 #include "basic_os.h"
 #include "drv_timer.h"
-#include "evse_adc.h"
+#include "evse_ac.h"
 #include "evse_relay.h"
 
 #define LOG_TAG "evse.adc"
@@ -160,17 +160,17 @@ void evse_adh_trig_config(uint32_t f)
     timer_enable(TIMER2);
 }
 
-void EXTI5_9_IRQHandler(void)
-{
-    if(RESET != exti_interrupt_flag_get(EXTI_6)) {
-        // exti6_flag = true;
-        exti_interrupt_disable(EXTI_6);
-        dma_transfer_number_config(DMA0, DMA_CH0, 200);  // DMA重新开始计数
-        timer_counter_value_config(TIMER1, 0);
-        timer_enable(TIMER1);
-    }
-    exti_interrupt_flag_clear(EXTI_6);
-}
+// void EXTI5_9_IRQHandler(void)
+// {
+//     if(RESET != exti_interrupt_flag_get(EXTI_6)) {
+//         // exti6_flag = true;
+//         exti_interrupt_disable(EXTI_6);
+//         dma_transfer_number_config(DMA0, DMA_CH0, 200);  // DMA重新开始计数
+//         timer_counter_value_config(TIMER1, 0);
+//         timer_enable(TIMER1);
+//     }
+//     exti_interrupt_flag_clear(EXTI_6);
+// }
 
 // void DMA0_Channel0_IRQHandler(void)
 // {

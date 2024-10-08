@@ -1,12 +1,15 @@
 #include "drv_timer.h"
 
+uint32_t timer_rcu_table[] =    {RCU_TIMER0, RCU_TIMER1, RCU_TIMER2, RCU_TIMER3, RCU_TIMER4, RCU_TIMER5, RCU_TIMER6, RCU_TIMER7};
+uint32_t timer_periph_table[] = {TIMER0, TIMER1, TIMER2, TIMER3, TIMER4, TIMER5, TIMER6, TIMER7};
+
 /**
  * @brief       计算定时器时钟源对于对应的APBx时钟的倍频系数
  * @note        定时器的CK_TIMER是不固定的, 某几个寄存器里的值不同就会发生改变
- * @param[in]   APBx(GD_TimerSourceTypeDef): 指定APB1或者APB2
+ * @param[in]   APBx(DRV_TimerSourceTypeDef): 指定APB1或者APB2
  * @retval      倍频系数
 */
-uint8_t timer_clk_pll_get(GD_TimerSourceTypeDef APBx_TIMER)
+uint8_t timer_clk_pll_get(DRV_TimerSourceTypeDef APBx_TIMER)
 {
     uint8_t psc;
     if(APBx_TIMER == APB1_TIMER)        {psc = (RCU_CFG0&RCU_CFG0_APB1PSC)>>8;}    // 获取APBxPSC的值
@@ -305,4 +308,49 @@ void timer_pwm_config(void)
     
     /* enable TIMER0 */
     timer_enable(TIMER2);
+}
+
+/*!
+    \brief      select TIMER master mode output trigger source 
+    \param[in]  timer_periph: TIMERx(x=0..7)
+    \param[in]  outrigger: 
+                only one parameter can be selected which is shown as below:
+      \arg        TIMER_TRI_OUT_SRC_RESET: the UPG bit as trigger output
+      \arg        TIMER_TRI_OUT_SRC_ENABLE: the counter enable signal TIMER_CTL0_CEN as trigger output
+      \arg        TIMER_TRI_OUT_SRC_UPDATE: update event as trigger output
+      \arg        TIMER_TRI_OUT_SRC_CH0: a capture or a compare match occurred in channal0 as trigger output TRGO
+      \arg        TIMER_TRI_OUT_SRC_O0CPRE: O0CPRE as trigger output
+      \arg        TIMER_TRI_OUT_SRC_O1CPRE: O1CPRE as trigger output
+      \arg        TIMER_TRI_OUT_SRC_O2CPRE: O2CPRE as trigger output
+      \arg        TIMER_TRI_OUT_SRC_O3CPRE: O3CPRE as trigger output
+    \param[out] none
+    \retval     none
+*/
+void timer_trgo_config(DRV_TIMERxTypedef DRV_TIMERx, uint16_t f, uint32_t outrigger)
+{
+    timer_parameter_struct timer_initpara;      // 定时器基本参数
+
+    rcu_periph_clock_enable(timer_rcu_table[DRV_TIMERx]);
+    timer_deinit(timer_periph_table[DRV_TIMERx]);
+
+    /* TIMER configuration */
+    timer_initpara.prescaler         = ((timer_source_clock_get(timer_periph_table[DRV_TIMERx])/1000000U)-1); // TIMERxCLK(TIMERx_CK/PSC) is 100KHz
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
+    timer_initpara.counterdirection  = TIMER_COUNTER_DOWN;
+    timer_initpara.period            = (1000000U/f)-1;
+    timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
+    timer_initpara.repetitioncounter = 0;
+    timer_init(timer_periph_table[DRV_TIMERx], &timer_initpara);
+    
+    timer_update_event_enable(timer_periph_table[DRV_TIMERx]);                                  // 配置TIMERx_CTL0的UPDIS
+    timer_single_pulse_mode_config(timer_periph_table[DRV_TIMERx], TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
+    timer_update_source_config(timer_periph_table[DRV_TIMERx], TIMER_UPDATE_SRC_GLOBAL);        // 配置TIMERx_CTL0的UPS
+    
+    timer_primary_output_config(timer_periph_table[DRV_TIMERx], ENABLE);
+    /* auto-reload preload enable */
+    timer_auto_reload_shadow_enable(timer_periph_table[DRV_TIMERx]);
+    /* timer enable */
+    // timer_enable(timer_periph_table[DRV_TIMERx]);
+
+    timer_master_output_trigger_source_select(timer_periph_table[DRV_TIMERx], outrigger);
 }

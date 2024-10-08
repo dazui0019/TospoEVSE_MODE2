@@ -13,12 +13,12 @@ typedef enum{
     EVSE_READY_9V,      // 9v
     EVSE_READY_6V,      // 6v
     EVSE_SIM_6V,        // EV使用的是简易控制导引(12V直接进入6V)
-    EVSE_WAIT_S2,       // 9vPWM(等待S2闭合)
     EVSE_CHARGING,      // 6vPWM
+    EVSE_DONE,          // CP电平从6vPWM切换至9v(PWM)
     EVSE_CP_LOST,       // CP断线
+    EVSE_WAIT_S2,       // 9vPWM(等待S2闭合)
     EVSE_CP_ERROR,      // CP电平异常
     EVSE_PAUSE,         // 充电中刷卡/涂鸦APP关闭充电
-    EVSE_DONE,          // CP电平从6vPWM切换至9v(PWM)
     EVSE_FAULT,         // 充电故障
 }evse_state_t;
 
@@ -50,6 +50,7 @@ typedef struct{
 
 evse_state_t evse_idle_handle(void);
 evse_state_t evse_9v_handle(void);
+evse_state_t evse_6v_handle(void);
 evse_state_t evse_sim_6v_handle(void);
 evse_state_t evse_done_handle(void);
 evse_state_t evse_cp_lost_handle(void);

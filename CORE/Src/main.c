@@ -59,9 +59,9 @@ int main(){
 
 static void task_entry_blink(void *parameter)
 {
-    gd_led_init(LED0);
+    gd_led_init(LED2);
     for(;;){
-        gd_led_toggle(LED0);
+        gd_led_toggle(LED2);
         bos_delay_ms(100);
     }
 }
