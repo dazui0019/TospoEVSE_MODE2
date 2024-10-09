@@ -70,11 +70,11 @@ void basic_timer5_init(uint16_t delay_us)
     timer_init(TIMER5, &basic_timer_pareameter);
     timer_auto_reload_shadow_enable(TIMER5);                            // 配置TIMERx_CTL0的ARSE
     timer_update_event_enable(TIMER5);                                  // 配置TIMERx_CTL0的UPDIS
-    timer_single_pulse_mode_config(TIMER5, TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
+    timer_single_pulse_mode_config(TIMER5, TIMER_SP_MODE_SINGLE);       // 配置TIMERx_CTL0的SPM(配置为单脉冲模式)
     timer_update_source_config(TIMER5, TIMER_UPDATE_SRC_REGULAR);       // 配置TIMERx_CTL0的UPS
-    nvic_irq_enable(TIMER5_IRQn, TIMER5_IRQ_PRE_PRIORITY, 0);
-    timer_interrupt_enable(TIMER5, TIMER_INT_UP);                       // 配置TIMERx_DMAINTEN的UPIE
-    timer_enable(TIMER5);
+    // nvic_irq_enable(TIMER5_IRQn, TIMER5_IRQ_PRE_PRIORITY, 0);
+    // timer_interrupt_enable(TIMER5, TIMER_INT_UP);                       // 配置TIMERx_DMAINTEN的UPIE
+    timer_disable(TIMER5);
 }
 
 /**

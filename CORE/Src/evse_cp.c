@@ -44,16 +44,11 @@
 #define STATE_CP_UNK    (1<<4)  // 未知状态
 #define STATE_CP_ERROR  (1<<5)
 
-// 车端二极管检测
-#define S1_CK_PORT     GPIOB
-#define S1_CK_RCU      RCU_GPIOB
-#define S1_CK_PIN      GPIO_PIN_15
-
 // 全局变量
 __IO gndd_state_t g_gndd_state = EVSE_GNDD_OK;    // 接地检测状态
 __IO cp_event_t g_cp_event = EVENT_CP_NONE;       // CP电压状态
 
-extern uint16_t g_Vrefint;  // 芯片内部1.2V参考电压的 ADC 原始值
+extern __IO uint16_t g_Vrefint;  // 芯片内部1.2V参考电压的 ADC 原始值
 uint16_t gnd_base = 0;
 
 // 占空比表， 是CAR寄存器的数值, 表示最大电流值所对应的CP波形占空比数值
@@ -499,15 +494,6 @@ cp_state_t get_cp_state(uint16_t vol)
     else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
     else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
     else                                                                {return CP_ERROR;}
-}
-
-/**
- * @brief   检查车端二极管S1是否存在
- */
-void s1_ck_init(void)
-{
-    rcu_periph_clock_enable(S1_CK_RCU);
-    gpio_init(S1_CK_PORT, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_MAX, S1_CK_PIN);
 }
 
 /* 快速排序算法 ------------------------ */

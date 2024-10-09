@@ -16,8 +16,8 @@ typedef enum{
     EVSE_CHARGING,      // 6vPWM
     EVSE_DONE,          // CP电平从6vPWM切换至9v(PWM)
     EVSE_CP_LOST,       // CP断线
-    EVSE_WAIT_S2,       // 9vPWM(等待S2闭合)
     EVSE_CP_ERROR,      // CP电平异常
+    EVSE_WAIT_S2,       // 9vPWM(等待S2闭合)
     EVSE_PAUSE,         // 充电中刷卡/涂鸦APP关闭充电
     EVSE_FAULT,         // 充电故障
 }evse_state_t;
@@ -48,10 +48,12 @@ typedef struct{
     void (*evse_relay_ctrl)(relay_state_t state);
 }evse_t;
 
-evse_state_t evse_idle_handle(void);
-evse_state_t evse_9v_handle(void);
-evse_state_t evse_6v_handle(void);
-evse_state_t evse_sim_6v_handle(void);
-evse_state_t evse_done_handle(void);
-evse_state_t evse_cp_lost_handle(void);
-evse_state_t evse_charging_handle(void);
+evse_state_t evse_idle_handle(cp_state_t);
+evse_state_t evse_9v_handle(cp_state_t);
+evse_state_t evse_6v_handle(cp_state_t);
+evse_state_t evse_sim_6v_handle(cp_state_t);
+evse_state_t evse_done_handle(cp_state_t);
+evse_state_t evse_cp_lost_handle(cp_state_t);
+evse_state_t evse_charging_handle(cp_state_t);
+evse_state_t evse_cp_error_handle(cp_state_t);
+evse_state_t evse_fault_handle(cp_state_t);

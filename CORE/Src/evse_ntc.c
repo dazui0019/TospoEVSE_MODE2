@@ -119,27 +119,36 @@ void evse_ntc_get_raw2(uint16_t *ob_raw, uint16_t *pl_raw)
 }
 
 __IO uint8_t g_overheat_flag = false;
+extern __IO uint16_t g_Vrefint;  // evse_ac
 
 static void task_entry_ntc_sample(void *parameter)
 {
-    uint16_t ob_ntc, pl_ntc;
+    uint16_t ob_ntc, pl_ntc, overheat_cnt = 0;
 
     evse_ntc_config();
+
+    /* 等待vrefint读取完毕 */
+    while (g_Vrefint == 0)
+    {
+        bos_delay_ms(1);
+    }
 
     for(;;){
         EventStartA(2);
         evse_ntc_get_raw1(&ob_ntc, &pl_ntc);
         EventStopA(2);
 
-        log_d("ob=%d, pl=%d", ob_ntc, pl_ntc);
-
-        if(ob_ntc < 1000 || pl_ntc < 1500){
-            g_overheat_flag = true;
-            bos_delay_ms(500);  // 如果过热了, 就提高检测的频率
-        }else{
+        if(ob_ntc < 817 && g_overheat_flag == false){   // 70°C
+            if(overheat_cnt++ > 10){
+                g_overheat_flag = true;
+                log_e("overheat: %d", ob_ntc);
+            }
+        }else if (ob_ntc > 1112 && g_overheat_flag == true){    // 60°C
+            overheat_cnt = 0;
             g_overheat_flag = false;
-            bos_delay_ms(1000);
+            log_i("clear overheat flag: %d", ob_ntc);
         }
+        bos_delay_ms(100);
     }
 }
 bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);

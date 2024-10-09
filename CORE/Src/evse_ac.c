@@ -37,7 +37,9 @@
 #define CH_NUM                  (3)
 #define SAMPLE_NUM              (100)
 
-uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
+__IO uint8_t g_vol_error_flag = false;
+
+__IO uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
 
 // adc 采样数据DMA缓冲区
 __attribute((used)) uint16_t ac_adc_buff[100][3];
@@ -249,7 +251,7 @@ void DMA0_Channel0_IRQHandler(void)
  */
 uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index)
 {
-    static uint16_t val;
+    static uint32_t val;
     uint16_t base_val;
     uint16_t temp = 0;
     uint32_t sum = 0, count = 0;
@@ -266,35 +268,49 @@ uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t in
 
     for(uint32_t i = 0; i < length; i++){
         val += abs((int32_t)pBuff[i][index]-(int32_t)base_val);
+        // log_d("val: %d", abs((int32_t)pBuff[i][index]-(int32_t)base_val));
     }
+
+    // log_d("base_val: %d, val: %d", base_val, val);
     val /= length;
 
-    return val;
+    return (uint16_t)val;
 }
 
 static void task_entry_voltage_sample(void *parameter)
 {
-    uint16_t l1_val = 0, c_voltage = 0;
+    uint16_t pe_val, l1_val = 0, c_val = 0;
+    
+    /* 等待vrefint读取完毕 */
+    while (g_Vrefint == 0)
+    {
+        bos_delay_ms(1);
+    }
 
-    evse_ac_adc_config();
+    evse_ac_adc_config();   // ac_adc和g_Vrefint共用ADC0, 所以等g_Vrefint获取完成后, 再重新配置ADC0给ac_adc用
     freq_exti_config();
     evse_ac_timer_config(5000); // 5000Hz/50Hz = 100个
 
-    /* 等待vrefint读取完毕 */
-    // while (g_Vrefint == 0)
-    // {
-    //     bos_delay_ms(1);
-    // }
     exti_interrupt_enable(EXTI_6);
+
     for(;;){
         if(cplt_flag == true){
             cplt_flag = false;
-            l1_val = 0;
+            pe_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 2);
             l1_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 1);
-            // log_i("l1_vol: %0.2f", (((float)l1_val)*3.3)/4095.0);
-            // c_voltage = get_sin_vol(ac_adc_buff, 100, 1);
-            // log_i("l_raw: %d, l_vol: %.3f", l1_val, ((1.2*((float)l1_val/(float)v_refint))*10000)/21.0 - 3.3);
-            // log_i("c_raw: %d, c_vol: %.3f", c_voltage, 1.2*((float)c_voltage/(float)v_refint));
+            c_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 0);
+            
+            /* 设置过(欠)压标志位(±15%: 187 - 253) */
+            if(g_vol_error_flag == false && (l1_val >= 674 || l1_val <= 492)){ // TODO: 欠压的阈值还没定
+                g_vol_error_flag = true;
+                log_e("voltage error: %d", l1_val);
+            }else if(g_vol_error_flag == true && (l1_val >= 513 && l1_val <= 639)){
+                g_vol_error_flag = false;
+                log_i("clear voltage error flag: %d", l1_val);
+            }
+            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
+
+            // log_i("l_raw: %d, l_vol: %.3f", l1_val, ((1.2*((float)l1_val/(float)g_Vrefint))*10000)/21.0 - 3.3);
             // log_i("c_raw: %d, c_vol: %.3f", c_voltage, ((1200.0*((float)c_voltage/(float)g_Vrefint))*2.0)/51.0);
             exti_interrupt_flag_clear(EXTI_6);
             exti_interrupt_enable(EXTI_6);
@@ -302,4 +318,4 @@ static void task_entry_voltage_sample(void *parameter)
         bos_delay_ms(1);
     }
 }
-// bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
+bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);

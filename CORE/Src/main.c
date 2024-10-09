@@ -44,7 +44,7 @@ int main(){
     elog_init();
     elog_start();
 
-    print_clock();
+    // print_clock();
     log_d("Test.");
 
     /* 函数测试 */
