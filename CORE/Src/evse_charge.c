@@ -28,7 +28,8 @@ extern __IO uint16_t g_Vrefint;  // evse_ac
 
 /* 错误标志位 */
 extern __IO uint8_t g_overheat_flag;    // evse_ntc
-extern __IO uint8_t  g_vol_error_flag;   // evse_ac
+extern __IO uint8_t  g_vol_error_flag;  // evse_ac
+extern __IO uint8_t g_pe_error_flag;           // evse_ac
 
 evse_t evse_mode2 = {
     .inited = false,
@@ -59,6 +60,10 @@ ErrStatus evse_error_ck(void)
         }
 
         if(g_vol_error_flag == true){
+            error_flag = true;
+        }
+
+        if(g_pe_error_flag == true){
             error_flag = true;
         }
         
@@ -147,9 +152,10 @@ ErrStatus evse_s1_ck(void)
     FlagStatus s1_state = gpio_input_bit_get(S1_CK_PORT, S1_CK_PIN);
     uint8_t cnt = 0;
     timer_counter_value_config(TIMER5, 0);
-    timer_enable(TIMER5);
+    timer_flag_clear(TIMER5, TIMER_FLAG_UP);
     
-    while(SET == timer_flag_get(TIMER5, TIMER_FLAG_UP)){
+    timer_enable(TIMER5);
+    while(RESET == timer_flag_get(TIMER5, TIMER_FLAG_UP)){
         if(s1_state != gpio_input_bit_get(S1_CK_PORT, S1_CK_PIN)){
             return SUCCESS;
         }
@@ -464,6 +470,8 @@ evse_state_t evse_fault_handle(cp_state_t cp_state){
         evse_mode2.evse_relay_ctrl(open);
         evse_mode2.relay_state = open;
     }
+
+    // todo: 按不同的故障优先级依次处理
 
     return EVSE_FAULT;
 }

@@ -38,6 +38,7 @@
 #define SAMPLE_NUM              (100)
 
 __IO uint8_t g_vol_error_flag = false;
+__IO uint8_t g_pe_error_flag = false;
 
 __IO uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
 
@@ -301,12 +302,20 @@ static void task_entry_voltage_sample(void *parameter)
             c_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 0);
             
             /* 设置过(欠)压标志位(±15%: 187 - 253) */
-            if(g_vol_error_flag == false && (l1_val >= 674 || l1_val <= 492)){ // TODO: 欠压的阈值还没定
+            if(g_vol_error_flag == false && (l1_val >= 674 || l1_val <= 492)){
                 g_vol_error_flag = true;
                 log_e("voltage error: %d", l1_val);
             }else if(g_vol_error_flag == true && (l1_val >= 513 && l1_val <= 639)){
                 g_vol_error_flag = false;
                 log_i("clear voltage error flag: %d", l1_val);
+            }
+
+            if(g_pe_error_flag == false && pe_val >= 120){
+                g_pe_error_flag = true;
+                log_e("PE error: %d", pe_val);
+            }else if(g_pe_error_flag == true && pe_val <= 10){
+                g_pe_error_flag = false;
+                log_i("Clear PE error flag: %d", pe_val);
             }
             // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
 
