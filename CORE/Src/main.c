@@ -8,6 +8,8 @@
 #include "evse_cp.h"
 #include "evse_comm.h"
 #include "EventRecorder.h"
+#include "evse_relay.h"
+#include "evse_ntc.h"
 
 #define LOG_TAG "evse.main"
 #include "elog.h"
@@ -27,10 +29,14 @@ void print_clock(void)
 }
 
 int main(){
+    uint16_t ob_ntc, pl_ntc;
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);
     
     EventRecorderInitialize(EventRecordAll, 1U);
     EventRecorderStart();
+
+    evse_relay_init();
+    evse_relay_ctrl(open);
     
     /* 初始化串口(Debug) */
     gd_usart_tx_init(COM0, 115200);
@@ -38,8 +44,11 @@ int main(){
     elog_init();
     elog_start();
 
-//    print_clock();
+    // print_clock();
     log_d("Test.");
+
+    /* 函数测试 */
+
     /* 启动BasicOS */
     systick_config();
     basic_os_init(stack, sizeof(stack));

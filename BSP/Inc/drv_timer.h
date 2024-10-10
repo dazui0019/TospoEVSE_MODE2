@@ -7,6 +7,17 @@
 #define TIMER5_IRQ_PRE_PRIORITY 5
 #define TIMER6_IRQ_PRE_PRIORITY 6
 
+typedef enum 
+{
+    DRV_TIMER1 = 0,
+    DRV_TIMER2 = 1,
+    DRV_TIMER3,
+    DRV_TIMER4,
+    DRV_TIMER5,
+    DRV_TIMER6,
+    DRV_TIMER7
+}DRV_TIMERxTypedef;
+
 /** 
   * @brief  Timer clock source structures definition  
   */  
@@ -14,9 +25,12 @@ typedef enum
 {
     APB1_TIMER,
     APB2_TIMER
-} GD_TimerSourceTypeDef;
+}DRV_TimerSourceTypeDef;
 
 uint32_t timer_source_clock_get(uint32_t TIMERx);
+
+/* 生成trgo信号 */
+void timer_trgo_config(DRV_TIMERxTypedef DRV_TIMERx, uint16_t f, uint32_t outrigger);
 
 /* 基本定时器初始化 */
 void basic_timer5_init(uint16_t delay_us);

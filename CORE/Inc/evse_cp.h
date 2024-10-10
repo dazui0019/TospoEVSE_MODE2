@@ -27,8 +27,8 @@ typedef enum{
  * @brief   PWM输出状态标志
  */
 typedef enum{
-    CP_PWM = 0,
-    CP_HIGH
+    PWM_ENABLE = 0,
+    PWM_DISABLE
 }out_state_t;
 
 /**
@@ -46,13 +46,13 @@ typedef struct{
     // todo: 添加互斥锁(更新cp状态时可能需要上锁)
     __IO uint8_t current;                   // 记录最大输出电流
     __IO cp_state_t state;                  // 记录CP状态
-    __IO out_state_t pwm_state;             // 记录PWM输出状态
+    __IO ControlStatus pwm_state;           // 记录PWM输出状态
     __IO uint8_t ck_state;                  // 记录电平检测是否开启
     void (*init)(uint32_t f);               // 初始化
     uint8_t (*set_cur)(uint8_t);            // 设置最大电流
     void (*pwm_ctrl)(ControlStatus status); // 控制PWM输出
     void (*ck_ctrl)(ControlStatus status);  // CP电压检测控制
-    uint16_t (*get_cp_vol)(__IO uint16_t pBuff[][2], uint16_t length);
+    uint16_t (*get_cp_vol)(__IO uint16_t pBuff[], uint16_t length);
     cp_state_t (*get_cp_state)(uint16_t vol);
 }cp_t;
 
