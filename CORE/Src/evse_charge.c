@@ -29,7 +29,7 @@ extern __IO uint16_t g_Vrefint;  // evse_ac
 /* 错误标志位 */
 extern __IO uint8_t g_overheat_flag;    // evse_ntc
 extern __IO uint8_t  g_vol_error_flag;  // evse_ac
-extern __IO uint8_t g_pe_error_flag;           // evse_ac
+extern __IO uint8_t g_pe_error_flag;    // evse_ac
 
 evse_t evse_mode2 = {
     .inited = false,
@@ -389,6 +389,8 @@ evse_state_t evse_cp_lost_handle(cp_state_t cp_state)
 {
     if(evse_mode2.evse_state == EVSE_FAULT){    // 从错误中恢复时需要的处理
         log_i("Return frome EVSE_FAULT.");
+        evse_mode2.p_cp->pwm_ctrl(ENABLE);
+        evse_mode2.p_cp->pwm_state = ENABLE;
     }
 
     if(evse_mode2.relay_state == close){
