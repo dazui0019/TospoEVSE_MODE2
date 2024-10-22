@@ -7,21 +7,32 @@
 #include "basic_os.h"
 #include "EventRecorder.h"
 #include "crc16.h"
+#include "fifo.h"
 
 #define LOG_TAG "evse.comm"
 #include "elog.h"
 
 #define COMM_BUFF_LENGTH   64
-
 /* ring buffer for uart */
 static lwrb_t uart_rb;
 static uint8_t lwrb_buffer[COMM_BUFF_LENGTH]  = { 0x00 };
 
+#define SEND_BUFFER_LENGTH 256
+static fifo_s_t send_fifo;
+static uint8_t fifo_buffer[SEND_BUFFER_LENGTH];
+
 /* 中断标志位 */
-__IO static uint8_t rx_cplt_flag = false;
+static __IO uint8_t rx_cplt_flag = false;
+
+static __IO ui_update_flag_t ui_update_flag = {
+    .current = false,
+    .delay = false,
+    .voltage = false,
+    .error = false
+};
 
 /* DMA缓冲区 */
-uint8_t meter_buff[COMM_BUFF_LENGTH];
+uint8_t receive_buffer[COMM_BUFF_LENGTH];
 
 /**
  * @brief       启动串口DMA接收，并开启串口空闲中断；DMA开启全满和半满中断。
@@ -30,7 +41,9 @@ void evse_comm_init(void)
 {
     lwrb_init(&uart_rb, lwrb_buffer, COMM_BUFF_LENGTH);
     gd_usart_init(COM2, 9600);
-    dma_rx_config(COM2, (uint32_t)meter_buff, COMM_BUFF_LENGTH);
+    dma_rx_config(COM2, (uint32_t)receive_buffer, COMM_BUFF_LENGTH);
+
+    fifo_s_init(&send_fifo, fifo_buffer, 256);
 
     usart_flag_clear(USART2, USART_FLAG_TC);
     nvic_irq_enable(USART2_IRQn, 4, 0);
@@ -70,7 +83,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
     float f_kwh;
     uint16_t s_kwh;
     /* 帧缓冲区 */
-    uint8_t frame_buff[FRAME_LEN_MAX] = {0x5A};
+    uint8_t frame_buff[FRAME_LEN_MAX] = {0x5A}; // 帧头0x5A
     
     switch (cmd)
     {
@@ -81,6 +94,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[4] = get_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_CHG:
         frame_buff[1] = FUNC_CODE_UPDATE_CHG;   // 功能码
@@ -89,6 +103,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[4] = get_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_DELAY:
         frame_buff[1] = FUNC_CODE_UPDATE_DELAY; // 功能码
@@ -97,6 +112,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[4] = get_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_CURRENT:
         frame_buff[1] = FUNC_CODE_UPDATE_CURRENT;   // 功能码
@@ -105,6 +121,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[4] = get_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_KWH:
         f_kwh = *(float*)arg_ptr;
@@ -117,6 +134,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[5] = get_check_sum(frame_buff, 5);
         frame_buff[6] = 0x55;
         UART_Transmit(USART2, frame_buff, 7);
+        // fifo_s_puts(&send_fifo, frame_buff, 7);
         break;
     default:
         log_e("unknown cmd: 0x%02X.", cmd);
@@ -141,7 +159,7 @@ void COMM_RxEventCallback(uint32_t Size, uint16_t it_source)
 
     Rx_length = Size - dma_buf_pos;
 
-    lwrb_write(&uart_rb, meter_buff+dma_buf_pos, (lwrb_sz_t)Rx_length);
+    lwrb_write(&uart_rb, receive_buffer+dma_buf_pos, (lwrb_sz_t)Rx_length);
 
     if(it_source == S_UART)
         rx_cplt_flag = true; // 空闲中断或者超时中断表示一帧结束
@@ -207,6 +225,20 @@ void evse_key_process(uint8_t key_val)
     };
 }
 
+// todo: 处理fifo中需要发送的数据
+void evse_comm_send_handle(void)
+{
+    uint8_t frame_buff[FRAME_LEN_MAX];
+    uint8_t data_temp;
+    if(fifo_s_isempty(&send_fifo) == 1){return;}
+
+    // 如果发送队列不为空则发送
+    if((data_temp = fifo_s_get(&send_fifo)) == 0x5A){
+        ;
+    }
+
+}
+
 static void task_entry_comm(void *parameter)
 {
     /* 初始化LCD板通信串口 */
@@ -239,8 +271,9 @@ static void task_entry_comm(void *parameter)
             }
             EventStopA(1);
             continue;
-        }else
-            bos_delay_ms(1);
+        }
+        
+        bos_delay_ms(1);
     }
 }
-// bos_task_export(lcd_comm, task_entry_comm, BOS_MAX_PRIORITY, NULL);
+bos_task_export(lcd_comm, task_entry_comm, BOS_MAX_PRIORITY, NULL);

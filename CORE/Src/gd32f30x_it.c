@@ -37,7 +37,7 @@ OF SUCH DAMAGE.
 
 #include "gd32f30x_it.h"
 #include "main.h"
-#include "delay.h"
+#include "drv_delay.h"
 #include "basic_os.h"
 
 /*!

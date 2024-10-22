@@ -1,6 +1,10 @@
-// todo 把文件名改成delay
+/**
+ * @file    drv_delay.c
+ * @note    有两种实现方式, 直接使用定时器(SysTick、TIMER5或TIMER6)或者DWT外设
+ */
+
 #include "gd32f30x.h"
-#include "delay.h"
+#include "drv_delay.h"
 #include "printf.h"
 #include "gd32_hal.h"
 #include "drv_timer.h"
@@ -8,6 +12,11 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #endif /* __RTOS */
+
+/* 选择时基单元，下面两个都不开的话默认是SysTick, 如果需要使用RTOS就需要开启下面定时器中的一个 */
+// #define TIME_BASE_TIMER5
+#define TIME_BASE_TIMER6
+
 __IO uint32_t uwTick = 0;
 TickFreqTypeDef uwTickFreq = TICK_FREQ_DEFAULT;  /* 1KHz */
 
@@ -40,7 +49,7 @@ void systick_config(void)
   *      implementations in user file.
   * @retval None
   */
-void incTick(void)
+__attribute__((always_inline)) void incTick(void)
 {
     uwTick += (uint32_t)uwTickFreq;
 }
@@ -125,6 +134,48 @@ void delay_init(void)
     basic_timer6_init(1000);
     #endif /* (defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6) */
 }
+
+void delay_deinit(void)
+{
+    #if (!defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6)
+    // SysTick 应该不能随便关的
+    #endif /* (!defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6) */
+  
+    #if (defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6)
+    rcu_periph_clock_disable(RCU_TIMER5);
+    timer_deinit(TIMER5);
+    #endif /* (defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6) */
+
+    #if (!defined TIME_BASE_TIMER5) && (defined TIME_BASE_TIMER6)
+    rcu_periph_clock_disable(RCU_TIMER6);
+    timer_deinit(TIMER6);
+    #endif /* (defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6) */
+}
+
+#if (defined TIME_BASE_TIMER5)
+void TIMER5_IRQHandler(void){
+    if(SET == timer_interrupt_flag_get(TIMER5, TIMER_INT_FLAG_UP)){
+        timer_interrupt_flag_clear(TIMER5, TIMER_INT_FLAG_UP);
+        #ifdef TIME_BASE_TIMER5
+        incTick();  // 将TIMER5作为延时函数的时基单元
+        #endif /* TIME_BASE_TIMER5 */
+    }
+}
+#endif
+
+#if (defined TIME_BASE_TIMER6)
+void TIMER6_IRQHandler(void){
+    if(SET == timer_interrupt_flag_get(TIMER6, TIMER_INT_FLAG_UP)){
+        adc_enable(ADC0);
+        timer_interrupt_flag_clear(TIMER6, TIMER_INT_FLAG_UP);
+        #ifdef TIME_BASE_TIMER6
+        incTick();  // 将TIMER6作为延时函数的时基单元
+        #endif /* TIME_BASE_TIMER6 */
+    }
+}
+#endif
+
+/* 用DWT外设实现延时 */
 
 /**
  * @brief      初始化DWT外设(并清除计数器)

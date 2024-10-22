@@ -314,7 +314,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>0</Optim>
+            <Optim>1</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -398,11 +398,6 @@
               <FileName>cb_basic_os.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\cb_basic_os.c</FilePath>
-            </File>
-            <File>
-              <FileName>delay.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\CORE\Src\delay.c</FilePath>
             </File>
             <File>
               <FileName>evse_cp.c</FileName>
@@ -490,6 +485,11 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_ac.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_rcd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_rcd.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -529,6 +529,11 @@
               <FileName>drv_timer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\Src\drv_timer.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv_delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Src\drv_delay.c</FilePath>
             </File>
           </Files>
         </Group>

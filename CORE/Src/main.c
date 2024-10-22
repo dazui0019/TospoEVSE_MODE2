@@ -1,6 +1,6 @@
 #include "gd32f30x.h"
 #include "gd32f303x_start.h"
-#include "delay.h"
+#include "drv_delay.h"
 #include "basic_os.h"
 #include "main.h"
 #include "string.h"
@@ -10,6 +10,7 @@
 #include "EventRecorder.h"
 #include "evse_relay.h"
 #include "evse_ntc.h"
+#include "evse_rcd.h"
 
 #define LOG_TAG "evse.main"
 #include "elog.h"
@@ -46,6 +47,12 @@ int main(){
 
     // print_clock();
     log_d("Test.");
+
+    delay_init();   // 初始化延时函数(仅在初始化时使用)
+    /* 需要纯延时的初始化函数 */
+    evse_rcd_init();
+
+    delay_deinit(); // 重置用于延时的定时器
 
     /* 函数测试 */
 
