@@ -11,11 +11,12 @@
 #include "evse_relay.h"
 #include "evse_ntc.h"
 #include "evse_rcd.h"
+#include "evse_ui.h"
+#include "GC9A01.h"
+#include "lcd_drv_conf.h"
 
 #define LOG_TAG "evse.main"
 #include "elog.h"
-
-extern cp_t cp;
 
 /* Stack for BasicOS */
 __attribute__((used)) uint8_t stack[10240];
@@ -30,7 +31,6 @@ void print_clock(void)
 }
 
 int main(){
-    uint16_t ob_ntc, pl_ntc;
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);
     
     EventRecorderInitialize(EventRecordAll, 1U);
@@ -49,10 +49,10 @@ int main(){
     log_d("Test.");
 
     delay_init();   // 初始化延时函数(仅在初始化时使用)
-    /* 需要纯延时的初始化函数 */
-    evse_rcd_init();
+    // /* 需要纯延时的初始化函数 */
+    // evse_rcd_init();
 
-    delay_deinit(); // 重置用于延时的定时器
+    // delay_deinit(); // 重置用于延时的定时器
 
     /* 函数测试 */
 

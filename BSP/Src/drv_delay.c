@@ -142,11 +142,13 @@ void delay_deinit(void)
     #endif /* (!defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6) */
   
     #if (defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6)
+    nvic_irq_disable(TIMER5_IRQn);
     rcu_periph_clock_disable(RCU_TIMER5);
     timer_deinit(TIMER5);
     #endif /* (defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6) */
 
     #if (!defined TIME_BASE_TIMER5) && (defined TIME_BASE_TIMER6)
+    nvic_irq_disable(TIMER6_IRQn);
     rcu_periph_clock_disable(RCU_TIMER6);
     timer_deinit(TIMER6);
     #endif /* (defined TIME_BASE_TIMER5) && (!defined TIME_BASE_TIMER6) */

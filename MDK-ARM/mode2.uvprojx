@@ -138,7 +138,7 @@
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2CM3.DLL</Flash2>
-          <Flash3>"" ()</Flash3>
+          <Flash3></Flash3>
           <Flash4></Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>GD32F30X_HD,PRINTF_INCLUDE_CONFIG_H</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime</IncludePath>
+              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime;..\Drivers\lcd_drivers;..\Libraries\UGUI</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -490,6 +490,11 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_rcd.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_ui.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_ui.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -535,6 +540,11 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\Src\drv_delay.c</FilePath>
             </File>
+            <File>
+              <FileName>drv_spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Src\drv_spi.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -573,7 +583,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Drivers</GroupName>
+          <GroupName>Drivers/GD32F30x_Firmware_Library</GroupName>
           <Files>
             <File>
               <FileName>gd32f30x_adc.c</FileName>
@@ -759,6 +769,31 @@
               <FileName>datetime.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\datetime\datetime.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers/lcd</GroupName>
+          <Files>
+            <File>
+              <FileName>GC9A01.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\lcd_drivers\GC9A01.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_drv_conf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Drivers\lcd_drivers\lcd_drv_conf.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Libraries/ugui</GroupName>
+          <Files>
+            <File>
+              <FileName>ugui.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\UGUI\ugui.c</FilePath>
             </File>
           </Files>
         </Group>
