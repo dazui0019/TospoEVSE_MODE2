@@ -54,7 +54,9 @@
         "core_cm4.h": "c",
         "system_gd32f30x.h": "c",
         "drv_delay.h": "c",
-        "fifo.h": "c"
+        "fifo.h": "c",
+        "drv_spi.h": "c",
+        "gd32f303x_start.h": "c"
     },
     "C_Cpp.default.includePath": [
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS\\GD\\GD32F30x\\Include",
@@ -69,6 +71,8 @@
         "Libraries\\crc16",
         "Libraries\\fifo",
         "Libraries\\datetime",
+        "Drivers\\lcd_drivers",
+        "Libraries\\UGUI",
         "MDK-ARM/RTE/Compiler",
         "MDK-ARM/RTE/_Target_1",
         "D:/ProgramFiles/Keil_v5/ARM/Packs/GigaDevice/GD32F30x_DFP/2.2.1/Device/Include",

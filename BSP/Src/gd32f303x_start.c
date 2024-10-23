@@ -24,7 +24,7 @@ void  gd_led_init (led_typedef_enum lednum)
     /* enable the led clock */
     rcu_periph_clock_enable(GPIO_CLK[lednum]);
     /* configure led GPIO port */ 
-    gpio_init(GPIO_PORT[lednum], GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ,GPIO_PIN[lednum]);
+    gpio_init(GPIO_PORT[lednum], GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, GPIO_PIN[lednum]);
 
     GPIO_BC(GPIO_PORT[lednum]) = GPIO_PIN[lednum];
 }
