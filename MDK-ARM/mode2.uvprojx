@@ -545,6 +545,11 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\Src\drv_spi.c</FilePath>
             </File>
+            <File>
+              <FileName>drv_rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Src\drv_rtc.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -14,6 +14,7 @@
 #include "evse_ui.h"
 #include "GC9A01.h"
 #include "lcd_drv_conf.h"
+#include "drv_rtc.h"
 
 #define LOG_TAG "evse.main"
 #include "elog.h"
@@ -33,8 +34,11 @@ void print_clock(void)
 int main(){
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);
     
-    EventRecorderInitialize(EventRecordAll, 1U);
-    EventRecorderStart();
+    // EventRecorderInitialize(EventRecordAll, 1U);
+    // EventRecorderStart();
+
+    rtc_reconfiguration();
+    // rtc_interrupt_enable(RTC_INT_SECOND);
 
     evse_relay_init();
     evse_relay_ctrl(open);

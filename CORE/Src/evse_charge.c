@@ -9,6 +9,7 @@
 #include "evse_adh.h"
 #include "evse_ac.h"
 #include "evse_comm.h"
+#include "evse_ui.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"

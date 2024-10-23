@@ -8,6 +8,7 @@
 #include "drv_timer.h"
 #include "printf.h"
 #include "evse_cp.h"
+#include "evse_charge.h"
 
 #define LOG_TAG "evse.adc"
 #include "elog.h"
@@ -283,7 +284,7 @@ uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t in
 
 static void task_entry_voltage_sample(void *parameter)
 {
-    uint16_t pe_val, l1_val = 0, c_val = 0;
+    uint16_t pe_val = 0, l1_val = 0, c_val = 0;
 
     float vol;
     float cur;
@@ -309,9 +310,12 @@ static void task_entry_voltage_sample(void *parameter)
     for(;;){
         if(cplt_flag == true){
             cplt_flag = false;
-            pe_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 2);
-            l1_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 1);
-            c_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 0);
+            pe_val = (0.6*pe_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 2));    // 一阶互补滤波
+            l1_val = (0.6*l1_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 1));    // 一阶互补滤波
+            c_val = (0.6*c_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 0));      // 一阶互补滤波
+            
+            cur = c_val/28.0f - 0.1428f;        // 转换成人类可读的数据
+            vol = (l1_val*5.0f)/13.0f - 2.69f;  // 转换成人类可读的数据
             
             /* 设置过压标志位(Urms>253) */
             if(l1_val > 674 && g_over_vol_flag == false){
@@ -349,11 +353,20 @@ static void task_entry_voltage_sample(void *parameter)
                 g_pe_error_flag = false;
                 log_i("clear pe_error flag: %d", pe_val);
             }
-            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
 
-            // log_i("l_raw: %d, l_vol: %.3f", l1_val, ((1.2*((float)l1_val/(float)g_Vrefint))*10000)/21.0 - 3.3);
-            // log_i("c_raw: %d, c_vol: %.3f", c_voltage, ((1200.0*((float)c_voltage/(float)g_Vrefint))*2.0)/51.0);
-            
+            max_cur = evse_get_max_current();
+            if(cur > 1.15f*max_cur && g_over_cur_flag == false){// cur > 1.15*I_RMS 时触发过压报警(单位mA)
+                if(cur_err_cnt++ > 2){
+                    g_over_cur_flag = true;
+                    log_e("cur error: %0.2f", cur);
+                }
+            }else if(cur < 1.1f*max_cur && g_over_cur_flag == true){// cur < 1.1*I_RMS 时恢复过压报警(单位mA)
+                cur_err_cnt = 0;
+                g_over_cur_flag = false;
+                log_i("clear cur error: %0.2f", cur);
+            }
+            // log_d("cur: %.3f, vol: %.3f", cur, vol);
+            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
             /* 重新开启中断 */
             exti_interrupt_flag_clear(EXTI_6);
             exti_interrupt_enable(EXTI_6);

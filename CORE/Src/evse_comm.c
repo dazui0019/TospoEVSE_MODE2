@@ -59,7 +59,7 @@ void evse_comm_init(void)
  * @param[in] {pack_len} 计算校验和长度
  * @return 校验和
  */
-uint8_t get_check_sum(uint8_t pack[], uint16_t pack_len)
+uint8_t evse_comm_check_sum(uint8_t pack[], uint16_t pack_len)
 {
     uint16_t i;
     uint16_t check_sum = 0;
@@ -91,7 +91,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[1] = FUNC_CODE_UPDATE_ERR;   // 功能码
         frame_buff[2] = 0x01;                   // payload长度
         frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
@@ -100,7 +100,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[1] = FUNC_CODE_UPDATE_CHG;   // 功能码
         frame_buff[2] = 0x01;                   // payload长度
         frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
@@ -109,7 +109,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[1] = FUNC_CODE_UPDATE_DELAY; // 功能码
         frame_buff[2] = 0x01;                   // payload长度
         frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
@@ -118,7 +118,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[1] = FUNC_CODE_UPDATE_CURRENT;   // 功能码
         frame_buff[2] = 0x01;                       // payload长度
         frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
+        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
         frame_buff[5] = 0x55;
         UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
@@ -131,7 +131,7 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
         frame_buff[2] = 0x02;                   // payload长度
         frame_buff[3] = ((uint16_t)s_kwh) >> 8;
         frame_buff[4] = ((uint16_t)s_kwh)&0x00FF;
-        frame_buff[5] = get_check_sum(frame_buff, 5);
+        frame_buff[5] = evse_comm_check_sum(frame_buff, 5);
         frame_buff[6] = 0x55;
         UART_Transmit(USART2, frame_buff, 7);
         // fifo_s_puts(&send_fifo, frame_buff, 7);
@@ -269,8 +269,8 @@ static void task_entry_comm_receive(void *parameter)
             // todo: 这里不应该是检查长度，而是要通过数据帧里的第四位来截取缓冲区里当前帧的数据。
             if(frame[3] == (rx_length - 5)){
                 /* 检查校验位 */
-                if(get_check_sum(frame, rx_length-1) != frame[rx_length-1]){ // rx_length减去校验位本身和帧尾长度
-                    log_e("checksum error: 0x%02X, should be: 0x%02X.", frame[rx_length-1], get_check_sum(frame, rx_length-1));
+                if(evse_comm_check_sum(frame, rx_length-1) != frame[rx_length-1]){ // rx_length减去校验位本身和帧尾长度
+                    log_e("checksum error: 0x%02X, should be: 0x%02X.", frame[rx_length-1], evse_comm_check_sum(frame, rx_length-1));
                     continue;
                 }
                 /* 处理帧数据 */
