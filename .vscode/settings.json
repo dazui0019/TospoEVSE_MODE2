@@ -56,7 +56,9 @@
         "drv_delay.h": "c",
         "fifo.h": "c",
         "drv_spi.h": "c",
-        "gd32f303x_start.h": "c"
+        "gd32f303x_start.h": "c",
+        "evse_ac.h": "c",
+        "evse_gndd.h": "c"
     },
     "C_Cpp.default.includePath": [
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS\\GD\\GD32F30x\\Include",

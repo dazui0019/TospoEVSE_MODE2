@@ -37,7 +37,10 @@
 #define CH_NUM                  (3)
 #define SAMPLE_NUM              (100)
 
-__IO uint8_t g_vol_error_flag = false;
+/* 全局变量 */
+__IO uint8_t  g_over_cur_flag = false;
+__IO uint8_t  g_over_vol_flag = false;
+__IO uint8_t  g_under_vol_flag = false;
 __IO uint8_t g_pe_error_flag = false;
 
 __IO uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
@@ -281,6 +284,15 @@ uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t in
 static void task_entry_voltage_sample(void *parameter)
 {
     uint16_t pe_val, l1_val = 0, c_val = 0;
+
+    float vol;
+    float cur;
+    float power;
+    float kwh;
+    uint8_t max_cur;
+
+    uint16_t vol_err_cnt = 0;   // 电压错误计数
+    uint16_t cur_err_cnt = 0;   // 电流错误计数
     
     /* 等待vrefint读取完毕 */
     while (g_Vrefint == 0)
@@ -301,26 +313,48 @@ static void task_entry_voltage_sample(void *parameter)
             l1_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 1);
             c_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 0);
             
-            /* 设置过(欠)压标志位(±15%: 187 - 253) */
-            if(g_vol_error_flag == false && (l1_val >= 674 || l1_val <= 492)){
-                g_vol_error_flag = true;
-                log_e("voltage error: %d", l1_val);
-            }else if(g_vol_error_flag == true && (l1_val >= 513 && l1_val <= 639)){
-                g_vol_error_flag = false;
-                log_i("clear voltage error flag: %d", l1_val);
+            /* 设置过压标志位(Urms>253) */
+            if(l1_val > 674 && g_over_vol_flag == false){
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_over_vol_flag = true;
+                    log_e("over_vol: %d", l1_val);
+                }
+            }else if(l1_val < 639 && g_over_vol_flag == true){ // 当Urms<242时清除过压标志
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_over_vol_flag = false;
+                    log_i("clear over_vol flag: %d", l1_val);
+                }
+            }
+            /* 设置欠压标志(Urms<187) */
+            if(l1_val < 492 && g_under_vol_flag == false){
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_under_vol_flag = true;
+                    log_e("under_vol: %d", l1_val);
+                }
+            }else if(l1_val > 513 && g_under_vol_flag == true){ // 当Urms<242时清除欠压标志
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_under_vol_flag = false;
+                    log_i("clear under_vol flag: %d", l1_val);
+                }
             }
 
             if(g_pe_error_flag == false && pe_val >= 120){
                 g_pe_error_flag = true;
-                log_e("PE error: %d", pe_val);
+                log_e("pe_error: %d", pe_val);
             }else if(g_pe_error_flag == true && pe_val <= 10){
                 g_pe_error_flag = false;
-                log_i("Clear PE error flag: %d", pe_val);
+                log_i("clear pe_error flag: %d", pe_val);
             }
             // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
 
             // log_i("l_raw: %d, l_vol: %.3f", l1_val, ((1.2*((float)l1_val/(float)g_Vrefint))*10000)/21.0 - 3.3);
             // log_i("c_raw: %d, c_vol: %.3f", c_voltage, ((1200.0*((float)c_voltage/(float)g_Vrefint))*2.0)/51.0);
+            
+            /* 重新开启中断 */
             exti_interrupt_flag_clear(EXTI_6);
             exti_interrupt_enable(EXTI_6);
         }

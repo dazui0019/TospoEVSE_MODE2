@@ -3,22 +3,26 @@
 #include "gd32f30x.h"
 #include "evse_cp.h"
 #include "evse_relay.h"
+#include "evse_config.h"
 
 /**
  * @brief   充电桩状态(记录整个系统的状态)
  */
 typedef enum{
     EVSE_REBOOT = 0,    // 刚启动
-    EVSE_IDLE,          // 未插枪
-    EVSE_READY_9V,      // 9v
-    EVSE_READY_6V,      // 6v
+    EVSE_IDLE,          // 空闲,未插枪&未刷卡
+    EVSE_WAIT_PLUGIN,   // 等待插枪,未插枪&已刷卡
+    EVSE_9V,            // 9v,已插枪&未刷卡
+    EVSE_9V_PWM,        // 9vPWM,已插枪&已刷卡(等待S2闭合)
+    EVSE_6V,            // 6v
     EVSE_SIM_6V,        // EV使用的是简易控制导引(12V直接进入6V)
     EVSE_CHARGING,      // 6vPWM
     EVSE_DONE,          // CP电平从6vPWM切换至9v(PWM)
     EVSE_CP_LOST,       // CP断线
     EVSE_CP_ERROR,      // CP电平异常
+    EVSE_WAIT_S2_OPEN,  // 充电中刷卡
+    EVSE_STOP,          // 充电中刷卡后，汽车S2断开
     EVSE_WAIT_S2,       // 9vPWM(等待S2闭合)
-    EVSE_PAUSE,         // 充电中刷卡/涂鸦APP关闭充电
     EVSE_FAULT,         // 充电故障
 }evse_state_t;
 
@@ -48,12 +52,60 @@ typedef struct{
     void (*evse_relay_ctrl)(relay_state_t state);
 }evse_t;
 
+/**
+ * @brief   错误检测
+ * @todo    需要根据不同的错误，进行不同的处理
+ */
+static ErrStatus evse_error_ck(void);
+uint8_t evse_get_max_current(void);
+
 evse_state_t evse_idle_handle(cp_state_t);
+/**
+ * @brief   12V已刷卡
+ */
+evse_state_t evse_wait_plugin_handle(cp_state_t);
+/**
+ * @brief   9V未刷卡
+ */
 evse_state_t evse_9v_handle(cp_state_t);
+/**
+ * @brief   9V已刷卡
+ */
+evse_state_t evse_9v_pwm_handle(cp_state_t);
+/**
+ * @brief   6V未刷卡
+ */
 evse_state_t evse_6v_handle(cp_state_t);
+/**
+ * @brief   从12V直接进入6V(简易控制导引)
+ */
 evse_state_t evse_sim_6v_handle(cp_state_t);
+/**
+ * @brief   充电完成(从12V进入9V)
+ */
 evse_state_t evse_done_handle(cp_state_t);
+/**
+ * @brief   CP断线(从6V直接进入12V)
+ */
 evse_state_t evse_cp_lost_handle(cp_state_t);
+/**
+ * @brief   充电中
+ */
 evse_state_t evse_charging_handle(cp_state_t);
+/**
+ * @brief   cp电平异常
+ */
 evse_state_t evse_cp_error_handle(cp_state_t);
+/**
+ * @brief   充电故障(除了CP之外的其他错误)
+ */
 evse_state_t evse_fault_handle(cp_state_t);
+/**
+ * @brief   充电桩主动停止充电(充电中刷卡)
+ * @note    进入时，先断开PWM输出，等切换到9V时再断开继电器。
+ * @todo:   这里好像需要检测汽车从CP6V返回到CP9V的时间
+ */
+evse_state_t evse_stop_handle(cp_state_t cp_state);
+
+evse_state_t evse_wait_s2_open_handle(cp_state_t);
+

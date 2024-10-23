@@ -12,6 +12,9 @@
 #define LOG_TAG "evse.comm"
 #include "elog.h"
 
+/* 存放卡号(可以存放10张卡) */
+__attribute__((used)) static uint8_t card_id[10][4] = {{ 0xAA, 0xBB, 0xCC, 0xDD },};
+
 #define COMM_BUFF_LENGTH   64
 /* ring buffer for uart */
 static lwrb_t uart_rb;
@@ -24,12 +27,8 @@ static uint8_t fifo_buffer[SEND_BUFFER_LENGTH];
 /* 中断标志位 */
 static __IO uint8_t rx_cplt_flag = false;
 
-static __IO ui_update_flag_t ui_update_flag = {
-    .current = false,
-    .delay = false,
-    .voltage = false,
-    .error = false
-};
+/* 全局变量 */
+__IO uint8_t g_rfid_flag = false;
 
 /* DMA缓冲区 */
 uint8_t receive_buffer[COMM_BUFF_LENGTH];
@@ -63,12 +62,12 @@ void evse_comm_init(void)
 uint8_t get_check_sum(uint8_t pack[], uint16_t pack_len)
 {
     uint16_t i;
-    uint8_t check_sum = 0;
+    uint16_t check_sum = 0;
     
     for(i = 0; i < pack_len; i ++) {
         check_sum += *pack ++;
     }
-    
+    check_sum &= 0x00FF;    // 舍弃进位部分, 只保留低8位
     return check_sum;
 }
 
@@ -80,6 +79,7 @@ uint8_t get_check_sum(uint8_t pack[], uint16_t pack_len)
  */
 uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
 {
+    return 0;
     float f_kwh;
     uint16_t s_kwh;
     /* 帧缓冲区 */
@@ -203,6 +203,14 @@ void DMA0_Channel2_IRQHandler(){
     }
 }
 
+static uint8_t evse_rfid_process(const uint8_t id[4])
+{
+    for(int i = 0; i < 10; i++){
+        if(0 == memcmp(id, card_id[i], 4)) return 0;
+    }
+    return 1;
+}
+
 void evse_key_process(uint8_t key_val)
 {
     switch (key_val)
@@ -225,7 +233,7 @@ void evse_key_process(uint8_t key_val)
     };
 }
 
-// todo: 处理fifo中需要发送的数据
+// todo: 处理fifo中需要发送的数据(还没使用)
 void evse_comm_send_handle(void)
 {
     uint8_t frame_buff[FRAME_LEN_MAX];
@@ -236,44 +244,56 @@ void evse_comm_send_handle(void)
     if((data_temp = fifo_s_get(&send_fifo)) == 0x5A){
         ;
     }
-
 }
 
-static void task_entry_comm(void *parameter)
+static void task_entry_comm_receive(void *parameter)
 {
     /* 初始化LCD板通信串口 */
     evse_comm_init();
     uint8_t frame[FRAME_LEN_MAX];
     uint8_t rx_length;
+
     for(;;){
-        if(rx_cplt_flag){
-            EventStartA(1);
-            rx_cplt_flag = false;
-            rx_length = lwrb_get_full(&uart_rb);    // 直接将ring buffer已使用的长度作为本次串口接收的长度, 不太可靠需要优化
-            lwrb_read(&uart_rb, frame, rx_length);
-            /* 检查帧头和帧尾 */
-            if(0x5A == frame[0] &&  0x55 == frame[rx_length-1]){
+        bos_delay_ms(10);
+        if(true != rx_cplt_flag)
+            continue;
+        
+        EventStartA(1);
+        rx_cplt_flag = false;
+        rx_length = lwrb_get_full(&uart_rb);    // todo: 这里是直接将ring buffer已使用的长度作为本次串口接收的长度, 不太可靠, 需要优化
+        lwrb_read(&uart_rb, frame, rx_length);
+        log_d("rx_length: %d.", rx_length);
+        /* 检查帧头*/
+        if(0xAA == frame[0] &&  0x55 == frame[1]){
+            /* 检查数据长度 */
+            // todo: 这里不应该是检查长度，而是要通过数据帧里的第四位来截取缓冲区里当前帧的数据。
+            if(frame[3] == (rx_length - 5)){
                 /* 检查校验位 */
-                if(get_check_sum(frame, rx_length-2) != frame[rx_length-2]){ // rx_length减去校验位本身和帧尾长度
-                    log_e("checksum error: 0x%02X, should be: 0x%02X.", frame[rx_length-2], get_check_sum(frame, rx_length-2));
+                if(get_check_sum(frame, rx_length-1) != frame[rx_length-1]){ // rx_length减去校验位本身和帧尾长度
+                    log_e("checksum error: 0x%02X, should be: 0x%02X.", frame[rx_length-1], get_check_sum(frame, rx_length-1));
                     continue;
                 }
-                log_d("code: 0x%02X.", frame[1]);
-                switch (frame[1])
+                /* 处理帧数据 */
+                switch (frame[2])
                 {
                 case 0x3A:
                     evse_key_process(frame[3]);
                     break;
-                default:
-                    log_e("code: 0x%02X.", frame[1]);
+                case 0x28:
+                    evse_rfid_process(frame+4) == 0 ? g_rfid_flag = true : log_d("rfid error.");
                     break;
+                default:// 未知命令
+                    log_e("code: 0x%02X.", frame[1]);
+                    continue;
                 }
+            }else{  // 数据长度错误
+                log_e("frame length error: %d, should be: %d.", rx_length, frame[3]+5);
+                continue;
             }
-            EventStopA(1);
-            continue;
+        }else{  // 帧头错误
+            log_e("frame head error: 0x%02X, 0x%02X.", frame[0], frame[1]);
         }
-        
-        bos_delay_ms(1);
+        EventStopA(1);
     }
 }
-bos_task_export(lcd_comm, task_entry_comm, BOS_MAX_PRIORITY, NULL);
+bos_task_export(comm_receive, task_entry_comm_receive, BOS_MAX_PRIORITY, NULL);
