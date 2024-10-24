@@ -8,7 +8,7 @@
 #define LOG_TAG "evse.ui"
 #include "elog.h"
 
-#define LCD_SPI  SPI0
+#define LCD_SPI  SPI2
 
 UG_GUI lcd;
 
@@ -51,15 +51,20 @@ void evse_ui_init(void)
 void evse_lcd_gpio_config(void)
 {
     rcu_periph_clock_enable(RCU_AF);
+    gpio_pin_remap_config(GPIO_SWJ_SWDPENABLE_REMAP, ENABLE);
     
     rcu_periph_clock_enable(RCU_GPIOA);
-    /* SCK: PA5, MOSI: PA7 */
+    rcu_periph_clock_enable(RCU_GPIOB);
+    rcu_periph_clock_enable(RCU_GPIOC);
+    rcu_periph_clock_enable(RCU_GPIOD);
+    /* LCD_SCK: PC10, LCD_MOSI: PC12 */
+    gpio_pin_remap_config(GPIO_SPI2_REMAP, ENABLE);
     gpio_init(LCD_SCK_GPIO_Port, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, LCD_SCK_Pin);
     gpio_init(LCD_SDA_GPIO_Port, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, LCD_SDA_Pin);
-    /* NSS: PA3 */
+    /* LCD_CS: PA15 */
     gpio_init(LCD_CS_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_CS_Pin);
     gpio_bit_set(LCD_CS_GPIO_Port, LCD_CS_Pin);
-    /* GPIO config: CS/PA2, RST/PA8, DC/PA4, BLK/PA2 */
+    /* LCD_RST:PD2, LCD_DC:PB3, LCD_BLK:PC11 */
     gpio_init(LCD_RST_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_RST_Pin);
     gpio_init(LCD_BLK_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_BLK_Pin);
     gpio_init(LCD_DC_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_DC_Pin);
@@ -71,7 +76,7 @@ static void evse_lcd_spi_config(void)
 {
     spi_parameter_struct spi_init_struct;
     /* SPI config */
-    rcu_periph_clock_enable(RCU_SPI0);
+    rcu_periph_clock_enable(RCU_SPI2);
     spi_i2s_deinit(LCD_SPI);
     /* SPI parameter config */
     spi_init_struct.trans_mode           = SPI_TRANSMODE_FULLDUPLEX;
@@ -102,7 +107,7 @@ GD_StatusTypeDef evse_lcd_spi_transmit(uint8_t *pData, uint16_t Size)
     pTxBuffPtr = (uint8_t*)pData;
 
     while (TxXferCount > 0U){
-        if(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)){
+        if(RESET != (SPI_STAT(LCD_SPI) & SPI_FLAG_TBE)){
             SPI_DATA(LCD_SPI) = (uint32_t)*pTxBuffPtr;
             // spi_i2s_data_transmit(LCD_SPI, *pTxBuffPtr);
             TxXferCount--;
@@ -111,7 +116,7 @@ GD_StatusTypeDef evse_lcd_spi_transmit(uint8_t *pData, uint16_t Size)
     }
 
     /* 等待传输完成 */
-    while (RESET != (SPI_STAT(SPI0) & SPI_FLAG_TRANS)){}
+    while (RESET != (SPI_STAT(LCD_SPI) & SPI_FLAG_TRANS)){}
 
 error :
     return errorcode;
@@ -163,6 +168,7 @@ uint8_t evse_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
  */
 static void task_entry_ui_upgrade(void *parameter)
 {
+    evse_ui_init();
     for(;;){
         bos_delay_ms(1000);
     }
