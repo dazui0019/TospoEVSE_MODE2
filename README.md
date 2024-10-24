@@ -93,6 +93,7 @@
 
 1. -[X] 两个电压采集通道在ADC1上无法单独使用DMA, 所以需要改到ADC2上。
 2. -[ ] `FREQ_IN`这部分电路有点问题, 需要修改。
+3. -[ ] 开`-o1`优化后, 会出现`HardFault`错误, 大概的位置是在`adc_verf_config()`的`adc_calibration_enable(ADC0);`里面。
 
 ## Todos
 

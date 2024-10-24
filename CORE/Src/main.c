@@ -34,11 +34,11 @@ void print_clock(void)
 int main(){
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);
     
-    // EventRecorderInitialize(EventRecordAll, 1U);
-    // EventRecorderStart();
+    EventRecorderInitialize(EventRecordAll, 1U);
+    EventRecorderStart();
+    
 
     rtc_reconfiguration();
-    // rtc_interrupt_enable(RTC_INT_SECOND);
 
     evse_relay_init();
     evse_relay_ctrl(open);
@@ -52,8 +52,8 @@ int main(){
     // print_clock();
     log_d("Test.");
 
-    delay_init();   // 初始化延时函数(仅在初始化时使用)
-    // /* 需要纯延时的初始化函数 */
+    delay_init();   // 初始化延时函数
+    /* 需要纯延时的初始化函数 */
     // evse_rcd_init();
 
     // delay_deinit(); // 重置用于延时的定时器
@@ -70,9 +70,9 @@ int main(){
 
 static void task_entry_blink(void *parameter)
 {
-    gd_led_init(LED2);
+    gd_led_init(LED0);
     for(;;){
-        gd_led_toggle(LED2);
+        gd_led_toggle(LED0);
         bos_delay_ms(100);
     }
 }
