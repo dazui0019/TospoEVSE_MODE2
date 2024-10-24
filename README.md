@@ -4,6 +4,10 @@
 
 ## News / Change History
 
+### 2024/10/24
+
+- 添加`FaultHandler`，修改`HardFault_Handler(void)`函数，方便后续调试。
+
 ### 2024/10/23
 
 - 添加LCD驱动。

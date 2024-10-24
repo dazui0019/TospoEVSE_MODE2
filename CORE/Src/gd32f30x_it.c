@@ -56,12 +56,12 @@ void NMI_Handler(void)
     \param[out] none
     \retval     none
 */
-void HardFault_Handler(void)
-{
-    /* if Hard Fault exception occurs, go to infinite loop */
-    while (1){
-    }
-}
+//void HardFault_Handler(void)
+//{
+//    /* if Hard Fault exception occurs, go to infinite loop */
+//    while (1){
+//    }
+//}
 
 /*!
     \brief      this function handles MemManage exception
