@@ -168,7 +168,7 @@ uint8_t evse_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
  */
 static void task_entry_ui_upgrade(void *parameter)
 {
-    evse_ui_init();
+    // evse_ui_init();
     for(;;){
         bos_delay_ms(1000);
     }

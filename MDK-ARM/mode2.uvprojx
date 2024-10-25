@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>GD32F30X_HD,PRINTF_INCLUDE_CONFIG_H</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime;..\Drivers\lcd_drivers;..\Libraries\UGUI</IncludePath>
+              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime;..\Drivers\lcd_drivers;..\Libraries\UGUI;..\Drivers\ws2812b\src;..\Drivers\ws2812b;..\Drivers\ws2812b_port</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -499,6 +499,11 @@
               <FileName>FaultHandler.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\FaultHandler.c</FilePath>
+            </File>
+            <File>
+              <FileName>evse_rgb.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_rgb.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -880,6 +885,21 @@
               <FileName>ugui.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\UGUI\ugui.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers/ws2812b</GroupName>
+          <Files>
+            <File>
+              <FileName>driver_ws2812b.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\ws2812b\driver_ws2812b.c</FilePath>
+            </File>
+            <File>
+              <FileName>ws2812b_port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\ws2812b_port\ws2812b_port.c</FilePath>
             </File>
           </Files>
         </Group>

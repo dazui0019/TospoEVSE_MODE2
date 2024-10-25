@@ -59,8 +59,6 @@ int main(){
     // delay_deinit(); // 重置用于延时的定时器
 
     /* 函数测试 */
-    evse_ui_init();
-    for(;;){}
 
     /* 启动BasicOS */
     systick_config();

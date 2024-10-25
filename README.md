@@ -4,6 +4,10 @@
 
 ## News / Change History
 
+### 2024/10/25
+
+- 添加ws2812b驱动.
+
 ### 2024/10/24
 
 - 添加`FaultHandler`，修改`HardFault_Handler(void)`函数，方便后续调试。
