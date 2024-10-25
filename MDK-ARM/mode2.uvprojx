@@ -14,16 +14,16 @@
       <uAC6>1</uAC6>
       <TargetOption>
         <TargetCommonOption>
-          <Device>GD32F303RC</Device>
+          <Device>GD32F303CC</Device>
           <Vendor>GigaDevice</Vendor>
           <PackID>GigaDevice.GD32F30x_DFP.2.2.1</PackID>
           <PackURL>https://gd32mcu.com/data/documents/pack/</PackURL>
           <Cpu>IRAM(0x20000000,0x0C000) IROM(0x08000000,0x040000) CPUTYPE("Cortex-M4") FPU2 CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
-          <FlashDriverDll>UL2CM3(-S0 -C0 -P0 -FD20000000 -FC1000 -FN1 -FF0GD32F30x_HD -FS08000000 -FL040000 -FP0($$Device:GD32F303RC$Flash\GD32F30x_HD.FLM))</FlashDriverDll>
+          <FlashDriverDll>UL2CM3(-S0 -C0 -P0 -FD20000000 -FC1000 -FN1 -FF0GD32F30x_HD -FS08000000 -FL040000 -FP0($$Device:GD32F303CC$Flash\GD32F30x_HD.FLM))</FlashDriverDll>
           <DeviceId>0</DeviceId>
-          <RegisterFile>$$Device:GD32F303RC$Device\Include\gd32f30x.h</RegisterFile>
+          <RegisterFile>$$Device:GD32F303CC$Device\Include\gd32f30x.h</RegisterFile>
           <MemoryEnv></MemoryEnv>
           <Cmp></Cmp>
           <Asm></Asm>
@@ -33,7 +33,7 @@
           <SLE66CMisc></SLE66CMisc>
           <SLE66AMisc></SLE66AMisc>
           <SLE66LinkerMisc></SLE66LinkerMisc>
-          <SFDFile>$$Device:GD32F303RC$SVD\GD32F30x_HD.svd</SFDFile>
+          <SFDFile>$$Device:GD32F303CC$SVD\GD32F30x_HD.svd</SFDFile>
           <bCustSvd>0</bCustSvd>
           <UseEnv>0</UseEnv>
           <BinPath></BinPath>
@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>GD32F30X_HD,PRINTF_INCLUDE_CONFIG_H</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime;..\Drivers\lcd_drivers;..\Libraries\UGUI;..\Drivers\ws2812b\src;..\Drivers\ws2812b;..\Drivers\ws2812b_port</IncludePath>
+              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime;..\Drivers\lcd_drivers;..\Libraries\UGUI;..\Drivers\ws2812b\src;..\Drivers\ws2812b;..\Drivers\ws2812b_port;..\Libraries\utils</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -900,6 +900,16 @@
               <FileName>ws2812b_port.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\ws2812b_port\ws2812b_port.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Libraries/utils</GroupName>
+          <Files>
+            <File>
+              <FileName>utils.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Libraries\utils\utils.c</FilePath>
             </File>
           </Files>
         </Group>

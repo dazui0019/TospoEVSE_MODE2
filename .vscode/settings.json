@@ -78,6 +78,7 @@
         "Drivers\\ws2812b\\src",
         "Drivers\\ws2812b",
         "Drivers\\ws2812b_port",
+        "Libraries\\utils",
         "MDK-ARM/RTE/Compiler",
         "MDK-ARM/RTE/_Target_1",
         "D:/ProgramFiles/Keil_v5/ARM/Packs/GigaDevice/GD32F30x_DFP/2.2.1/Device/Include",

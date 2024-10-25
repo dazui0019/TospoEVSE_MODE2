@@ -5,11 +5,12 @@
 #include "basic_os.h"
 #include "drv_delay.h"
 #include "EventRecorder.h"
+#include "utils.h"
 
 #define LOG_TAG "evse.rgb"
 #include  "elog.h"
 
-#define RGB_NUM 12
+#define RGB_NUM 4
 
 const uint8_t GammaTable[] ={
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -40,7 +41,7 @@ static ws2812b_handle_t ws2812b;
 static uint8_t led_buffer[4096];
 static uint32_t led_color[RGB_NUM] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFF00FF};
 
-static uint32_t fluid_buffer_red[RGB_NUM] = {0x150000U, 0x2A0000U, 0x3F0000U, 0x540000U};
+static uint32_t fluid_buffer_red[RGB_NUM] = {0x000000U, 0x000000U, 0x000000U, 0x540000U};
 
 /**
  * @brief   更新RGB
@@ -48,16 +49,24 @@ static uint32_t fluid_buffer_red[RGB_NUM] = {0x150000U, 0x2A0000U, 0x3F0000U, 0x
 static void task_entry_rgb_upgrade(void *parameter)
 {
     evse_rgb_init();
-    evse_rgb_set_color(0xFF0000, 0xAA, 0xFF);
+//    evse_rgb_set_color(0xFF0000, 0xAA, 0xFF);
     delay_ms(1);
     for(;;){
-        // EventStartA(3);
-        // evse_rgb_set_color(0xFF0000, 0xAA, 0xFF);
-        // EventStopA(3);
-        bos_delay_ms(100);
+        
+        // evse_rgb_fluid(NULL, 1);
+        
+        
+        rotateArray_uint32(fluid_buffer_red, RGB_NUM, 1);
+        for(int i = RGB_NUM; i >= 0; i--) {
+            EventStartA(3);
+            evse_rgb_set_color(fluid_buffer_red[i], 0xFF, i);
+            EventStopA(3);
+        }
+
+        bos_delay_ms(500);
     }
 }
-bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);
 
 static void evse_rgb_memset(uint32_t arr[], uint32_t val, int n);
 
@@ -130,40 +139,6 @@ void evse_rgb_clear(uint8_t index)
     ws2812b_write(&ws2812b, led_color, RGB_NUM, led_buffer, 2048);
 }
 
-static void reverseArray(uint32_t arr[], int start, int end) {
-    while (start < end) {
-        int temp = arr[start];
-        arr[start] = arr[end];
-        arr[end] = temp;
-        start++;
-        end--;
-    }
-}
-
-static void rotateArray(uint32_t arr[], int n, int k) {
-    k %= n;
-    reverseArray(arr, 0, n - k - 1);
-    reverseArray(arr, n - k, n - 1);
-    reverseArray(arr, 0, n - 1);
-}
-
-static void reverseArray_uint8(uint8_t arr[], int start, int end) {
-    while (start < end) {
-        uint8_t temp = arr[start];
-        arr[start] = arr[end];
-        arr[end] = temp;
-        start++;
-        end--;
-    }
-}
-
-static void rotateArray_uint8(uint8_t arr[], int n, int k) {
-    k %= n;
-    reverseArray_uint8(arr, 0, n - k - 1);
-    reverseArray_uint8(arr, n - k, n - 1);
-    reverseArray_uint8(arr, 0, n - 1);
-}
-
 static void evse_rgb_memset(uint32_t arr[], uint32_t val, int n)
 {
     for(int i = 0; i < n; i++){
@@ -180,7 +155,7 @@ void evse_rgb_fluid(uint32_t color, uint8_t effect)
             evse_rgb_set_color(color, 0xFF, i);
         break;
     case 1:
-        rotateArray(fluid_buffer_red, RGB_NUM, 1);
+        rotateArray_uint32(fluid_buffer_red, RGB_NUM, 1);
         for(int i = RGB_NUM; i >= 0; i--)
             evse_rgb_set_color(fluid_buffer_red[i], 0xFF, i);
         break;

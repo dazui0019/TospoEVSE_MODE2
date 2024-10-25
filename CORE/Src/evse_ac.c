@@ -43,11 +43,150 @@ __IO uint8_t  g_over_cur_flag = false;
 __IO uint8_t  g_over_vol_flag = false;
 __IO uint8_t  g_under_vol_flag = false;
 __IO uint8_t g_pe_error_flag = false;
-
 __IO uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
+__IO double g_kwh = 0;
+
+/* 中断标志位 */
+static __IO uint8_t start_flag = false; // 正弦波一个周期开始的标志
+static __IO uint8_t cplt_flag = false;
+static __IO uint8_t second_flag = false;
 
 // adc 采样数据DMA缓冲区
 __attribute((used)) uint16_t ac_adc_buff[100][3];
+
+/* 函数声明 */
+static uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index);
+static void evse_ac_adc_config(void);
+static void evse_ac_timer_config(uint16_t f);
+static void freq_exti_config(void);
+
+float vol;
+float cur;
+float power;
+
+static void task_entry_voltage_sample(void *parameter)
+{
+    uint16_t pe_val = 0, l1_val = 0, c_val = 0;
+    uint8_t max_cur;
+
+    uint16_t vol_err_cnt = 0;   // 电压错误计数
+    uint16_t cur_err_cnt = 0;   // 电流错误计数
+    uint16_t pe_err_cnt = 0;    // 接地错误计数
+    
+    /* 等待vrefint读取完毕 */
+    while (g_Vrefint == 0)
+    {
+        bos_delay_ms(1);
+    }
+
+    evse_ac_adc_config();   // ac_adc和g_Vrefint共用ADC0, 所以等g_Vrefint获取完成后, 再重新配置ADC0给ac_adc用
+    freq_exti_config();
+    evse_ac_timer_config(5000); // 5000Hz/50Hz = 100个
+
+    exti_interrupt_enable(EXTI_6);
+
+    for(;;){
+        if(cplt_flag == true){
+            cplt_flag = false;
+            pe_val = get_sin_val(ac_adc_buff, SAMPLE_NUM, 2);    // 一阶互补滤波
+            l1_val = (0.6*l1_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 1));    // 一阶互补滤波
+            c_val = (0.6*c_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 0));      // 一阶互补滤波
+            
+            cur = c_val/28.0f - 0.1428f;        // 转换成人类可读的数据
+            vol = (l1_val*5.0f)/13.0f - 2.69f;  // 转换成人类可读的数据
+            power = cur*vol;
+
+            /* 设置过压标志位(Urms>253) */
+            if(l1_val > 674 && g_over_vol_flag == false){
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_over_vol_flag = true;
+                    log_e("over_vol: %d", l1_val);
+                }
+            }else if(l1_val < 639 && g_over_vol_flag == true){ // 当Urms<242时清除过压标志
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_over_vol_flag = false;
+                    log_i("clear over_vol flag: %d", l1_val);
+                }
+            }
+            /* 设置欠压标志(Urms<187) */
+            if(l1_val < 492 && g_under_vol_flag == false){
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_under_vol_flag = true;
+                    log_e("under_vol: %d", l1_val);
+                }
+            }else if(l1_val > 513 && g_under_vol_flag == true){ // 当Urms<242时清除欠压标志
+                if(vol_err_cnt++ > 2){
+                    vol_err_cnt = 0;
+                    g_under_vol_flag = false;
+                    log_i("clear under_vol flag: %d", l1_val);
+                }
+            }
+
+            if(g_pe_error_flag == false && pe_val >= 120){
+                if(pe_err_cnt++ > 2){
+                    pe_err_cnt = 0;
+                    g_pe_error_flag = true;
+                    log_e("pe_error: %d", pe_val);
+                }
+                
+            }else if(g_pe_error_flag == true && pe_val <= 10){
+                if(pe_err_cnt++ > 2){
+                    pe_err_cnt = 0;
+                    g_pe_error_flag = false;
+                    log_i("clear pe_error flag: %d", pe_val);
+                }
+            }
+
+            max_cur = evse_get_max_current();
+            if(cur > 1.15f*max_cur && g_over_cur_flag == false){// cur > 1.15*I_RMS 时触发过压报警(单位mA)
+                if(cur_err_cnt++ > 2){
+                    g_over_cur_flag = true;
+                    log_e("cur error: %0.2f", cur);
+                }
+            }else if(cur < 1.1f*max_cur && g_over_cur_flag == true){// cur < 1.1*I_RMS 时恢复过压报警(单位mA)
+                cur_err_cnt = 0;
+                g_over_cur_flag = false;
+                log_i("clear cur error: %0.2f", cur);
+            }
+            log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
+            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
+            /* 重新开启中断 */
+            exti_interrupt_flag_clear(EXTI_6);
+            exti_interrupt_enable(EXTI_6);
+        }
+        bos_delay_ms(1);
+    }
+}
+bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
+
+static void task_entry_kwh_calc(void *parameter)
+{
+    rtc_interrupt_enable(RTC_INT_SECOND);
+    for(;;){
+        if(second_flag){
+            second_flag = false;
+            if(cur > 0.2f)
+                g_kwh += (float)((double)power/(double)3600000.0);
+            // log_d("cur: %.3f, vol: %.3f, power: %0.3f, kwh: %0.4f", cur, vol, power, g_kwh);
+        }
+        bos_delay_ms(1);
+    }
+}
+bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
+
+void RTC_IRQHandler()
+{
+    if(rtc_flag_get(RTC_FLAG_SECOND) != RESET){
+        rtc_flag_clear(RTC_FLAG_SECOND);
+        // log_d("RTC second interrupt");
+        // log_d("%d", rtc_counter_get());
+        second_flag = true;
+    }
+}
+
 
 /**
  * @brief   获取芯片内部1.2V基准电压值
@@ -83,7 +222,7 @@ void adc_verf_config(void)
     adc_calibration_enable(ADC0);
 }
 
-void freq_exti_config(void)
+static void freq_exti_config(void)
 {
     /* enable the GPIO clock */
     rcu_periph_clock_enable(TRIG_PORT_RCU);
@@ -105,7 +244,7 @@ void freq_exti_config(void)
  * @param   f 定时器更新频率, 单位Hz(2 - 1000000)
  * @note    TIMER1CLK(TIMER1_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
 */
-void evse_ac_timer_config(uint16_t f)
+static void evse_ac_timer_config(uint16_t f)
 {
     timer_parameter_struct timer_initpara;      // 定时器基本参数
     timer_oc_parameter_struct timer_ocintpara;  // 定时器输出设置
@@ -180,7 +319,7 @@ static void adc0_dma_config(uint16_t number)
 /**
  * @brief   电压采集通道
  */
-void evse_ac_adc_config(void)
+static void evse_ac_adc_config(void)
 {
     adc_deinit(AC_ADC);
 
@@ -223,8 +362,6 @@ void evse_ac_adc_config(void)
     adc0_dma_config(CH_NUM*SAMPLE_NUM);
 }
 
-__IO uint8_t start_flag = false; // 正弦波一个周期开始的标志
-__IO uint8_t cplt_flag = false;
 /*!
     \brief      this function handles external lines 10 to 15 interrupt request
     \param[in]  none
@@ -254,10 +391,10 @@ void DMA0_Channel0_IRQHandler(void)
 /**
  * @brief   获取正弦波正半波的平均值
  */
-uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index)
+static uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index)
 {
     static uint32_t val;
-    uint16_t base_val;
+    static uint16_t base_val;
     uint16_t temp = 0;
     uint32_t sum = 0, count = 0;
 
@@ -269,7 +406,8 @@ uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t in
     for(uint32_t i = 0; i < length; i++){
         sum += pBuff[i][index];
     }
-    base_val = (uint16_t)(sum/length);
+    base_val = ((6*base_val) + (uint16_t)(4.0*(sum/length)))/10.0;
+    // log_d("base_val: %d", base_val);
 
     for(uint32_t i = 0; i < length; i++){
         val += abs((int32_t)pBuff[i][index]-(int32_t)base_val);
@@ -281,97 +419,3 @@ uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t in
 
     return (uint16_t)val;
 }
-
-static void task_entry_voltage_sample(void *parameter)
-{
-    uint16_t pe_val = 0, l1_val = 0, c_val = 0;
-
-    float vol;
-    float cur;
-    float power;
-    float kwh;
-    uint8_t max_cur;
-
-    uint16_t vol_err_cnt = 0;   // 电压错误计数
-    uint16_t cur_err_cnt = 0;   // 电流错误计数
-    
-    /* 等待vrefint读取完毕 */
-    while (g_Vrefint == 0)
-    {
-        bos_delay_ms(1);
-    }
-
-    evse_ac_adc_config();   // ac_adc和g_Vrefint共用ADC0, 所以等g_Vrefint获取完成后, 再重新配置ADC0给ac_adc用
-    freq_exti_config();
-    evse_ac_timer_config(5000); // 5000Hz/50Hz = 100个
-
-    exti_interrupt_enable(EXTI_6);
-
-    for(;;){
-        if(cplt_flag == true){
-            cplt_flag = false;
-            pe_val = (0.6*pe_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 2));    // 一阶互补滤波
-            l1_val = (0.6*l1_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 1));    // 一阶互补滤波
-            c_val = (0.6*c_val)+(0.4*get_sin_val(ac_adc_buff, SAMPLE_NUM, 0));      // 一阶互补滤波
-            
-            cur = c_val/28.0f - 0.1428f;        // 转换成人类可读的数据
-            vol = (l1_val*5.0f)/13.0f - 2.69f;  // 转换成人类可读的数据
-            
-            /* 设置过压标志位(Urms>253) */
-            if(l1_val > 674 && g_over_vol_flag == false){
-                if(vol_err_cnt++ > 2){
-                    vol_err_cnt = 0;
-                    g_over_vol_flag = true;
-                    log_e("over_vol: %d", l1_val);
-                }
-            }else if(l1_val < 639 && g_over_vol_flag == true){ // 当Urms<242时清除过压标志
-                if(vol_err_cnt++ > 2){
-                    vol_err_cnt = 0;
-                    g_over_vol_flag = false;
-                    log_i("clear over_vol flag: %d", l1_val);
-                }
-            }
-            /* 设置欠压标志(Urms<187) */
-            if(l1_val < 492 && g_under_vol_flag == false){
-                if(vol_err_cnt++ > 2){
-                    vol_err_cnt = 0;
-                    g_under_vol_flag = true;
-                    log_e("under_vol: %d", l1_val);
-                }
-            }else if(l1_val > 513 && g_under_vol_flag == true){ // 当Urms<242时清除欠压标志
-                if(vol_err_cnt++ > 2){
-                    vol_err_cnt = 0;
-                    g_under_vol_flag = false;
-                    log_i("clear under_vol flag: %d", l1_val);
-                }
-            }
-
-            if(g_pe_error_flag == false && pe_val >= 120){
-                g_pe_error_flag = true;
-                log_e("pe_error: %d", pe_val);
-            }else if(g_pe_error_flag == true && pe_val <= 10){
-                g_pe_error_flag = false;
-                log_i("clear pe_error flag: %d", pe_val);
-            }
-
-            max_cur = evse_get_max_current();
-            if(cur > 1.15f*max_cur && g_over_cur_flag == false){// cur > 1.15*I_RMS 时触发过压报警(单位mA)
-                if(cur_err_cnt++ > 2){
-                    g_over_cur_flag = true;
-                    log_e("cur error: %0.2f", cur);
-                }
-            }else if(cur < 1.1f*max_cur && g_over_cur_flag == true){// cur < 1.1*I_RMS 时恢复过压报警(单位mA)
-                cur_err_cnt = 0;
-                g_over_cur_flag = false;
-                log_i("clear cur error: %0.2f", cur);
-            }
-            // log_d("cur: %.3f, vol: %.3f", cur, vol);
-            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
-            /* 重新开启中断 */
-            exti_interrupt_flag_clear(EXTI_6);
-            exti_interrupt_enable(EXTI_6);
-        }
-        bos_delay_ms(1);
-    }
-}
-bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);

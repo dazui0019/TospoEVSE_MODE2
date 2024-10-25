@@ -259,12 +259,3 @@ void rtc_set_delay_alarm(uint8_t hour, uint8_t minute, uint8_t second)
     rtc_lwoff_wait();
     pmu_backup_write_disable();
 }
-
-void RTC_IRQHandler()
-{
-    if(rtc_flag_get(RTC_FLAG_SECOND) != RESET){
-        rtc_flag_clear(RTC_FLAG_SECOND);
-        // log_d("RTC second interrupt");
-        log_d("%d", rtc_counter_get());
-    }
-}

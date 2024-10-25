@@ -149,7 +149,7 @@ static void task_entry_evse_main(void *parameter)
 
     /* 初始化CP */
     g_cp.init(1000);    // CP输出和检测初始化
-    g_cp.set_cur(6);    // 设置最大电流
+    g_cp.set_cur(17);    // 设置最大电流
     g_cp.pwm_ctrl(DISABLE);
     g_cp.ck_ctrl(ENABLE);
 
