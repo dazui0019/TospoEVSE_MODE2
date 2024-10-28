@@ -171,7 +171,7 @@ static void task_entry_evse_main(void *parameter)
         bos_delay_ms(1);
     }
 }
-bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
 
 /**
  * @brief   检查车端二极管S1是否存在

@@ -160,7 +160,7 @@ static void task_entry_voltage_sample(void *parameter)
         bos_delay_ms(1);
     }
 }
-bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
 
 static void task_entry_kwh_calc(void *parameter)
 {
@@ -175,7 +175,7 @@ static void task_entry_kwh_calc(void *parameter)
         bos_delay_ms(1);
     }
 }
-bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
 
 void RTC_IRQHandler()
 {

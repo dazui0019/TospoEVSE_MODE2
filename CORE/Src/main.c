@@ -19,6 +19,9 @@
 #define LOG_TAG "evse.main"
 #include "elog.h"
 
+uint8_t temp_array[48];
+void a_ws2812b_write_one_frame(uint32_t rgb, uint8_t temp[48]);
+
 /* Stack for BasicOS */
 __attribute__((used)) uint8_t stack[10240];
 
@@ -59,6 +62,7 @@ int main(){
     // delay_deinit(); // 重置用于延时的定时器
 
     /* 函数测试 */
+    // a_ws2812b_write_one_frame(0xFF0000, temp_array);
 
     /* 启动BasicOS */
     systick_config();
@@ -70,10 +74,67 @@ int main(){
 
 static void task_entry_blink(void *parameter)
 {
-    gd_led_init(LED0);
+    gd_led_init(LED2);
     for(;;){
-        gd_led_toggle(LED0);
+        gd_led_toggle(LED2);
         bos_delay_ms(100);
     }
 }
 bos_task_export(blink, task_entry_blink, BOS_MAX_PRIORITY, NULL);
+
+void a_ws2812b_write_one_frame(uint32_t rgb, uint8_t temp[48])
+{
+    uint8_t r, g, b;
+    uint8_t i, j;
+    uint32_t c, point;
+    const uint16_t one_code = 0xFFF8U;
+    const uint16_t zero_code = 0xE000U;
+    
+    r = (uint8_t)((rgb >> 16) & 0xFF);                               /* set red */
+    g = (uint8_t)((rgb >> 8) & 0xFF);                                /* set green */
+    b = (uint8_t)((rgb >> 0) & 0xFF);                                /* set blue */
+    c = ((uint32_t)(g) << 16) | ((uint32_t)(r) << 8) | b;            /* set color */
+    EventStartA(7);
+    memset(temp, 0, sizeof(uint8_t) * 30);                           /* clear the temp buffer */
+    EventStopA(7);
+    point = 0;                                                       /* clear point */
+    for (i = 0; i < 24; i++)                                         /* set 24 bit */
+    {
+        if (((c >> (23 - i)) & 0x01) != 0)                           /* if bit 1 */
+        {
+            // temp[2*i] = 0xFF;
+            // temp[2*i + 1] = 0xF8;
+            *(uint16_t*)(temp + 2*i) = 0xF8FF;
+            // for (j = 0; j < 16; j ++)                                /* 16 bit */
+            // {
+            //     if (((one_code >> (15 - j)) & 0x01) != 0)            /* if one code */
+            //     {
+            //         temp[point / 8] |= 1 << (7 - (point % 8));       /* set bit 1 */
+            //     }
+            //     else
+            //     {
+            //         temp[point / 8] |= 0 << (7 - (point % 8));       /* set bit 0 */
+            //     }
+            //     point = point + 1;                                   /* point++ */
+            // }
+        }
+        else                                                         /* if bit 0 */
+        {
+            // temp[2*i] = 0xE0;
+            // temp[2*i + 1] = 0x00;
+            *(uint16_t*)(temp + 2*i) = 0x00E0;
+            // for (j = 0; j < 16; j ++)                                /* 16 bit */
+            // {
+            //     if (((zero_code >> (15 - j)) & 0x01) != 0)           /* if zero code */
+            //     {
+            //         temp[point / 8] |= 1 << (7 - (point % 8));       /* set bit 1 */
+            //     }
+            //     else
+            //     {
+            //         temp[point / 8] |= 0 << (7 - (point % 8));       /* set bit 0 */
+            //     }
+            //     point = point + 1;                                   /* point++ */
+            // }
+        }
+    }
+}

@@ -35,6 +35,7 @@
  */
 
 #include "driver_ws2812b.h"
+#include "printf.h"
 
 /**
  * @brief chip register definition
@@ -122,41 +123,41 @@ static void a_ws2812b_write_one_frame(uint32_t rgb, uint8_t temp[48])
     g = (uint8_t)((rgb >> 8) & 0xFF);                                /* set green */
     b = (uint8_t)((rgb >> 0) & 0xFF);                                /* set blue */
     c = ((uint32_t)(g) << 16) | ((uint32_t)(r) << 8) | b;            /* set color */
-    
     memset(temp, 0, sizeof(uint8_t) * 30);                           /* clear the temp buffer */
-    
     point = 0;                                                       /* clear point */
     for (i = 0; i < 24; i++)                                         /* set 24 bit */
     {
         if (((c >> (23 - i)) & 0x01) != 0)                           /* if bit 1 */
         {
-            for (j = 0; j < 16; j ++)                                /* 16 bit */
-            {
-                if (((one_code >> (15 - j)) & 0x01) != 0)            /* if one code */
-                {
-                    temp[point / 8] |= 1 << (7 - (point % 8));       /* set bit 1 */
-                }
-                else
-                {
-                    temp[point / 8] |= 0 << (7 - (point % 8));       /* set bit 0 */
-                }
-                point = point + 1;                                   /* point++ */
-            }
+            *(uint16_t*)(temp + 2*i) = 0xF8FF;
+        //     for (j = 0; j < 16; j ++)                                /* 16 bit */
+        //     {
+        //         if (((one_code >> (15 - j)) & 0x01) != 0)            /* if one code */
+        //         {
+        //             temp[point / 8] |= 1 << (7 - (point % 8));       /* set bit 1 */
+        //         }
+        //         else
+        //         {
+        //             temp[point / 8] |= 0 << (7 - (point % 8));       /* set bit 0 */
+        //         }
+        //         point = point + 1;                                   /* point++ */
+        //     }
         }
         else                                                         /* if bit 0 */
         {
-            for (j = 0; j < 16; j ++)                                /* 16 bit */
-            {
-                if (((zero_code >> (15 - j)) & 0x01) != 0)           /* if zero code */
-                {
-                    temp[point / 8] |= 1 << (7 - (point % 8));       /* set bit 1 */
-                }
-                else
-                {
-                    temp[point / 8] |= 0 << (7 - (point % 8));       /* set bit 0 */
-                }
-                point = point + 1;                                   /* point++ */
-            }
+            *(uint16_t*)(temp + 2*i) = 0x0E0;
+            // for (j = 0; j < 16; j ++)                                /* 16 bit */
+            // {
+            //     if (((zero_code >> (15 - j)) & 0x01) != 0)           /* if zero code */
+            //     {
+            //         temp[point / 8] |= 1 << (7 - (point % 8));       /* set bit 1 */
+            //     }
+            //     else
+            //     {
+            //         temp[point / 8] |= 0 << (7 - (point % 8));       /* set bit 0 */
+            //     }
+            //     point = point + 1;                                   /* point++ */
+            // }
         }
     }
 }
@@ -232,12 +233,10 @@ uint8_t ws2812b_write(ws2812b_handle_t *handle, uint32_t *rgb, uint32_t len, uin
        
         return 6;                                                           /* return error */
     }
-   
     for (i = 0; i < len; i++)                                               /* set the color frame */
     {
         a_ws2812b_write_one_frame(rgb[i], &temp[i * 48]);                   /* set color */
     }
-    
     if (handle->spi_write_cmd(temp, (uint16_t)bit_size) != 0)               /* write command */
     {
         handle->debug_print("ws2812b: write command failed.\n");            /* write command failed */

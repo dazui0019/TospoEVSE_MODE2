@@ -4,6 +4,10 @@
 
 ## News / Change History
 
+### 2024/10/28
+
+- 优化ws2812b刷新速度: 修改`a_ws2812b_write_one_frame()`函数。
+
 ### 2024/10/25
 
 - 添加ws2812b驱动.

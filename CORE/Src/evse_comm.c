@@ -296,4 +296,4 @@ static void task_entry_comm_receive(void *parameter)
         EventStopA(1);
     }
 }
-bos_task_export(comm_receive, task_entry_comm_receive, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(comm_receive, task_entry_comm_receive, BOS_MAX_PRIORITY, NULL);

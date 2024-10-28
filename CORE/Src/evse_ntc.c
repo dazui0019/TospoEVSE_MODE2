@@ -151,4 +151,4 @@ static void task_entry_ntc_sample(void *parameter)
         bos_delay_ms(100);
     }
 }
-bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);

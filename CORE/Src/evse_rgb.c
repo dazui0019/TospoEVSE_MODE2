@@ -10,7 +10,7 @@
 #define LOG_TAG "evse.rgb"
 #include  "elog.h"
 
-#define RGB_NUM 4
+#define RGB_NUM 12
 
 const uint8_t GammaTable[] ={
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -31,17 +31,12 @@ const uint8_t GammaTable[] ={
     222,224,227,229,231,233,235,237,239,241,244,246,248,250,252,255
 };
 
-// static uint8_t rgb_array[24] = {
-//     0xFFF8U, 0xFFF8U, 0xFFF8U, 0xFFF8U, 0xFFF8U, 0xFFF8U, 0xFFF8U, 0xFFF8U,
-//     0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U,
-//     0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U, 0xE000U,
-// };
-
 static ws2812b_handle_t ws2812b;
-static uint8_t led_buffer[4096];
-static uint32_t led_color[RGB_NUM] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFF00FF};
+static uint8_t led_buffer[4096];                // 用2个字节来代表一个WS2812比特
+static uint32_t led_color[RGB_NUM] = {0x00};    // 每一个灯珠的颜色
 
-static uint32_t fluid_buffer_red[RGB_NUM] = {0x000000U, 0x000000U, 0x000000U, 0x540000U};
+/* 特殊效果对应的颜色数组 */
+static uint32_t fluid_buffer_red[RGB_NUM] = {0x000F00U, 0x00000FU, 0x000000U, 0x0F0000U};
 
 /**
  * @brief   更新RGB
@@ -49,24 +44,19 @@ static uint32_t fluid_buffer_red[RGB_NUM] = {0x000000U, 0x000000U, 0x000000U, 0x
 static void task_entry_rgb_upgrade(void *parameter)
 {
     evse_rgb_init();
-//    evse_rgb_set_color(0xFF0000, 0xAA, 0xFF);
-    delay_ms(1);
     for(;;){
-        
-        // evse_rgb_fluid(NULL, 1);
-        
-        
+        EventStartA(3);
         rotateArray_uint32(fluid_buffer_red, RGB_NUM, 1);
-        for(int i = RGB_NUM; i >= 0; i--) {
-            EventStartA(3);
-            evse_rgb_set_color(fluid_buffer_red[i], 0xFF, i);
-            EventStopA(3);
-        }
+        EventStopA(3);
 
-        bos_delay_ms(500);
+        EventStartA(4);
+        ws2812b_write(&ws2812b, fluid_buffer_red, RGB_NUM, led_buffer, 4096);
+        EventStopA(4);
+
+        bos_delay_ms(100);
     }
 }
-// bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);
+bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);
 
 static void evse_rgb_memset(uint32_t arr[], uint32_t val, int n);
 
@@ -86,12 +76,6 @@ void evse_rgb_init()
     if (res != 0){
         log_e("ws2812b: init failed.");
     }
-    // evse_rgb_clear(0xFF);
-    // ws2812b_write(&ws2812b, led_color, RGB_NUM, led_buffer, 4096);
-    // evse_rgb_set_color(0xFF0000, 0xAA, 0);
-    // evse_rgb_set_color(0x00FF00, 0xAA, 1);
-    // evse_rgb_set_color(0x0000FF, 0xAA, 2);
-    // evse_rgb_set_color(0x0000FF, 0xAA, 3);
 }
 
 // index: ws2812 num
@@ -116,13 +100,7 @@ void evse_rgb_set_color(uint32_t color, uint8_t Brightness, uint8_t index)
     if(index > (RGB_NUM-1))
         if(index != 0xFF) return;
 
-    if(index == 0xFF){
-        evse_rgb_memset(led_color, color, RGB_NUM);
-    }else{
-        led_color[index] = color;
-    }
-
-    ws2812b_write(&ws2812b, led_color, RGB_NUM, led_buffer, 4096);
+    led_color[index] = color;
 }
 
 void evse_rgb_clear(uint8_t index)
