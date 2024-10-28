@@ -4,6 +4,8 @@
 #include "basic_os.h"
 #include "evse_comm.h"
 #include <string.h>
+#include "evse_charge.h"
+#include "printf.h"
 
 #define LOG_TAG "evse.ui"
 #include "elog.h"
@@ -27,24 +29,108 @@ struct __attribute__((packed, aligned(sizeof(uint32_t)))){
     uint8_t e_s1_lost     :1;
     /* DATA */
     uint16_t voltage;
-    uint16_t power;
+    uint16_t current;
     uint16_t kwh;
-} evse_ui_data;
+} evse_ui_data, evse_ui_data_last;
 
 static void evse_lcd_spi_config(void);
 static void evse_lcd_gpio_config(void);
+static void evse_ui_init(void);
 
-void evse_ui_init(void)
+static void _display_update_current(uint16_t current);
+static void _display_update_voltage(uint16_t voltage);
+static void _display_update_state(uint8_t state);
+static void _display_update_fault(uint8_t fault);
+static void _display_update_kwh(uint16_t voltage);
+static void _display_update_power(uint16_t voltage);
+
+/**
+ * @brief  更新UI
+ * @todo   根据evse_ui_data结构体的数据来定时更新UI
+ */
+static void task_entry_ui_upgrade(void *parameter)
+{
+    evse_ui_init();    
+    /* ----------------默认显示---------------- */
+    /* 时钟轮廓 */         
+    UG_DrawCircle(120, 120, 40, 0xFFFF);
+    UG_DrawLine(35,204,91,148,0xFFFF);
+    UG_DrawLine(35,35,91,91,0xFFFF);
+    UG_DrawLine(148,91,204,35,0xFFFF);
+    UG_DrawLine(149,149,204,204,0xFFFF);
+    /* 电压 */
+    UG_PutString(16, 115, "220V");
+    /* 故障信息 */
+    UG_PutString(120 - 48, 240 - 50,"No fault");
+    /* 工作状态 */
+    UG_PutString(120 - 48, 40, "Standby");
+    /* 充电功率/累计电能 */
+    UG_PutString(120 - 18,115 - 10,"0.0");
+    UG_PutString(120 - 18,115 + 10,"KWh");
+    /* 刷卡鉴权状态 */
+    UG_PutString(175,115 - 15,"Card");
+    GC9A01_drawCross(195,115 + 15, 0xf800, 4);
+    for(;;){
+        if(0 != memcmp(&evse_ui_data, &evse_ui_data_last, sizeof(evse_ui_data))){
+            /* 更新old_ui_data */
+            evse_ui_data_last = evse_ui_data;
+            /* 刷新UI */
+            _display_update_voltage(evse_ui_data_last.voltage);   //更新电压
+            // _display_update_current(evse_ui_data_last.current);     //更新电流
+            _display_update_state(evse_ui_data_last.state);       //更新工作状态
+            // _display_update_fault(evse_ui_data_last.fault);
+            _display_update_kwh(evse_ui_data_last.kwh);
+        }
+        bos_delay_ms(10);
+    }
+}
+bos_task_export(ui_upgrade, task_entry_ui_upgrade, BOS_MAX_PRIORITY, NULL);
+
+static void task_entry_ui_test(void *parameter)
+{
+    float kwh = 15.2f;
+    float vol = 220.0f;
+    for(;;){
+        bos_delay_ms(1000);
+        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
+        vol = 220.6f;
+        evse_ui_update(UI_CMD_UPDATE_VOLTAGE, NULL, &vol);
+        evse_ui_update(UI_CMD_UPDATE_CURRENT, 6, NULL);
+        kwh = 6.2f;
+        evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
+        bos_delay_ms(1000);
+        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
+        vol = 220.0f;
+        evse_ui_update(UI_CMD_UPDATE_VOLTAGE, NULL, &vol);
+        evse_ui_update(UI_CMD_UPDATE_CURRENT, 16, NULL);
+        kwh = 15.1f;
+        evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
+
+        // _display_update_current(16);
+        // _display_update_state(EVSE_9V_PWM);
+        // _display_update_fault(0);
+        // _display_update_kwh(0);
+        // bos_delay_ms(1000);
+        // _display_update_current(6);
+        // _display_update_state(EVSE_IDLE);
+        // _display_update_fault(2);
+        // _display_update_kwh(151);
+        // _display_update_voltage(220);
+        // bos_delay_ms(1000);
+    }
+}
+bos_task_export(ui_test, task_entry_ui_test, BOS_MAX_PRIORITY, NULL);
+
+static void evse_ui_init(void)
 {
     gpio_bit_reset(LCD_BLK_GPIO_Port, LCD_BLK_Pin);
     evse_lcd_gpio_config();
     evse_lcd_spi_config();
     GC9A01_init();
-    GC9A01_setRotation(3);
+    GC9A01_setRotation(0);
     UG_Init(&lcd, GC9A01_drawPixel, 240, 240);
     UG_FontSelect(&FONT_12X16);
     UG_FillScreen(GC9A01_Color565(0x00, 0x00, 0x00));
-    UG_PutString(60, 120, "Hello, uGUI!");
     gpio_bit_set(LCD_BLK_GPIO_Port, LCD_BLK_Pin);
 }
 
@@ -122,6 +208,137 @@ error :
     return errorcode;
 }
 
+static void _display_update_current(uint16_t current)
+{
+    GC9A01_fillRect(16, 115, 60, 16, 0x0000);
+    /* 将uint16_t的current转换成字符串 */
+    char str_current[4];
+    sprintf(str_current, "%2d", current);
+    /* 字符串拼接将current值字符串和"V"拼在一起 */
+    strcat(str_current, "A");
+    /* 重新显示 */
+    UG_PutString(16, 115, str_current);
+}
+
+static void _display_update_voltage(uint16_t voltage)
+{
+    uint16_t vol_f = voltage/10;
+    if(voltage%10 > 5){
+        vol_f++;
+    }
+    /* 将uint16_t的voltage转换成字符串 */
+    char str_voltage[5];
+    sprintf(str_voltage, "%03d", vol_f);
+    /* 字符串拼接将voltage值字符串和"V"拼在一起 */
+    strcat(str_voltage, "V");
+    /* 重新显示 */
+    GC9A01_fillRect(16, 115, 60, 16, 0x0000);
+    UG_PutString(16, 115, str_voltage);
+}
+
+static void _display_update_state(uint8_t state)
+{
+    GC9A01_fillRect(120 - 48, 40, 96, 16, 0x0000);  // 清除状态文字
+    GC9A01_fillRect(195, 115 + 15, 24, 11, 0x0000); // 清除鉴权图标
+    switch (state)
+    {
+    case EVSE_IDLE:
+        /* code */
+        UG_PutString(120 - 48,40,"Standby");
+        //card
+        GC9A01_drawCross(195,115 + 15,0xf800, 4);
+        break;
+    case EVSE_WAIT_PLUGIN:
+        /* code */
+        UG_PutString(120 - 48,40,"nConnect");
+        GC9A01_drawCheckMark(195,115 + 15,0x07e0, 4);
+        break;
+    case EVSE_9V:
+        /* code */
+        UG_PutString(120 - 48,40,"Connect");
+        GC9A01_drawCross(195,115 + 15,0xf800, 4);
+        break;
+    case EVSE_9V_PWM:
+        /* code */
+        UG_PutString(120 - 48,40,"Connect");
+        GC9A01_drawCheckMark(195,115 + 15,0x07e0, 4);
+        break;
+    case EVSE_CHARGING:
+        /* code */
+        UG_PutString(120 - 48,40,"Charging");
+        break;
+    case EVSE_DONE:
+        /* code */
+        UG_PutString(120 - 48,40,"Full");
+        break;
+    case EVSE_STOP:
+        /* code */
+        UG_PutString(120 - 48,40,"Finish");
+        break;
+    case EVSE_FAULT:
+        /* code */
+        UG_PutString(120 - 48,40,"Fault");
+        break;
+    }
+}
+
+static void _display_update_fault(uint8_t fault)
+{
+    GC9A01_fillRect(120 - 48, 240 - 50, 100, 16, 0x0000);
+    if ((fault & (0x01 << 0)))
+    {
+        UG_PutString(120 - 48,240 - 50,"Leakage");
+    }
+    else if ((fault & (0x01 << 1)))
+    {
+        UG_PutString(120 - 48,240 - 50,"Voltage");
+    }
+    else if ((fault & (0x01 << 2)))
+    {
+        UG_PutString(120 - 48,240 - 50,"Current");
+    }
+    else if ((fault & (0x01 << 3)))
+    {
+        UG_PutString(120 - 48,240 - 50,"Ground");
+    }
+    else if ((fault & (0x01 << 4)))
+    {
+        UG_PutString(120 - 48,240 - 50,"Adhesion");
+    }
+    else if ((fault & (0x01 << 5)))
+    {
+        UG_PutString(120 - 48,240 - 50,"OverTemp");
+    }
+    else if ((fault & (0x01 << 6)))
+    {
+        UG_PutString(120 - 48,240 - 50,"CPerror");
+    }
+    else if ((fault & (0x01 << 7)))
+    {
+        UG_PutString(120 - 48,240 - 50,"Diode");
+    }
+    else
+    {
+        UG_PutString(120 - 48,240 - 50,"No fault");
+    }
+
+}
+
+static void _display_update_kwh(uint16_t kwh)
+{
+    float kwh_f = (float)(kwh)/(10.0f);
+    /* 将uint16_t的voltage转换成字符串 */
+    char str_kwh[6];
+    sprintf(str_kwh, "%04.1f", kwh_f);
+    GC9A01_fillRect(120 - 26, 115 - 10, 52, 16, 0x0000);
+    UG_PutString(120 - 26, 115 - 10, str_kwh);
+}
+
+static void _display_update_power(uint16_t power)
+{
+    
+}
+
 /**
  * @brief  更新UI状态结构体
  * @param[in] {cmd} 功能码
@@ -140,19 +357,14 @@ uint8_t evse_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
     case UI_CMD_UPDATE_STATE:
         evse_ui_data.state = arg_int;
     case UI_CMD_UPDATE_VOLTAGE:
-        // evse_ui_data.voltage = (uint16_t)((*(float*)arg_ptr)/10.0f);
-        // log_d("voltage: %d.", (uint16_t)((*(float*)arg_ptr)/10.0f));
-        temp_data.two_byte = (uint16_t)((*(float*)arg_ptr)/10.0f);
-        evse_ui_data.voltage = (temp_data.byte[0]<<8) | temp_data.byte[1];
+        evse_ui_data.voltage = (uint16_t)((*(float*)arg_ptr)*10.0f);
         break;
-    case UI_CMD_UPDATE_POWER:
-        // evse_ui_data.power = (uint16_t)((*(float*)arg_ptr)*10);
-        temp_data.two_byte = (uint16_t)((*(float*)arg_ptr));
-        evse_ui_data.power = (temp_data.byte[0]<<8) | temp_data.byte[1];
+    case UI_CMD_UPDATE_CURRENT:
+        evse_ui_data.current = arg_int;
         break;
     case UI_CMD_UPDATE_KWH:
-        temp_data.two_byte = (uint16_t)((*(float*)arg_ptr)*10.0f);
-        evse_ui_data.kwh = (temp_data.byte[0]<<8) | temp_data.byte[1];
+        evse_ui_data.kwh = (uint16_t)((*(float*)arg_ptr)*10.0f);
+        log_d("kwh: %d.", evse_ui_data.kwh);
         break;
     default:
         log_e("unknown cmd: 0x%02X.", cmd);
@@ -161,16 +373,3 @@ uint8_t evse_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
     
     return 0;
 }
-
-/**
- * @brief  更新UI
- * @todo   根据evse_ui_data结构体的数据来定时更新UI
- */
-static void task_entry_ui_upgrade(void *parameter)
-{
-    // evse_ui_init();
-    for(;;){
-        bos_delay_ms(1000);
-    }
-}
-// bos_task_export(ui_upgrade, task_entry_ui_upgrade, BOS_MAX_PRIORITY, NULL);

@@ -88,52 +88,52 @@ uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
     switch (cmd)
     {
     case FUNC_CODE_UPDATE_ERR:
-        frame_buff[1] = FUNC_CODE_UPDATE_ERR;   // 功能码
-        frame_buff[2] = 0x01;                   // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_ERR;   // 功能码
+        // frame_buff[2] = 0x01;                   // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_CHG:
-        frame_buff[1] = FUNC_CODE_UPDATE_CHG;   // 功能码
-        frame_buff[2] = 0x01;                   // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_CHG;   // 功能码
+        // frame_buff[2] = 0x01;                   // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_DELAY:
-        frame_buff[1] = FUNC_CODE_UPDATE_DELAY; // 功能码
-        frame_buff[2] = 0x01;                   // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_DELAY; // 功能码
+        // frame_buff[2] = 0x01;                   // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_CURRENT:
-        frame_buff[1] = FUNC_CODE_UPDATE_CURRENT;   // 功能码
-        frame_buff[2] = 0x01;                       // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_CURRENT;   // 功能码
+        // frame_buff[2] = 0x01;                       // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
         // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_KWH:
-        f_kwh = *(float*)arg_ptr;
-        s_kwh = (uint16_t)(f_kwh*10);
+        // f_kwh = *(float*)arg_ptr;
+        // s_kwh = (uint16_t)(f_kwh*10);
     
-        frame_buff[1] = FUNC_CODE_UPDATE_KWH;   // 功能码
-        frame_buff[2] = 0x02;                   // payload长度
-        frame_buff[3] = ((uint16_t)s_kwh) >> 8;
-        frame_buff[4] = ((uint16_t)s_kwh)&0x00FF;
-        frame_buff[5] = evse_comm_check_sum(frame_buff, 5);
-        frame_buff[6] = 0x55;
-        UART_Transmit(USART2, frame_buff, 7);
+        // frame_buff[1] = FUNC_CODE_UPDATE_KWH;   // 功能码
+        // frame_buff[2] = 0x02;                   // payload长度
+        // frame_buff[3] = ((uint16_t)s_kwh) >> 8;
+        // frame_buff[4] = ((uint16_t)s_kwh)&0x00FF;
+        // frame_buff[5] = evse_comm_check_sum(frame_buff, 5);
+        // frame_buff[6] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 7);
         // fifo_s_puts(&send_fifo, frame_buff, 7);
         break;
     default:

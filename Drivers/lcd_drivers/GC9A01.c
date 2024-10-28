@@ -11,6 +11,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include LCD_DRV_DISP_INCLUDE
@@ -511,6 +513,47 @@ void GC9A01_fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
         }
     }
     LCD_DRV_DISP_SPI_CS(1);
+}
+
+
+void GC9A01_drawCheckMark(int16_t x, int16_t y, uint16_t color, uint8_t thickness) {
+    // 绘制√
+    GC9A01_drawThickLine(x, y, x + 5, y + 10, color, thickness); // 左下到右上
+    GC9A01_drawThickLine(x + 5, y + 10, x + 20, y, color, thickness); // 右上到右下
+}
+
+void GC9A01_drawCross(int16_t x, int16_t y, uint16_t color, uint8_t thickness) {
+    // 绘制×
+    GC9A01_drawThickLine(x, y, x + 10, y + 10, color, thickness); // 左上到右下
+    GC9A01_drawThickLine(x + 10, y, x, y + 10, color, thickness); // 右上到左下
+}
+
+void GC9A01_drawThickLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color, uint8_t thickness) {
+    // 使用Bresenham算法绘制粗线
+    int16_t dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int16_t dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int16_t err = dx + dy, e2;
+
+    for (uint8_t i = 0; i < thickness; i++) {
+        int16_t x = x0, y = y0;
+        while (true) {
+            GC9A01_drawPixel(x, y, color);
+            e2 = 2 * err;
+            if (e2 >= dy) {
+                if (x == x1) break;
+                err += dy;
+                x += sx;
+            }
+            if (e2 <= dx) {
+                if (y == y1) break;
+                err += dx;
+                y += sy;
+            }
+        }
+        // 调整起始点和终点以绘制粗线
+        x0++;
+        x1++;
+    }
 }
 
 void GC9A01_setRotation(uint8_t m) {

@@ -30,5 +30,5 @@
 #define UI_CMD_UPDATE_CHG_STATE     9U    // 更新充电状态
 #define UI_CMD_UPDATE_STATE         10U   // 更新充电桩状态
 
-void evse_ui_init(void);
 GD_StatusTypeDef evse_lcd_spi_transmit(uint8_t *pData, uint16_t Size);
+uint8_t evse_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr);
