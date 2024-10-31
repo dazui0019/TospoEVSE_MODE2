@@ -1,6 +1,7 @@
 #include "gd32f30x.h"
 #include "gd32_hal.h"
 #include "ws2812b_port.h"
+#include "basic_os.h"
 
 #define LED_SPI             SPI1
 #define LED_CTRL_Pin        GPIO_PIN_15
@@ -96,6 +97,9 @@ uint8_t ws2812b_write_cmd(uint8_t *pData, uint16_t Size)
 
     spi_dma_enable(LED_SPI, SPI_DMA_TRANSMIT);
     dma_channel_enable(DMA0, DMA_CH4);
+
+    while(dma_flag_get(DMA0, DMA_CH4, DMA_FLAG_FTF) == RESET){bos_delay_ms(1);}
+    dma_flag_clear(DMA0, DMA_CH4, DMA_FLAG_FTF);
 
     return errorcode;
 }

@@ -53,8 +53,6 @@ typedef enum
 {
     KEY0 = 0,
     KEY1,
-    KEY2,
-    KEY3
 } key_typedef_enum;
 
 typedef enum 
@@ -78,43 +76,25 @@ typedef enum
 #define LED2_GPIO_PORT                  GPIOC
 #define LED2_GPIO_CLK                   RCU_GPIOC
 
-#define KEYn                            4U
+#define KEYn                            2U
 
 /* KEY0 push-button */
-#define KEY0_PIN                        GPIO_PIN_0
-#define KEY0_GPIO_PORT                  GPIOA
-#define KEY0_GPIO_CLK                   RCU_GPIOA
-#define KEY0_EXTI_LINE                  EXTI_0
-#define KEY0_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOA
-#define KEY0_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_0
-#define KEY0_EXTI_IRQn                  EXTI0_IRQn
+#define KEY0_PIN                        GPIO_PIN_1
+#define KEY0_GPIO_PORT                  GPIOC
+#define KEY0_GPIO_CLK                   RCU_GPIOC
+#define KEY0_EXTI_LINE                  EXTI_1
+#define KEY0_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOC
+#define KEY0_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_1
+#define KEY0_EXTI_IRQn                  EXTI1_IRQn
 
 /* KEY1 push-button */
-#define KEY1_PIN                        GPIO_PIN_0
-#define KEY1_GPIO_PORT                  GPIOB
-#define KEY1_GPIO_CLK                   RCU_GPIOB
-#define KEY1_EXTI_LINE                  EXTI_0
-#define KEY1_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOB
-#define KEY1_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_0
-#define KEY1_EXTI_IRQn                  EXTI0_IRQn
-
-/* KEY2 push-button */
-#define KEY2_PIN                        GPIO_PIN_1
-#define KEY2_GPIO_PORT                  GPIOA
-#define KEY2_GPIO_CLK                   RCU_GPIOA
-#define KEY2_EXTI_LINE                  EXTI_1
-#define KEY2_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOA
-#define KEY2_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_1
-#define KEY2_EXTI_IRQn                  EXTI1_IRQn
-
-/* KEY3 push-button */
-#define KEY3_PIN                        GPIO_PIN_6
-#define KEY3_GPIO_PORT                  GPIOE
-#define KEY3_GPIO_CLK                   RCU_GPIOE
-#define KEY3_EXTI_LINE                  EXTI_6
-#define KEY3_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOE
-#define KEY3_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_6
-#define KEY3_EXTI_IRQn                  EXTI5_9_IRQn
+#define KEY1_PIN                        GPIO_PIN_2
+#define KEY1_GPIO_PORT                  GPIOC
+#define KEY1_GPIO_CLK                   RCU_GPIOC
+#define KEY1_EXTI_LINE                  EXTI_2
+#define KEY1_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOC
+#define KEY1_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_2
+#define KEY1_EXTI_IRQn                  EXTI2_IRQn
 
 /* function declarations */
 /* configure led GPIO */

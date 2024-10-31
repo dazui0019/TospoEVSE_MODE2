@@ -505,6 +505,16 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_rgb.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_key.c</FilePath>
+            </File>
+            <File>
+              <FileName>evse_beep.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_beep.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -875,6 +885,11 @@
               <FileName>lcd_drv_conf.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Drivers\lcd_drivers\lcd_drv_conf.h</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\lcd_drivers\lcd_port.c</FilePath>
             </File>
           </Files>
         </Group>

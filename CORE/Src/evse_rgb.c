@@ -12,6 +12,8 @@
 
 #define RGB_NUM 12
 
+static void evse_rgb_memset(uint32_t arr[], uint32_t val, int n);
+
 const uint8_t GammaTable[] ={
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2,
@@ -33,10 +35,11 @@ const uint8_t GammaTable[] ={
 
 static ws2812b_handle_t ws2812b;
 static uint8_t led_buffer[4096];                // 用2个字节来代表一个WS2812比特
-static uint32_t led_color[RGB_NUM] = {0x00};    // 每一个灯珠的颜色
 
 /* 特殊效果对应的颜色数组 */
-static uint32_t fluid_buffer_red[RGB_NUM] = {0x000F00U, 0x00000FU, 0x000000U, 0x0F0000U};
+static uint32_t fluid_buffer_red[RGB_NUM] = {0x0000ffU, 0x000000U, 0x000000U, 0x000000U};
+static uint32_t fluid_buffer_green[RGB_NUM] = {0x00FF00U, 0x000000U, 0x000000U, 0x000000U};
+static uint32_t fluid_buffer_blue[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0x000000U};
 
 /**
  * @brief   更新RGB
@@ -44,19 +47,24 @@ static uint32_t fluid_buffer_red[RGB_NUM] = {0x000F00U, 0x00000FU, 0x000000U, 0x
 static void task_entry_rgb_upgrade(void *parameter)
 {
     evse_rgb_init();
+    // led_color[0] = 0x0F0F0FU;
+    // evse_rgb_set_color(0x00ff00U, 0x0F, 0);
+    // evse_rgb_memset(fluid_buffer_red, 0x0000ffU, RGB_NUM);
+    evse_rgb_set_color(COLOR_RGB888_BLUE, 100, 0xFF);
     for(;;){
-        EventStartA(3);
-        rotateArray_uint32(fluid_buffer_red, RGB_NUM, 1);
-        EventStopA(3);
+        // EventStartA(3);
+        // rotateArray_uint32(fluid_buffer_red, RGB_NUM, 1);
+        // EventStopA(3);
 
-        EventStartA(4);
-        ws2812b_write(&ws2812b, fluid_buffer_red, RGB_NUM, led_buffer, 4096);
-        EventStopA(4);
+        // EventStartA(4);
+        // ws2812b_write(&ws2812b, fluid_buffer_red, RGB_NUM, led_buffer, 4096);
+        // EventStopA(4);
 
-        bos_delay_ms(100);
+        // evse_rgb_update(EVSE_DONE);
+        bos_delay_ms(50);
     }
 }
-bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);
 
 static void evse_rgb_memset(uint32_t arr[], uint32_t val, int n);
 
@@ -82,6 +90,7 @@ void evse_rgb_init()
 void evse_rgb_set_color(uint32_t color, uint8_t Brightness, uint8_t index)
 {
     uint8_t Red, Green, Blue;
+    static uint32_t led_color[RGB_NUM] = {0x00};
 
     Red = ((color & 0xFF0000) >> 16) * Brightness / 255 ;
     Green = ((color & 0x00FF00) >> 8) * Brightness / 255;
@@ -100,22 +109,28 @@ void evse_rgb_set_color(uint32_t color, uint8_t Brightness, uint8_t index)
     if(index > (RGB_NUM-1))
         if(index != 0xFF) return;
 
-    led_color[index] = color;
-}
-
-void evse_rgb_clear(uint8_t index)
-{
-    if(index > (RGB_NUM-1))
-        if(index != 0xFF) return;
-
     if(index == 0xFF){
-        evse_rgb_memset(led_color, 0x000000U, RGB_NUM);
+        evse_rgb_memset(led_color, color, RGB_NUM);
     }else{
-        led_color[index] = 0x000000U;
+        led_color[index] = color;
     }
 
     ws2812b_write(&ws2812b, led_color, RGB_NUM, led_buffer, 2048);
 }
+
+// void evse_rgb_clear(uint8_t index)
+// {
+//     if(index > (RGB_NUM-1))
+//         if(index != 0xFF) return;
+
+//     if(index == 0xFF){
+//         evse_rgb_memset(led_color, 0x000000U, RGB_NUM);
+//     }else{
+//         led_color[index] = 0x000000U;
+//     }
+
+//     ws2812b_write(&ws2812b, led_color, RGB_NUM, led_buffer, 2048);
+// }
 
 static void evse_rgb_memset(uint32_t arr[], uint32_t val, int n)
 {
@@ -142,40 +157,48 @@ void evse_rgb_fluid(uint32_t color, uint8_t effect)
     }
 }
 
-// void evse_rgb_update(evse_state_t state){
-//     static uint8_t gamma = 10;
-//     static uint8_t index = 0;
-//     static uint8_t flag = 0;
-//     switch (state)
-//     {
-//     case EVSE_STARTUP:
-//         // if(flag == 0)
-//         //     {if((gamma++) == 100) {flag = 1;}}
-//         // else if(flag == 1)
-//         //     {if((gamma--) == 10) {flag = 0;}}
-//         // evse_rgb_set_color(COLOR_RGB888_YELLOW, gamma, 0xFF);
+void evse_rgb_update(evse_state_t state){
+    static uint8_t gamma = 10;
+    static uint8_t index = 0;
+    static uint8_t flag = 0;
+    switch (state)
+    {
+    // case EVSE_STARTUP:
+        // if(flag == 0)
+        //     {if((gamma++) == 100) {flag = 1;}}
+        // else if(flag == 1)
+        //     {if((gamma--) == 10) {flag = 0;}}
+        // evse_rgb_set_color(COLOR_RGB888_YELLOW, gamma, 0xFF);
 
-//         // break;
-//     case EVSE_IDLE:     // 蓝灯呼吸
-//         if(flag == 0)
-//             {if((gamma++) == 100) {flag = 1;}}
-//         else if(flag == 1)
-//             {if((gamma--) == 10) {flag = 0;}}
-//         evse_rgb_set_color(COLOR_RGB888_BLUE, gamma, 0xFF);
-//         break;
-//     case EVSE_PLUGGED:  // 绿灯常亮
-//         evse_rgb_set_color(COLOR_RGB888_GREEN, 100, 0xFF);
-//         break;
-//     case EVSE_CHARGING: // 绿灯流动
-//         rotateArray_uint8(led_color_temp, 36, 3);
-//         for(int i = 0; i < RGB_NUM; i++)
-//             evse_rgb_set_color(COLOR_RGB888_GREEN, led_color_temp[i], i);
-//         break;
-//     case EVSE_ERROR:    // 红灯常亮
-//         evse_rgb_set_color(COLOR_RGB888_RED, 100, 0xFF);
-//         break;
-//     default:
-//         evse_rgb_set_color(COLOR_RGB888_BLACK, 0xFF, 0xFF);
-//         break;
-//     }
-// }
+        // break;
+    /* 空闲状态 */
+    case EVSE_IDLE:     // 蓝灯呼吸
+        if(flag == 0)
+            {if((gamma++) == 60) {flag = 1;}}
+        else if(flag == 1)
+            {if((gamma--) == 10) {flag = 0;}}
+        evse_rgb_set_color(COLOR_RGB888_BLUE, gamma, 0xFF);
+        break;
+    /* 已刷卡的状态 */
+    case EVSE_WAIT_PLUGIN:  // 绿灯常亮
+    case EVSE_9V_PWM:
+        evse_rgb_set_color(COLOR_RGB888_GREEN, 100, 0xFF);
+        break;
+    /* 充电中 */
+    case EVSE_CHARGING: // 绿灯流动
+        rotateArray_uint32(fluid_buffer_green, RGB_NUM, 1);
+        ws2812b_write(&ws2812b, fluid_buffer_green, RGB_NUM, led_buffer, 4096);
+        break;
+    case EVSE_DONE:
+    case EVSE_STOP:
+        evse_rgb_set_color(COLOR_RGB888_YELLOW, 100, 0xFF);
+        break;
+    /* 故障 */
+    case EVSE_FAULT:    // 红灯常亮
+        evse_rgb_set_color(COLOR_RGB888_RED, 100, 0xFF);
+        break;
+    default:
+        evse_rgb_set_color(COLOR_RGB888_BLACK, 0xFF, 0xFF);
+        break;
+    }
+}

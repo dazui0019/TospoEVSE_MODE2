@@ -13,7 +13,7 @@
 #define WS28XX_ORDER_RBG                        3
 
 /*---------- WS28XX_ORDER  -----------*/
-#define WS28XX_ORDER      WS28XX_ORDER_RGB
+#define WS28XX_ORDER      WS28XX_ORDER_RBG
 
 
 /************************************************************************************************************

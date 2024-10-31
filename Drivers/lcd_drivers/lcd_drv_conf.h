@@ -3,6 +3,7 @@
 #include "main.h"
 #include "gd32f30x.h"
 #include "evse_ui.h"
+#include "lcd_port.h"
 
 /**********************
  *   driver selection
@@ -49,8 +50,8 @@ enum lcd_cmd {
  *  SPI
  *---------*/
 #define LCD_DRV_DISP_SPI_CS(val)          gpio_bit_write(LCD_CS_GPIO_Port, LCD_CS_Pin, val)
-#define LCD_DRV_DISP_SPI_WR_BYTE(data)    evse_lcd_spi_transmit(&data, 1)
-#define LCD_DRV_DISP_SPI_WR_ARRAY(adr, n) evse_lcd_spi_transmit((uint8_t*)adr, n)
+#define LCD_DRV_DISP_SPI_WR_BYTE(data)    lcd_spi_transmit(&data, 1)
+#define LCD_DRV_DISP_SPI_WR_ARRAY(adr, n) lcd_spi_transmit_dma((uint8_t*)adr, n)
 
 /*------------------
  *  Parallel port

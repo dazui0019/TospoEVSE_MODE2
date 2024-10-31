@@ -532,18 +532,23 @@ void quickSort(uint16_t arr[], int low, int high) {
 
 void task_entry_cp_test(void *parameter)
 {
-    uint16_t vol;
-    cp_pwm_init(1000);
-    cp_cur_set(16);
-    pwm_ctrl(ENABLE);
-    timer_interrupt_enable(TIMER2, TIMER_INT_UP);
+    // uint16_t vol;
+    // cp_pwm_init(1000);
+    // cp_cur_set(16);
+    // pwm_ctrl(ENABLE);
+    // timer_interrupt_enable(TIMER2, TIMER_INT_UP);
+    /* 初始化CP */
+    g_cp.init(1000);    // CP输出和检测初始化
+    g_cp.set_cur(17);   // 设置最大电流
+    g_cp.pwm_ctrl(ENABLE);
+    // g_cp.ck_ctrl(ENABLE);
     for(;;){
-        if(g_p_cp_buff != NULL){
-            vol = get_voltage(g_p_cp_buff, 10);
-            log_i("vol: %d", vol);
-            g_p_cp_buff = NULL;
-        }
+        // if(g_p_cp_buff != NULL){
+        //     vol = get_voltage(g_p_cp_buff, 10);
+        //     log_i("vol: %d", vol);
+        //     g_p_cp_buff = NULL;
+        // }
         bos_delay_ms(1);
     }
 }
-// bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);
+bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);

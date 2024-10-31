@@ -145,7 +145,7 @@ static void a_ws2812b_write_one_frame(uint32_t rgb, uint8_t temp[48])
         }
         else                                                         /* if bit 0 */
         {
-            *(uint16_t*)(temp + 2*i) = 0x0E0;
+            *(uint16_t*)(temp + 2*i) = 0x00E0;
             // for (j = 0; j < 16; j ++)                                /* 16 bit */
             // {
             //     if (((zero_code >> (15 - j)) & 0x01) != 0)           /* if zero code */
