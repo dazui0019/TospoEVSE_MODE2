@@ -31,9 +31,11 @@
 #define PE_PIN                  GPIO_PIN_7
 #define PE_ADC_CH               ADC_CHANNEL_7
 /* Freq exti */
-#define TRIG_PORT               GPIOB
-#define TRIG_PORT_RCU           RCU_GPIOB
+#define TRIG_PORT               GPIOA
+#define TRIG_PORT_RCU           RCU_GPIOA
 #define TRIG_PIN                GPIO_PIN_6
+#define TRIG_SOURCE_PORT        GPIO_PORT_SOURCE_GPIOA
+#define TRIG_SOURCE_PIN         GPIO_PIN_SOURCE_6
 
 #define CH_NUM                  (3)
 #define SAMPLE_NUM              (100)
@@ -151,7 +153,7 @@ static void task_entry_voltage_sample(void *parameter)
                 g_over_cur_flag = false;
                 log_i("clear cur error: %0.2f", cur);
             }
-            log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
+            // log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
             // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
             /* 重新开启中断 */
             exti_interrupt_flag_clear(EXTI_6);
@@ -187,7 +189,6 @@ void RTC_IRQHandler()
     }
 }
 
-
 /**
  * @brief   获取芯片内部1.2V基准电压值
  */
@@ -222,6 +223,7 @@ void adc_verf_config(void)
     adc_calibration_enable(ADC0);
 }
 
+/* 用来标记一个正弦波的开始 */
 static void freq_exti_config(void)
 {
     /* enable the GPIO clock */
@@ -232,7 +234,7 @@ static void freq_exti_config(void)
     /* enable and set key EXTI interrupt to the lowest priority */
     nvic_irq_enable(EXTI5_9_IRQn, 5U, 0U);
     /* connect key EXTI line to key GPIO pin */
-    gpio_exti_source_select(GPIO_PORT_SOURCE_GPIOB, GPIO_PIN_SOURCE_6);
+    gpio_exti_source_select(TRIG_SOURCE_PORT, TRIG_SOURCE_PIN);
     
     exti_interrupt_flag_clear(EXTI_6);
     /* configure key EXTI line */
@@ -249,38 +251,38 @@ static void evse_ac_timer_config(uint16_t f)
     timer_parameter_struct timer_initpara;      // 定时器基本参数
     timer_oc_parameter_struct timer_ocintpara;  // 定时器输出设置
 
-    rcu_periph_clock_enable(RCU_TIMER1);
+    rcu_periph_clock_enable(RCU_TIMER0);
 
-    timer_deinit(TIMER1);
+    timer_deinit(TIMER0);
     /* TIMER configuration */
-    timer_initpara.prescaler         = ((timer_source_clock_get(TIMER1)/1000000U)-1); // TIMER2CLK(TIMER2_CK/PSC) is 100KHz
+    timer_initpara.prescaler         = ((timer_source_clock_get(TIMER0)/1000000U)-1); // TIMER2CLK(TIMER2_CK/PSC) is 100KHz
     timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
     timer_initpara.counterdirection  = TIMER_COUNTER_UP;
     timer_initpara.period            = (1000000U/f)-1;
     timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
     timer_initpara.repetitioncounter = 0;
-    timer_init(TIMER1,&timer_initpara);
+    timer_init(TIMER0,&timer_initpara);
 
     /* CH0 configuration in PWM mode0 */
     timer_ocintpara.ocpolarity  = TIMER_OC_POLARITY_HIGH;
     timer_ocintpara.outputstate = TIMER_CCX_ENABLE;
-    timer_channel_output_config(TIMER1, TIMER_CH_1, &timer_ocintpara);
+    timer_channel_output_config(TIMER0, TIMER_CH_0, &timer_ocintpara);
 
-    timer_channel_output_pulse_value_config(TIMER1, TIMER_CH_1, 1);
-    timer_channel_output_mode_config(TIMER1, TIMER_CH_1, TIMER_OC_MODE_PWM1);
-    timer_channel_output_shadow_config(TIMER1, TIMER_CH_1, TIMER_OC_SHADOW_ENABLE);
+    timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_0, 1);
+    timer_channel_output_mode_config(TIMER0, TIMER_CH_0, TIMER_OC_MODE_PWM1);
+    timer_channel_output_shadow_config(TIMER0, TIMER_CH_0, TIMER_OC_SHADOW_ENABLE);
 
-    timer_update_event_enable(TIMER1);                                  // 配置TIMERx_CTL0的UPDIS
-    timer_single_pulse_mode_config(TIMER1, TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
-    timer_update_source_config(TIMER1, TIMER_UPDATE_SRC_REGULAR);       // 配置TIMERx_CTL0的UPS
+    timer_update_event_enable(TIMER0);                                  // 配置TIMERx_CTL0的UPDIS
+    timer_single_pulse_mode_config(TIMER0, TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
+    timer_update_source_config(TIMER0, TIMER_UPDATE_SRC_REGULAR);       // 配置TIMERx_CTL0的UPS
 
-    /* TIMER1 primary output enable */
-    timer_primary_output_config(TIMER1, ENABLE);
+    /* TIMER0 primary output enable */
+    timer_primary_output_config(TIMER0, ENABLE);
     /* auto-reload preload enable */
-    timer_auto_reload_shadow_enable(TIMER1); 
+    timer_auto_reload_shadow_enable(TIMER0); 
 
     /* auto-reload preload enable */
-    timer_disable(TIMER1);
+    timer_disable(TIMER0);
 }
 
 /**
@@ -347,7 +349,7 @@ static void evse_ac_adc_config(void)
     adc_regular_channel_config(AC_ADC, 2, ADC_CHANNEL_7, ADC_SAMPLETIME_71POINT5);
 
     /* ADC trigger config */
-    adc_external_trigger_source_config(AC_ADC, ADC_REGULAR_CHANNEL, ADC0_1_EXTTRIG_REGULAR_T1_CH1);
+    adc_external_trigger_source_config(AC_ADC, ADC_REGULAR_CHANNEL, ADC0_1_EXTTRIG_REGULAR_T0_CH0);
     /* ADC external trigger enable */
     adc_external_trigger_config(AC_ADC, ADC_REGULAR_CHANNEL, ENABLE);
 
@@ -371,8 +373,8 @@ static void evse_ac_adc_config(void)
 void EXTI5_9_IRQHandler(void)
 {
     if(RESET != (EXTI_PD & (uint32_t)EXTI_6)){   // 开启电压采集: 开启定时器
-        TIMER_CNT(TIMER1) = (uint32_t)0xC7; // timer_counter_value_config(TIMER1, 0xC7);
-        TIMER_CTL0(TIMER1) |= (uint32_t)TIMER_CTL0_CEN; // timer_enable(TIMER1);
+        timer_counter_value_config(TIMER0, 0xC7); // timer_counter_value_config(TIMER0, 0xC7);
+        timer_enable(TIMER0); // timer_enable(TIMER0);
         EXTI_PD = (uint32_t)EXTI_6;         // exti_interrupt_flag_clear(EXTI_6);
     }
 }
@@ -381,7 +383,7 @@ void DMA0_Channel0_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){    // 完成采样后, 先暂停采样
         DMA_INTC(DMA0) |= DMA_FLAG_ADD(DMA_INT_FLAG_FTF, DMA_CH0); // dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
-        TIMER_CTL0(TIMER1) &= ~(uint32_t)TIMER_CTL0_CEN;    // timer_disable(TIMER1);
+        TIMER_CTL0(TIMER0) &= ~(uint32_t)TIMER_CTL0_CEN;    // timer_disable(TIMER1);
         EXTI_INTEN &= ~(uint32_t)EXTI_6;    // exti_interrupt_disable(EXTI_6);
 
         cplt_flag = true;

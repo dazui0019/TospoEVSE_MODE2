@@ -15,9 +15,9 @@
 #include "elog.h"
 
 // 车端二极管检测
-#define S1_CK_PORT     GPIOB
-#define S1_CK_RCU      RCU_GPIOB
-#define S1_CK_PIN      GPIO_PIN_15
+#define S1_CK_PORT     GPIOA
+#define S1_CK_RCU      RCU_GPIOA
+#define S1_CK_PIN      GPIO_PIN_2
 
 void s1_ck_init(void);
 static ErrStatus evse_error_ck(void);
@@ -111,7 +111,9 @@ static void task_entry_evse_main(void *parameter)
     for(;;){
         // 先检测一下错误标志
         if(g_p_cp_buff != NULL){
-            evse.p_cp->state = evse.p_cp->get_cp_state(evse.p_cp->get_cp_vol(g_p_cp_buff, 10));
+            cp_val = evse.p_cp->get_cp_vol(g_p_cp_buff, 10);
+            evse.p_cp->state = evse.p_cp->get_cp_state((1.2f*(float)cp_val)/(float)g_Vrefint);
+            // log_d("cp_val: %d, cp_vol: %0.2f", evse.p_cp->get_cp_vol(g_p_cp_buff, 10), (1.2f*(float)evse.p_cp->get_cp_vol(g_p_cp_buff, 10))/(float)g_Vrefint);
             g_p_cp_buff = NULL;
             if(SUCCESS == evse_error_ck()){
                 evse_state = state_func[evse_state](evse.p_cp->state);
