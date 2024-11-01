@@ -9,6 +9,7 @@
 #include "printf.h"
 #include "evse_cp.h"
 #include "evse_charge.h"
+#include "evse_ui.h"
 
 #define LOG_TAG "evse.adc"
 #include "elog.h"
@@ -162,22 +163,32 @@ static void task_entry_voltage_sample(void *parameter)
         bos_delay_ms(1);
     }
 }
-// bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
+bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
 
+/**
+ * @brief  计算kwh
+ * @note   目前只是用来实时更新充电功率。
+ */
 static void task_entry_kwh_calc(void *parameter)
 {
     rtc_interrupt_enable(RTC_INT_SECOND);
     for(;;){
         if(second_flag){
             second_flag = false;
-            if(cur > 0.2f)
-                g_kwh += (float)((double)power/(double)3600000.0);
+            // if(cur > 0.2f)
+            //     g_kwh += (float)((double)power/(double)3600000.0);
             // log_d("cur: %.3f, vol: %.3f, power: %0.3f, kwh: %0.4f", cur, vol, power, g_kwh);
+            
+            /* 功率小于50W时，显示0W */
+            if(power < 50.0f){
+                power = 0;
+            }
+            evse_ui_update(UI_CMD_UPDATE_POWER, NULL, &power);
         }
-        bos_delay_ms(1);
+        bos_delay_ms(100);
     }
 }
-// bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
+bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
 
 void RTC_IRQHandler()
 {

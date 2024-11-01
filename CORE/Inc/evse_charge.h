@@ -27,6 +27,23 @@ typedef enum{
 }evse_state_t;
 
 /**
+ * @brief   充电桩状态(记录整个系统的状态)
+ */
+typedef enum{
+    FAULT_OVER_CURRENT = 0,
+    FAULT_OVER_VOLTAGE,
+    FAULT_UNDER_VOLTAGE,
+    FAULT_OVER_HEAT,
+    FAULT_LEAKAGE,
+    FAULT_RELAY_ADH,
+    FAULT_CP_LOST,
+    FAULT_CP_ERROR,
+    FAULT_S2_TIMEOUT,
+    FAULT_PE_LOST,
+    FAULT_UNKNOWN
+}evse_fault_t;
+
+/**
  * @brief   充电桩状态切换事件
  * @note    用来触发充电桩状态切换
  */

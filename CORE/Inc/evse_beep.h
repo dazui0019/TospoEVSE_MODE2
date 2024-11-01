@@ -7,4 +7,5 @@
 #define BEEP_PORT       GPIOC
 
 void evse_beep_init();
-void evse_beep();   
+void evse_beep();
+void evse_beep_ctrl(ControlStatus status);

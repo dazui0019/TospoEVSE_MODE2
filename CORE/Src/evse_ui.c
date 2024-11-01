@@ -8,6 +8,7 @@
 #include "printf.h"
 #include "lcd_port.h"
 #include "EventRecorder.h"
+#include "evse_charge.h"
 
 #define LOG_TAG "evse.ui"
 #include "elog.h"
@@ -42,14 +43,7 @@ evse_ui_data_t evse_ui_data = {
     .current        = 0xFFFF,
     .power          = 0xFFFF,
     .kwh            = 0xFFFF,
-    .e_cur_leak     = 0,
-    .e_over_vol     = 0,
-    .e_over_cur     = 0,
-    .e_pe_lost      = 0,
-    .e_relay_adh    = 0,
-    .e_over_heat    = 0,
-    .e_cp_error     = 0,
-    .e_s1_lost      = 0,
+    .fault          = 0x00,
 };
 evse_ui_data_t evse_ui_data_last;
 
@@ -59,7 +53,7 @@ static void _display_update_current(uint16_t current);
 static void _display_update_voltage(uint16_t voltage);
 static void _display_update_state_mode2(uint8_t state);
 static void _display_update_state_mode3(uint8_t state);
-static void _display_update_fault(uint8_t fault);
+static void _display_update_fault(evse_ui_fault_t fault);
 static void _display_update_kwh(uint16_t voltage);
 static void _display_update_power(uint16_t voltage);
 static void _display_update_clock(ControlStatus status);
@@ -80,9 +74,11 @@ static void task_entry_ui_upgrade(void *parameter)
     UG_DrawLine(35,35,91,91,0xFFFF);
     UG_DrawLine(148,91,204,35,0xFFFF);
     UG_DrawLine(149,149,204,204,0xFFFF);
+    UG_PutString(120 - 12, 115 + 10, "KW");
 
     evse_ui_data_last = evse_ui_data;
     evse_ui_update(UI_CMD_UPDATE_DELAY, 0x0000, NULL);
+    _display_update_fault(evse_ui_data.fault);
     for(;;){
         if(0 != memcmp(&evse_ui_data, &evse_ui_data_last, sizeof(evse_ui_data_t))){
             if(evse_ui_data.state != evse_ui_data_last.state){
@@ -94,6 +90,16 @@ static void task_entry_ui_upgrade(void *parameter)
             if(evse_ui_data.delay != evse_ui_data_last.delay){
                 _display_update_delay(evse_ui_data.delay);
             }
+            if(evse_ui_data.power != evse_ui_data_last.power){
+                _display_update_power(evse_ui_data.power);
+            }
+            if(0 != memcmp(&evse_ui_data.fault, &evse_ui_data_last.fault, sizeof(evse_fault_t))){
+                log_d("fault");
+                _display_update_fault(evse_ui_data.fault);
+            }
+            // if(evse_ui_data.fault.e_cp_error != evse_ui_data_last.fault.e_cp_error){
+            //     _display_update_fault(evse_ui_data.fault.e_cp_error);
+            // }
             /* 更新 evse_ui_data_last */
             evse_ui_data_last = evse_ui_data;
             /* 刷新UI */
@@ -209,7 +215,7 @@ static void _display_update_voltage(uint16_t voltage)
 
 static void _display_update_state_mode2(uint8_t state)
 {
-    GC9A01_fillRect(120 - 48, 40, 96, 16, 0x0000);  // 清除状态文字
+    GC9A01_fillRect(120 - 48, 40, 104, 16, 0x0000);  // 清除状态文字
     // GC9A01_fillRect(195, 115 + 15, 24, 11, 0x0000); // 清除鉴权图标
     switch (state)
     {
@@ -235,22 +241,24 @@ static void _display_update_state_mode2(uint8_t state)
         break;
     case EVSE_DONE:
         /* code */
-        UG_PutString(120 - 48,40,"Full");
+        UG_PutString(120 - 48+24,40,"Full");
         break;
     case EVSE_STOP:
         /* code */
         UG_PutString(120 - 48,40,"Finish");
         break;
+    case EVSE_CP_ERROR:
+    case EVSE_CP_LOST:
     case EVSE_FAULT:
         /* code */
-        UG_PutString(120 - 48,40,"Fault");
+        UG_PutString(120 - 48+12,40,"Fault");
         break;
     }
 }
 
 static void _display_update_state_mode3(uint8_t state)
 {
-    GC9A01_fillRect(120 - 48, 40, 96, 16, 0x0000);  // 清除状态文字
+    GC9A01_fillRect(120 - 48, 40, 104, 16, 0x0000);  // 清除状态文字
     GC9A01_fillRect(195, 115 + 15, 24, 11, 0x0000); // 清除鉴权图标
     switch (state)
     {
@@ -294,46 +302,28 @@ static void _display_update_state_mode3(uint8_t state)
     }
 }
 
-static void _display_update_fault(uint8_t fault)
+static void _display_update_fault(evse_ui_fault_t fault)
 {
     GC9A01_fillRect(120 - 48, 240 - 50, 100, 16, 0x0000);
-    if ((fault & (0x01 << 0)))
-    {
+    if (fault.e_cur_leak){
         UG_PutString(120 - 48,240 - 50,"Leakage");
-    }
-    else if ((fault & (0x01 << 1)))
-    {
+    }else if (fault.e_vol_err){
         UG_PutString(120 - 48,240 - 50,"Voltage");
-    }
-    else if ((fault & (0x01 << 2)))
-    {
+    }else if (fault.e_over_cur){
         UG_PutString(120 - 48,240 - 50,"Current");
-    }
-    else if ((fault & (0x01 << 3)))
-    {
+    }else if (fault.e_pe_lost){
         UG_PutString(120 - 48,240 - 50,"Ground");
-    }
-    else if ((fault & (0x01 << 4)))
-    {
+    }else if (fault.e_relay_adh){
         UG_PutString(120 - 48,240 - 50,"Adhesion");
-    }
-    else if ((fault & (0x01 << 5)))
-    {
+    }else if (fault.e_over_heat){
         UG_PutString(120 - 48,240 - 50,"OverTemp");
-    }
-    else if ((fault & (0x01 << 6)))
-    {
+    }else if (fault.e_cp_error){
         UG_PutString(120 - 48,240 - 50,"CPerror");
-    }
-    else if ((fault & (0x01 << 7)))
-    {
+    }else if (fault.e_s1_lost){
         UG_PutString(120 - 48,240 - 50,"Diode");
-    }
-    else
-    {
+    }else{
         UG_PutString(120 - 48,240 - 50,"No fault");
     }
-
 }
 
 static void _display_update_kwh(uint16_t kwh)
@@ -348,7 +338,12 @@ static void _display_update_kwh(uint16_t kwh)
 
 static void _display_update_power(uint16_t power)
 {
-    
+    float power_f = (float)(power)/(10.0f);
+    /* 将uint16_t的voltage转换成字符串 */
+    char str_kwh[6];
+    sprintf(str_kwh, "%04.1f", power_f);
+    GC9A01_fillRect(120 - 26, 115 - 10, 52, 16, 0x0000);
+    UG_PutString(120 - 26, 115 - 10, str_kwh);
 }
 
 static void _display_update_all(evse_ui_data_t* ui_data)
@@ -383,6 +378,79 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
         break;
     case UI_CMD_UPDATE_DELAY:
         evse_ui_data.delay = arg_int;
+        break;
+    case UI_CMD_UPDATE_POWER:
+        evse_ui_data.power = (uint16_t)((*(float*)arg_ptr)/100.0f);
+        break;
+    case UI_CMD_ERR_CLR_ALL:
+        evse_ui_data.fault.e_over_cur = 0;
+        evse_ui_data.fault.e_vol_err = 0;
+        evse_ui_data.fault.e_over_heat = 0;
+        evse_ui_data.fault.e_pe_lost = 0;
+        evse_ui_data.fault.e_relay_adh = 0;
+        evse_ui_data.fault.e_cp_error = 0;
+        evse_ui_data.fault.e_cur_leak = 0;
+        evse_ui_data.fault.e_s1_lost = 0;
+        break;
+    case UI_CMD_SET_ERR:
+        switch (arg_int)
+        {
+        case FAULT_OVER_CURRENT:
+            evse_ui_data.fault.e_over_cur = 1;
+            break;
+        case FAULT_UNDER_VOLTAGE:
+        case FAULT_OVER_VOLTAGE:
+            evse_ui_data.fault.e_vol_err = 1;
+            break;
+        case FAULT_OVER_HEAT:
+            evse_ui_data.fault.e_over_heat = 1;
+            break;
+        case FAULT_PE_LOST:
+            evse_ui_data.fault.e_pe_lost = 1;
+            break;
+        case FAULT_RELAY_ADH:
+            evse_ui_data.fault.e_relay_adh = 1;
+            break;
+        case FAULT_CP_LOST:
+        case FAULT_CP_ERROR:
+            evse_ui_data.fault.e_cp_error = 1;
+            break;
+        case FAULT_LEAKAGE:
+            evse_ui_data.fault.e_cur_leak = 1;
+            break;
+        default:
+            break;
+        }
+        break;
+    case UI_CMD_RESET_ERR:
+        switch (arg_int)
+        {
+        case FAULT_OVER_CURRENT:
+            evse_ui_data.fault.e_over_cur = 0;
+            break;
+        case FAULT_UNDER_VOLTAGE:
+        case FAULT_OVER_VOLTAGE:
+            evse_ui_data.fault.e_vol_err = 0;
+            break;
+        case FAULT_OVER_HEAT:
+            evse_ui_data.fault.e_over_heat = 0;
+            break;
+        case FAULT_PE_LOST:
+            evse_ui_data.fault.e_pe_lost = 0;
+            break;
+        case FAULT_RELAY_ADH:
+            evse_ui_data.fault.e_relay_adh = 0;
+            break;
+        case FAULT_CP_LOST:
+        case FAULT_CP_ERROR:
+            evse_ui_data.fault.e_cp_error = 0;
+            break;
+        case FAULT_LEAKAGE:
+            evse_ui_data.fault.e_cur_leak = 0;
+            break;
+        default:
+            break;
+        }
         break;
     default:
         log_e("unknown cmd: 0x%02X.", cmd);

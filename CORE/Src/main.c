@@ -56,7 +56,7 @@ int main(){
     log_d("Test.");
 
     delay_init();   // 初始化延时函数
-    // evse_beep_init();
+    evse_beep_init();
     // delay_ms(100);
     // evse_beep();
     // delay_ms(100);

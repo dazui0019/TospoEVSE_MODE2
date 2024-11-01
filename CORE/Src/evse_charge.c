@@ -10,6 +10,8 @@
 #include "evse_ac.h"
 #include "evse_comm.h"
 #include "evse_ui.h"
+#include "evse_rgb.h"
+#include "evse_beep.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"
@@ -131,7 +133,7 @@ bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
 
 /**
  * @brief   错误检测
- * @todo    需要根据不同的错误，进行不同的处理
+ * @todo    需要根据不同的错误，进行不同的处理(或许可以直接卡死在这个死循环里，直到错误恢复)
  */
 static ErrStatus evse_error_ck(void)
 {
@@ -152,20 +154,29 @@ static ErrStatus evse_error_ck(void)
         // if(g_overheat_flag == true){
         //     error_flag = true;
         // }
+        evse_ui_update(UI_CMD_ERR_CLR_ALL, NULL, NULL);
         if(g_under_vol_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_UNDER_VOLTAGE, NULL);
         }
+
         if(g_over_vol_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_VOLTAGE, NULL);
         }
+
         if(g_over_cur_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_CURRENT, NULL);
         }
+
         if(g_pe_error_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_PE_LOST, NULL);
         }
 
         if(error_flag == false){
+            // evse_beep_ctrl(DISABLE);
             break;
         }else{
             /* 继电器是检测到错误就关闭 */
@@ -173,6 +184,7 @@ static ErrStatus evse_error_ck(void)
                 evse.evse_relay_ctrl(open);
                 evse.relay_state = open;
             }
+            // evse_beep_ctrl(ENABLE);
             return ERROR;
         }
     }
@@ -231,6 +243,13 @@ uint8_t evse_get_max_current(void)
     return evse.p_cp->current;
 }
 
+void evse_set_state(evse_state_t state)
+{
+    evse.evse_state = state;
+    evse_ui_update(UI_CMD_UPDATE_STATE, evse.evse_state, NULL);
+    evse_rgb_state_update(evse.evse_state);
+}
+
 evse_state_t evse_idle_handle(cp_state_t cp_state)
 {
     if(evse.evse_state == EVSE_FAULT){    // 从错误中恢复时需要的处理
@@ -248,9 +267,10 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_IDLE){
-        evse.evse_state = EVSE_IDLE;
+        // evse.evse_state = EVSE_IDLE;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
+        evse_set_state(EVSE_IDLE);
         log_i("EVSE_IDLE.");
     }
 
@@ -296,9 +316,10 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_WAIT_PLUGIN){
-        evse.evse_state = EVSE_WAIT_PLUGIN;
+        // evse.evse_state = EVSE_WAIT_PLUGIN;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_PLUGIN, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_PLUGIN, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_PLUGIN, NULL);
+        evse_set_state(EVSE_WAIT_PLUGIN);
         log_i("EVSE_WAIT_PLUGIN.");
     }
 
@@ -342,9 +363,10 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_9V){
-        evse.evse_state = EVSE_9V;
+        // evse.evse_state = EVSE_9V;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V, NULL);
+        evse_set_state(EVSE_9V);
         log_i("EVSE_9V.");
     }
 
@@ -390,9 +412,10 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_9V_PWM){
-        evse.evse_state = EVSE_9V_PWM;
+        // evse.evse_state = EVSE_9V_PWM;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
+        evse_set_state(EVSE_9V_PWM);
         log_i("EVSE_9V_PWM.");
     }
 
@@ -447,9 +470,10 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_6V){
-        evse.evse_state = EVSE_6V;
+        // evse.evse_state = EVSE_6V;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
+        evse_set_state(EVSE_6V);
         log_i("EVSE_6V.");
     }
 
@@ -518,7 +542,8 @@ evse_state_t evse_sim_6v_handle(cp_state_t cp_state)
     if(evse.evse_state != EVSE_SIM_6V){
         evse.evse_state = EVSE_SIM_6V;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_SIM_6V, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_SIM_6V, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_SIM_6V, NULL);
+        evse_set_state(EVSE_SIM_6V);
         log_i("EVSE_SIM_6V.");
     }
 
@@ -551,9 +576,10 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_CHARGING){
-        evse.evse_state = EVSE_CHARGING;
+        // evse.evse_state = EVSE_CHARGING;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_CHARGING, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CHARGING, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CHARGING, NULL);
+        evse_set_state(EVSE_CHARGING);
         log_i("EVSE_CHARGING.");
     }
 
@@ -594,9 +620,10 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_DONE){
-        evse.evse_state = EVSE_DONE;
+        // evse.evse_state = EVSE_DONE;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_DONE, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_DONE, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_DONE, NULL);
+        evse_set_state(EVSE_DONE);
         log_i("EVSE_DONE.");
     }
 
@@ -655,9 +682,10 @@ evse_state_t evse_cp_lost_handle(cp_state_t cp_state)
 
     if(evse.evse_state != EVSE_CP_LOST){
         evse_state_last = evse.evse_state;
-        evse.evse_state = EVSE_CP_LOST;
+        evse_set_state(EVSE_CP_LOST);
+        // evse.evse_state = EVSE_CP_LOST;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_LOST, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_LOST, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_LOST, NULL);
         log_i("EVSE_CP_LOST.");
     }
 
@@ -718,9 +746,10 @@ evse_state_t evse_cp_error_handle(cp_state_t cp_state)
     static evse_state_t state_save;
     if(evse.evse_state != EVSE_CP_ERROR){
         state_save = evse.evse_state;     // 保存进入CP_ERROR之前的状态(方便返回)
-        evse.evse_state = EVSE_CP_ERROR;
+        // evse.evse_state = EVSE_CP_ERROR;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_ERROR, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_ERROR, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_ERROR, NULL);
+        evse_set_state(EVSE_CP_ERROR);
         log_e("EVSE_CP_ERROR.");
     }
 
@@ -745,9 +774,10 @@ evse_state_t evse_fault_handle(cp_state_t cp_state){
     (void)cp_state;
 
     if(evse.evse_state != EVSE_FAULT){
-        evse.evse_state = EVSE_FAULT;
+        // evse.evse_state = EVSE_FAULT;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_FAULT, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_FAULT, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_FAULT, NULL);
+        evse_set_state(EVSE_FAULT);
         log_e("EVSE_FAULT.");
     }
     
@@ -770,9 +800,10 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_STOP){
-        evse.evse_state = EVSE_STOP;
+        // evse.evse_state = EVSE_STOP;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_STOP, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_STOP, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_STOP, NULL);
+        evse_set_state(EVSE_STOP);
         log_i("EVSE_STOP.");
     }
 
@@ -808,9 +839,10 @@ evse_state_t evse_wait_s2_open_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_WAIT_S2_OPEN){
-        evse.evse_state = EVSE_WAIT_S2_OPEN;
+        // evse.evse_state = EVSE_WAIT_S2_OPEN;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_S2_OPEN, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_S2_OPEN, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_S2_OPEN, NULL);
+        evse_set_state(EVSE_WAIT_S2_OPEN);
         log_i("EVSE_WAIT_S2_OPEN.");
     }
 
