@@ -53,7 +53,7 @@ typedef struct{
     void (*pwm_ctrl)(ControlStatus status); // 控制PWM输出
     void (*ck_ctrl)(ControlStatus status);  // CP电压检测控制
     uint16_t (*get_cp_vol)(__IO uint16_t pBuff[], uint16_t length);
-    cp_state_t (*get_cp_state)(uint16_t vol);
+    cp_state_t (*get_cp_state)(float vol);
 }cp_t;
 
 /**
@@ -110,4 +110,4 @@ void quickSort(uint16_t arr[], int low, int high);
 
 uint16_t get_cp_vol(__IO uint16_t pBuff[][2], uint16_t length);
 uint16_t get_gnd_vol(__IO uint16_t pBuff[][2], uint16_t length);
-cp_state_t get_cp_state(uint16_t vol);
+cp_state_t get_cp_state(float vol);

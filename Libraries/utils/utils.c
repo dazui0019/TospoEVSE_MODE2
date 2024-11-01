@@ -1,5 +1,13 @@
 #include "utils.h"
 
+void left_shift(uint32_t arr[], int n) {
+    uint32_t temp = arr[0];
+    for (int i = 0; i < n - 1; i++) {
+        arr[i] = arr[i + 1];
+    }
+    arr[n - 1] = temp;
+}
+
 static void reverseArray(uint32_t arr[], int start, int end) {
     while (start < end) {
         int temp = arr[start];

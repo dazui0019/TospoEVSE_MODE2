@@ -10,14 +10,16 @@
 #include "evse_ac.h"
 #include "evse_comm.h"
 #include "evse_ui.h"
+#include "evse_rgb.h"
+#include "evse_beep.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"
 
 // 车端二极管检测
-#define S1_CK_PORT     GPIOB
-#define S1_CK_RCU      RCU_GPIOB
-#define S1_CK_PIN      GPIO_PIN_15
+#define S1_CK_PORT     GPIOA
+#define S1_CK_RCU      RCU_GPIOA
+#define S1_CK_PIN      GPIO_PIN_2
 
 void s1_ck_init(void);
 static ErrStatus evse_error_ck(void);
@@ -39,6 +41,11 @@ extern __IO uint8_t g_over_cur_flag;    // evse_ac
 extern __IO uint8_t g_over_vol_flag;    // evse_ac
 extern __IO uint8_t g_under_vol_flag;   // evse_ac
 extern __IO uint8_t g_pe_error_flag;    // evse_ac
+__IO uint8_t cp_lost_flag = false;      // cp丢失
+__IO uint8_t cp_error_flag = false;     // cp电平故障
+
+static uint8_t max_cur_index;
+static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
 
 evse_t evse = {
     .inited = false,
@@ -100,9 +107,9 @@ static void task_entry_evse_main(void *parameter)
 
     /* 初始化CP */
     g_cp.init(1000);    // CP输出和检测初始化
-    g_cp.set_cur(17);   // 设置最大电流
     g_cp.pwm_ctrl(DISABLE);
     g_cp.ck_ctrl(ENABLE);
+    evse_set_max_current(0); // 设置最大电流
 
     log_d("CP init done.");
 
@@ -111,7 +118,9 @@ static void task_entry_evse_main(void *parameter)
     for(;;){
         // 先检测一下错误标志
         if(g_p_cp_buff != NULL){
-            evse.p_cp->state = evse.p_cp->get_cp_state(evse.p_cp->get_cp_vol(g_p_cp_buff, 10));
+            cp_val = evse.p_cp->get_cp_vol(g_p_cp_buff, 10);
+            evse.p_cp->state = evse.p_cp->get_cp_state((1.2f*(float)cp_val)/(float)g_Vrefint);
+            // log_d("cp_val: %d, cp_vol: %0.2f", evse.p_cp->get_cp_vol(g_p_cp_buff, 10), (1.2f*(float)evse.p_cp->get_cp_vol(g_p_cp_buff, 10))/(float)g_Vrefint);
             g_p_cp_buff = NULL;
             if(SUCCESS == evse_error_ck()){
                 evse_state = state_func[evse_state](evse.p_cp->state);
@@ -122,11 +131,11 @@ static void task_entry_evse_main(void *parameter)
         bos_delay_ms(1);
     }
 }
-// bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
+bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
 
 /**
  * @brief   错误检测
- * @todo    需要根据不同的错误，进行不同的处理
+ * @todo    需要根据不同的错误，进行不同的处理(或许可以直接卡死在这个死循环里，直到错误恢复)
  */
 static ErrStatus evse_error_ck(void)
 {
@@ -147,20 +156,37 @@ static ErrStatus evse_error_ck(void)
         // if(g_overheat_flag == true){
         //     error_flag = true;
         // }
+        evse_ui_update(UI_CMD_ERR_CLR_ALL, NULL, NULL);
         if(g_under_vol_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_UNDER_VOLTAGE, NULL);
         }
+
         if(g_over_vol_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_VOLTAGE, NULL);
         }
+
         if(g_over_cur_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_CURRENT, NULL);
         }
+
         if(g_pe_error_flag == true){
             error_flag = true;
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_PE_LOST, NULL);
+        }
+
+        if(cp_lost_flag == true){
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_CP_LOST, NULL);
+        }
+
+        if(cp_error_flag == true){
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_CP_ERROR, NULL);
         }
 
         if(error_flag == false){
+            // evse_beep_ctrl(DISABLE);
             break;
         }else{
             /* 继电器是检测到错误就关闭 */
@@ -168,6 +194,7 @@ static ErrStatus evse_error_ck(void)
                 evse.evse_relay_ctrl(open);
                 evse.relay_state = open;
             }
+            // evse_beep_ctrl(ENABLE);
             return ERROR;
         }
     }
@@ -202,9 +229,40 @@ ErrStatus evse_s1_ck(void)
     return ERROR;
 }
 
+void evse_set_max_current(uint8_t index)
+{
+    max_cur_index = index;
+    evse.p_cp->set_cur(max_cur_table[max_cur_index]);
+    evse_ui_update(UI_CMD_UPDATE_CURRENT, max_cur_table[max_cur_index], NULL);
+    log_d("Set max current: %d", max_cur_table[max_cur_index]);
+}
+
+void evse_max_current_switch(void)
+{
+    static uint8_t max_cur_index_size = sizeof(max_cur_table)/sizeof(uint8_t);
+
+    if(++max_cur_index == max_cur_index_size){
+        max_cur_index = 0;
+    }
+
+    evse_set_max_current(max_cur_index);
+}
+
 uint8_t evse_get_max_current(void)
 {
     return evse.p_cp->current;
+}
+
+void evse_set_state(evse_state_t state)
+{
+    evse.evse_state = state;
+    evse_ui_update(UI_CMD_UPDATE_STATE, evse.evse_state, NULL);
+    evse_rgb_state_update(evse.evse_state);
+}
+
+evse_state_t evse_get_state(void)
+{
+    return evse.evse_state;
 }
 
 evse_state_t evse_idle_handle(cp_state_t cp_state)
@@ -224,9 +282,10 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_IDLE){
-        evse.evse_state = EVSE_IDLE;
+        // evse.evse_state = EVSE_IDLE;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
+        evse_set_state(EVSE_IDLE);
         log_i("EVSE_IDLE.");
     }
 
@@ -272,9 +331,10 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_WAIT_PLUGIN){
-        evse.evse_state = EVSE_WAIT_PLUGIN;
+        // evse.evse_state = EVSE_WAIT_PLUGIN;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_PLUGIN, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_PLUGIN, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_PLUGIN, NULL);
+        evse_set_state(EVSE_WAIT_PLUGIN);
         log_i("EVSE_WAIT_PLUGIN.");
     }
 
@@ -318,9 +378,10 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_9V){
-        evse.evse_state = EVSE_9V;
+        // evse.evse_state = EVSE_9V;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V, NULL);
+        evse_set_state(EVSE_9V);
         log_i("EVSE_9V.");
     }
 
@@ -366,9 +427,10 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_9V_PWM){
-        evse.evse_state = EVSE_9V_PWM;
+        // evse.evse_state = EVSE_9V_PWM;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
+        evse_set_state(EVSE_9V_PWM);
         log_i("EVSE_9V_PWM.");
     }
 
@@ -423,9 +485,10 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_6V){
-        evse.evse_state = EVSE_6V;
+        // evse.evse_state = EVSE_6V;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
+        evse_set_state(EVSE_6V);
         log_i("EVSE_6V.");
     }
 
@@ -494,7 +557,8 @@ evse_state_t evse_sim_6v_handle(cp_state_t cp_state)
     if(evse.evse_state != EVSE_SIM_6V){
         evse.evse_state = EVSE_SIM_6V;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_SIM_6V, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_SIM_6V, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_SIM_6V, NULL);
+        evse_set_state(EVSE_SIM_6V);
         log_i("EVSE_SIM_6V.");
     }
 
@@ -527,9 +591,10 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_CHARGING){
-        evse.evse_state = EVSE_CHARGING;
+        // evse.evse_state = EVSE_CHARGING;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_CHARGING, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CHARGING, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CHARGING, NULL);
+        evse_set_state(EVSE_CHARGING);
         log_i("EVSE_CHARGING.");
     }
 
@@ -570,9 +635,10 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_DONE){
-        evse.evse_state = EVSE_DONE;
+        // evse.evse_state = EVSE_DONE;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_DONE, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_DONE, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_DONE, NULL);
+        evse_set_state(EVSE_DONE);
         log_i("EVSE_DONE.");
     }
 
@@ -631,11 +697,14 @@ evse_state_t evse_cp_lost_handle(cp_state_t cp_state)
 
     if(evse.evse_state != EVSE_CP_LOST){
         evse_state_last = evse.evse_state;
-        evse.evse_state = EVSE_CP_LOST;
+        evse_set_state(EVSE_CP_LOST);
+        // evse.evse_state = EVSE_CP_LOST;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_LOST, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_LOST, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_LOST, NULL);
         log_i("EVSE_CP_LOST.");
     }
+    
+    cp_lost_flag = false; // 更新标志位
 
     switch (evse_state_last)
     {
@@ -680,6 +749,8 @@ evse_state_t evse_cp_lost_handle(cp_state_t cp_state)
             log_e("evse last state: %d", evse_state_last);
             break;
     }
+    
+    cp_lost_flag = true;    // 如果没有return, 说明还是CP_LOST的状态
 
     return EVSE_CP_LOST;
 }
@@ -694,9 +765,10 @@ evse_state_t evse_cp_error_handle(cp_state_t cp_state)
     static evse_state_t state_save;
     if(evse.evse_state != EVSE_CP_ERROR){
         state_save = evse.evse_state;     // 保存进入CP_ERROR之前的状态(方便返回)
-        evse.evse_state = EVSE_CP_ERROR;
+        // evse.evse_state = EVSE_CP_ERROR;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_ERROR, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_ERROR, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_ERROR, NULL);
+        evse_set_state(EVSE_CP_ERROR);
         log_e("EVSE_CP_ERROR.");
     }
 
@@ -711,9 +783,11 @@ evse_state_t evse_cp_error_handle(cp_state_t cp_state)
     }
 
     if(cp_state == CP_ERROR){
+        cp_error_flag = true;
         return EVSE_CP_ERROR;
     }
     
+    cp_error_flag = false;  // 从错误中返回，清除标志位
     return state_save;
 }
 
@@ -721,9 +795,10 @@ evse_state_t evse_fault_handle(cp_state_t cp_state){
     (void)cp_state;
 
     if(evse.evse_state != EVSE_FAULT){
-        evse.evse_state = EVSE_FAULT;
+        // evse.evse_state = EVSE_FAULT;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_FAULT, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_FAULT, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_FAULT, NULL);
+        evse_set_state(EVSE_FAULT);
         log_e("EVSE_FAULT.");
     }
     
@@ -746,9 +821,10 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_STOP){
-        evse.evse_state = EVSE_STOP;
+        // evse.evse_state = EVSE_STOP;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_STOP, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_STOP, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_STOP, NULL);
+        evse_set_state(EVSE_STOP);
         log_i("EVSE_STOP.");
     }
 
@@ -784,9 +860,10 @@ evse_state_t evse_wait_s2_open_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_WAIT_S2_OPEN){
-        evse.evse_state = EVSE_WAIT_S2_OPEN;
+        // evse.evse_state = EVSE_WAIT_S2_OPEN;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_S2_OPEN, NULL);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_S2_OPEN, NULL);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_WAIT_S2_OPEN, NULL);
+        evse_set_state(EVSE_WAIT_S2_OPEN);
         log_i("EVSE_WAIT_S2_OPEN.");
     }
 

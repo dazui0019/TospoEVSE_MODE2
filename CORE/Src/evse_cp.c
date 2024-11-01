@@ -13,28 +13,32 @@
 #define ADC_TH          (0x30)  // ADC限幅滤波阈值
 
 /* CP输出 */
-#define CP_TIMER        (TIMER2)
-#define CP_TIMER_RCU    (RCU_TIMER2)
+#define CP_TIMER        (TIMER1)
+#define CP_TIMER_RCU    (RCU_TIMER1)
 #define CP_TIMER_CH     (TIMER_CH_1)
-#define CP_TIMER_IRQ    (TIMER2_IRQn)
-#define CP_PORT         (GPIOB)
-#define CP_PIN          (GPIO_PIN_5)
-#define CP_PORT_RCU     (RCU_GPIOB)
+#define CP_TIMER_IRQ    (TIMER1_IRQn)
+#define CP_PORT         (GPIOA)
+#define CP_PIN          (GPIO_PIN_1)
+#define CP_PORT_RCU     (RCU_GPIOA)
 #define CP_PWM_MODE     (TIMER_OC_MODE_PWM1)
 #define CK_ADC          ADC2
 #define CK_ADC_RCU      RCU_ADC2
 /* CP检测 */
 #define CK_CP_PORT      GPIOA
 #define CK_CP_RCU       RCU_GPIOA
-#define CK_CP_PIN       GPIO_PIN_1
+#define CK_CP_PIN       GPIO_PIN_0
 
-#define CK_CP_ADC_CH    ADC_CHANNEL_1
+#define CK_CP_ADC_CH    ADC_CHANNEL_0
 
 // 定义CP电平阈值
-#define CP_12V_TH   3500
-#define CP_9V_TH    2590
-#define CP_6V_TH    1680
-#define CP_OFFSET   100
+// #define CP_12V_TH   3500
+// #define CP_9V_TH    2590
+// #define CP_6V_TH    1680
+// #define CP_OFFSET   100
+#define CP_12V_TH   3.0f
+#define CP_9V_TH    2.2f
+#define CP_6V_TH    1.4f
+#define CP_OFFSET   0.2f
 
 // 定义CP电压状态
 #define STATE_CP_12V    (1<<0)
@@ -144,6 +148,21 @@ void TIMER2_IRQHandler(void)
     /* TIMER2只开了一个中断，所以就不判断了 */
     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
     TIMER_INTF(TIMER2) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
+    // if(timer_interrupt_flag_get(TIMER2, TIMER_INT_UP) != RESET){
+    //     timer_interrupt_flag_clear(TIMER2, TIMER_INT_UP);
+    //     adc_software_trigger_enable(CK_ADC, ADC_REGULAR_CHANNEL);
+    //     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;
+    // }
+}
+
+/**
+ * @brief   在定时器中断中，软件触发ADC转换
+ */
+void TIMER1_IRQHandler(void)
+{
+    /* TIMER1只开了一个中断，所以就不判断了 */
+    ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
+    TIMER_INTF(TIMER1) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
     // if(timer_interrupt_flag_get(TIMER2, TIMER_INT_UP) != RESET){
     //     timer_interrupt_flag_clear(TIMER2, TIMER_INT_UP);
     //     adc_software_trigger_enable(CK_ADC, ADC_REGULAR_CHANNEL);
@@ -329,7 +348,7 @@ void cp_disable(void)
 */
 uint8_t cp_cur_set(uint8_t cur)
 {
-    uint16_t pwm_flag;
+    // uint16_t pwm_flag;
     /* duty(%) =  ((TIMER_CAR(CP_TIMER) + 1)/TIMER_CH0CV(CP_TIMER)) * 100 */
     if(cur < 1 || cur > 63){
         log_e("param error.");
@@ -337,25 +356,33 @@ uint8_t cp_cur_set(uint8_t cur)
     }
     g_cp.current = cur; // 更新电流大小
 
-    if(CP_TIMER_CH == TIMER_CH_0){
-        pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL));
-    }else if(CP_TIMER_CH == TIMER_CH_1){
-        pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH1COMCTL));
-        pwm_flag >>= 8;
-    }else{
-        log_e("timer_ch_%d is not supported", CP_TIMER_CH);
-        return 1;
-    }
+    // if(CP_TIMER_CH == TIMER_CH_0){
+    //     pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL));
+    // }else if(CP_TIMER_CH == TIMER_CH_1){
+    //     pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH1COMCTL));
+    //     pwm_flag >>= 8;
+    // }else{
+    //     log_e("timer_ch_%d is not supported", CP_TIMER_CH);
+    //     return 1;
+    // }
 
-    if(TIMER_OC_MODE_PWM0 == pwm_flag){
+    // if(TIMER_OC_MODE_PWM0 == pwm_flag){
+    //     timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
+    //     log_d("PWM0");
+    // }
+    // else if (TIMER_OC_MODE_PWM1 == (pwm_flag)){
+    //     timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 1000-duty_table[cur]);
+    //     log_d("PWM1");
+    // }else{
+    //     log_e("CH%dCOMCTL[2:0]: 0x%X", CP_TIMER_CH, pwm_flag);
+    // }
+
+    if(CP_PWM_MODE == TIMER_OC_MODE_PWM0){
         timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
-        log_d("PWM0");
-    }
-    else if (TIMER_OC_MODE_PWM1 == (pwm_flag)){
+    }else if(CP_PWM_MODE == TIMER_OC_MODE_PWM1){
         timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 1000-duty_table[cur]);
-        log_d("PWM1");
     }else{
-        log_e("CH%dCOMCTL[2:0]: 0x%X", CP_TIMER_CH, pwm_flag);
+        log_e("unknown PWM mode: %d", CP_PWM_MODE);
     }
 
     return 0;
@@ -488,12 +515,16 @@ uint16_t get_voltage(__IO uint16_t pBuff[], uint16_t length)
     return voltage;
 }
 
-cp_state_t get_cp_state(uint16_t vol)
+cp_state_t get_cp_state(float vol)
 {
+    // float cp_vol = (1.2f * (float)vol)/g_Vrefint;
     if((CP_12V_TH-CP_OFFSET < vol) && (vol < CP_12V_TH+CP_OFFSET))      {return CP_12V;}
     else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
     else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
-    else                                                                {return CP_ERROR;}
+    else {
+        // log_e("cp vol_err: %f", vol);
+        return CP_ERROR;
+    }
 }
 
 /* 快速排序算法 ------------------------ */
@@ -532,7 +563,7 @@ void quickSort(uint16_t arr[], int low, int high) {
 
 void task_entry_cp_test(void *parameter)
 {
-    // uint16_t vol;
+    uint16_t vol;
     // cp_pwm_init(1000);
     // cp_cur_set(16);
     // pwm_ctrl(ENABLE);
@@ -541,14 +572,14 @@ void task_entry_cp_test(void *parameter)
     g_cp.init(1000);    // CP输出和检测初始化
     g_cp.set_cur(17);   // 设置最大电流
     g_cp.pwm_ctrl(ENABLE);
-    // g_cp.ck_ctrl(ENABLE);
+    g_cp.ck_ctrl(ENABLE);
     for(;;){
-        // if(g_p_cp_buff != NULL){
-        //     vol = get_voltage(g_p_cp_buff, 10);
-        //     log_i("vol: %d", vol);
-        //     g_p_cp_buff = NULL;
-        // }
+        if(g_p_cp_buff != NULL){
+            vol = get_voltage(g_p_cp_buff, 10);
+            log_i("vol: %d", vol);
+            g_p_cp_buff = NULL;
+        }
         bos_delay_ms(1);
     }
 }
-bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);

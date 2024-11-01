@@ -56,7 +56,7 @@ int main(){
     log_d("Test.");
 
     delay_init();   // 初始化延时函数
-    // evse_beep_init();
+    evse_beep_init();
     // delay_ms(100);
     // evse_beep();
     // delay_ms(100);
@@ -79,10 +79,10 @@ int main(){
 
 static void task_entry_blink(void *parameter)
 {
-    evse_beep_init();
+    gd_led_init(LED2);
     for(;;){
-        evse_beep();
-        bos_delay_ms(100);
+        gd_led_toggle(LED2);
+        bos_delay_ms(500);
     }
 }
-// bos_task_export(blink, task_entry_blink, BOS_MAX_PRIORITY, NULL);
+bos_task_export(blink, task_entry_blink, BOS_MAX_PRIORITY, NULL);

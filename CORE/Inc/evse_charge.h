@@ -27,6 +27,23 @@ typedef enum{
 }evse_state_t;
 
 /**
+ * @brief   充电桩状态(记录整个系统的状态)
+ */
+typedef enum{
+    FAULT_OVER_CURRENT = 0,
+    FAULT_OVER_VOLTAGE,
+    FAULT_UNDER_VOLTAGE,
+    FAULT_OVER_HEAT,
+    FAULT_LEAKAGE,
+    FAULT_RELAY_ADH,
+    FAULT_CP_LOST,
+    FAULT_CP_ERROR,
+    FAULT_S2_TIMEOUT,
+    FAULT_PE_LOST,
+    FAULT_UNKNOWN
+}evse_fault_t;
+
+/**
  * @brief   充电桩状态切换事件
  * @note    用来触发充电桩状态切换
  */
@@ -57,7 +74,22 @@ typedef struct{
  * @todo    需要根据不同的错误，进行不同的处理
  */
 static ErrStatus evse_error_ck(void);
+/**
+ * @brief   获取最大充电电流
+ */
 uint8_t evse_get_max_current(void);
+/**
+ * @brief   设置最大充电电流
+ */
+void evse_set_max_current(uint8_t index);
+/**
+ * @brief   获取充电桩状态
+ */
+evse_state_t evse_get_state(void);
+/**
+ * @brief   在预设的电流列表中切换最大充电电流
+ */
+void evse_max_current_switch(void);
 
 evse_state_t evse_idle_handle(cp_state_t);
 /**
