@@ -15,25 +15,43 @@
 UG_GUI lcd;
 
 /* 存放UI状态 */
-struct __attribute__((packed, aligned(sizeof(uint32_t)))){
-    /* EVSE_STATE */
-    uint8_t state;
-    /* ERROR BIT */
-    uint8_t e_cur_leak    :1;
-    uint8_t e_over_vol    :1;
-    uint8_t e_over_cur    :1;
-    uint8_t e_pe_lost     :1;
-    uint8_t e_relay_adh   :1;
-    uint8_t e_over_heat   :1;
-    uint8_t e_cp_error    :1;
-    uint8_t e_s1_lost     :1;
-    /* DATA */
-    uint16_t voltage;
-    uint16_t current;
-    uint16_t power;
-    uint16_t kwh;
-    uint16_t delay;
-} evse_ui_data, evse_ui_data_last;
+// struct __attribute__((packed, aligned(sizeof(uint32_t)))){
+//     /* EVSE_STATE */
+//     uint8_t state;
+//     /* ERROR BIT */
+//     uint8_t e_cur_leak    :1;
+//     uint8_t e_over_vol    :1;
+//     uint8_t e_over_cur    :1;
+//     uint8_t e_pe_lost     :1;
+//     uint8_t e_relay_adh   :1;
+//     uint8_t e_over_heat   :1;
+//     uint8_t e_cp_error    :1;
+//     uint8_t e_s1_lost     :1;
+//     /* DATA */
+//     uint16_t voltage;
+//     uint16_t current;
+//     uint16_t power;
+//     uint16_t kwh;
+//     uint16_t delay;
+// } evse_ui_data, evse_ui_data_last;
+
+evse_ui_data_t evse_ui_data = {
+    .state          = 0xFF,
+    .delay          = 0xFFFF,
+    .voltage        = 0xFFFF,
+    .current        = 0xFFFF,
+    .power          = 0xFFFF,
+    .kwh            = 0xFFFF,
+    .e_cur_leak     = 0,
+    .e_over_vol     = 0,
+    .e_over_cur     = 0,
+    .e_pe_lost      = 0,
+    .e_relay_adh    = 0,
+    .e_over_heat    = 0,
+    .e_cp_error     = 0,
+    .e_s1_lost      = 0,
+};
+evse_ui_data_t evse_ui_data_last;
 
 static void evse_ui_init(void);
 
@@ -46,6 +64,7 @@ static void _display_update_kwh(uint16_t voltage);
 static void _display_update_power(uint16_t voltage);
 static void _display_update_clock(ControlStatus status);
 static void _display_update_delay(uint16_t delay);
+static void _display_update_all(evse_ui_data_t* ui_data);
 
 /**
  * @brief  更新UI
@@ -61,24 +80,21 @@ static void task_entry_ui_upgrade(void *parameter)
     UG_DrawLine(35,35,91,91,0xFFFF);
     UG_DrawLine(148,91,204,35,0xFFFF);
     UG_DrawLine(149,149,204,204,0xFFFF);
-    /* 电压 */
-    // UG_PutString(16, 115, "220V");
-    /* 故障信息 */
-    // UG_PutString(120 - 48, 240 - 50,"No fault");
-    /* 工作状态 */
-    // UG_PutString(120 - 48, 40, "Standby");
-    /* 充电功率/累计电能 */
-    // UG_PutString(120 - 18, 115 - 10, "0.0");
-    // UG_PutString(120 - 18, 115 + 10, "KWh");
-    /* 延时 */
-    // _display_update_clock(ENABLE);
+
     evse_ui_data_last = evse_ui_data;
+    evse_ui_update(UI_CMD_UPDATE_DELAY, 0x0000, NULL);
     for(;;){
-        if(0 != memcmp(&evse_ui_data, &evse_ui_data_last, sizeof(evse_ui_data))){
-            if(evse_ui_data.state != evse_ui_data_last.state){          //状态变化，更新UI
-                _display_update_state_mode2(evse_ui_data_last.state);   //状态
+        if(0 != memcmp(&evse_ui_data, &evse_ui_data_last, sizeof(evse_ui_data_t))){
+            if(evse_ui_data.state != evse_ui_data_last.state){
+                _display_update_state_mode2(evse_ui_data.state);
             }
-            /* 更新old_ui_data */
+            if(evse_ui_data.current != evse_ui_data_last.current){
+                _display_update_current(evse_ui_data.current);
+            }
+            if(evse_ui_data.delay != evse_ui_data_last.delay){
+                _display_update_delay(evse_ui_data.delay);
+            }
+            /* 更新 evse_ui_data_last */
             evse_ui_data_last = evse_ui_data;
             /* 刷新UI */
             // _display_update_voltage(evse_ui_data_last.voltage);   //更新电压
@@ -90,7 +106,7 @@ static void task_entry_ui_upgrade(void *parameter)
         bos_delay_ms(10);
     }
 }
-// bos_task_export(ui_upgrade, task_entry_ui_upgrade, BOS_MAX_PRIORITY, NULL);
+bos_task_export(ui_upgrade, task_entry_ui_upgrade, BOS_MAX_PRIORITY, NULL);
 
 static void task_entry_ui_test(void *parameter)
 {
@@ -145,7 +161,7 @@ static void evse_ui_init(void)
 static void _display_update_delay(uint16_t delay)
 {
     char str_delay[6];
-    sprintf(str_delay, "%02d:%02d", delay/100, delay%100);
+    sprintf(str_delay, "%02d:%02d", delay>>8, delay&0xFF);
     UG_PutString(195-26, 115, str_delay);
 }
 
@@ -335,6 +351,10 @@ static void _display_update_power(uint16_t power)
     
 }
 
+static void _display_update_all(evse_ui_data_t* ui_data)
+{
+    ;
+}
 /**
  * @brief  更新UI状态结构体
  * @param[in] {cmd} 功能码

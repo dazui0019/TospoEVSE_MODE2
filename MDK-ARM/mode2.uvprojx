@@ -515,6 +515,11 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_beep.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_delay.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

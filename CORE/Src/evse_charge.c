@@ -40,6 +40,9 @@ extern __IO uint8_t g_over_vol_flag;    // evse_ac
 extern __IO uint8_t g_under_vol_flag;   // evse_ac
 extern __IO uint8_t g_pe_error_flag;    // evse_ac
 
+static uint8_t max_cur_index;
+static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
+
 evse_t evse = {
     .inited = false,
     .evse_relay_ctrl = evse_relay_ctrl,
@@ -100,9 +103,9 @@ static void task_entry_evse_main(void *parameter)
 
     /* 初始化CP */
     g_cp.init(1000);    // CP输出和检测初始化
-    g_cp.set_cur(17);   // 设置最大电流
     g_cp.pwm_ctrl(DISABLE);
     g_cp.ck_ctrl(ENABLE);
+    evse_set_max_current(0); // 设置最大电流
 
     log_d("CP init done.");
 
@@ -124,7 +127,7 @@ static void task_entry_evse_main(void *parameter)
         bos_delay_ms(1);
     }
 }
-// bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
+bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
 
 /**
  * @brief   错误检测
@@ -202,6 +205,25 @@ ErrStatus evse_s1_ck(void)
     }
     log_d("s1_ck error.");
     return ERROR;
+}
+
+void evse_set_max_current(uint8_t index)
+{
+    max_cur_index = index;
+    evse.p_cp->set_cur(max_cur_table[max_cur_index]);
+    evse_ui_update(UI_CMD_UPDATE_CURRENT, max_cur_table[max_cur_index], NULL);
+    log_d("Set max current: %d", max_cur_table[max_cur_index]);
+}
+
+void evse_max_current_switch(void)
+{
+    static uint8_t max_cur_index_size = sizeof(max_cur_table)/sizeof(uint8_t);
+
+    if(++max_cur_index == max_cur_index_size){
+        max_cur_index = 0;
+    }
+
+    evse_set_max_current(max_cur_index);
 }
 
 uint8_t evse_get_max_current(void)

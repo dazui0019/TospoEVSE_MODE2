@@ -16,4 +16,24 @@
 #define UI_CMD_UPDATE_CHG_STATE     9U    // 更新充电状态
 #define UI_CMD_UPDATE_STATE         10U   // 更新充电桩状态
 
+typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))){
+    /* EVSE_STATE */
+    uint8_t state;
+    /* ERROR BIT */
+    uint8_t e_cur_leak    :1;
+    uint8_t e_over_vol    :1;
+    uint8_t e_over_cur    :1;
+    uint8_t e_pe_lost     :1;
+    uint8_t e_relay_adh   :1;
+    uint8_t e_over_heat   :1;
+    uint8_t e_cp_error    :1;
+    uint8_t e_s1_lost     :1;
+    /* DATA */
+    uint16_t voltage;
+    uint16_t current;
+    uint16_t power;
+    uint16_t kwh;
+    uint16_t delay;
+}evse_ui_data_t;
+
 uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr);

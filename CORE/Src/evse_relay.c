@@ -28,7 +28,7 @@ static void task_entry_relay_test(void *parameter)
         bos_delay_ms(10000);
     }
 }
-bos_task_export(relay_test, task_entry_relay_test, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(relay_test, task_entry_relay_test, BOS_MAX_PRIORITY, NULL);
 
 static void task_entry_relay_vol_sw(void *parameter)
 {

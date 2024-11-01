@@ -61,7 +61,8 @@
         "evse_gndd.h": "c",
         "cstdlib": "c",
         "lcd_port.h": "c",
-        "evse_beep.h": "c"
+        "evse_beep.h": "c",
+        "evse_delay.h": "c"
     },
     "C_Cpp.default.includePath": [
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS\\GD\\GD32F30x\\Include",

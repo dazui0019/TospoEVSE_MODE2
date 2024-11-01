@@ -57,7 +57,18 @@ typedef struct{
  * @todo    需要根据不同的错误，进行不同的处理
  */
 static ErrStatus evse_error_ck(void);
+/**
+ * @brief   获取最大充电电流
+ */
 uint8_t evse_get_max_current(void);
+/**
+ * @brief   设置最大充电电流
+ */
+void evse_set_max_current(uint8_t index);
+/**
+ * @brief   在预设的电流列表中切换最大充电电流
+ */
+void evse_max_current_switch(void);
 
 evse_state_t evse_idle_handle(cp_state_t);
 /**

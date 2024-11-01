@@ -348,7 +348,7 @@ void cp_disable(void)
 */
 uint8_t cp_cur_set(uint8_t cur)
 {
-    uint16_t pwm_flag;
+    // uint16_t pwm_flag;
     /* duty(%) =  ((TIMER_CAR(CP_TIMER) + 1)/TIMER_CH0CV(CP_TIMER)) * 100 */
     if(cur < 1 || cur > 63){
         log_e("param error.");
@@ -356,25 +356,33 @@ uint8_t cp_cur_set(uint8_t cur)
     }
     g_cp.current = cur; // 更新电流大小
 
-    if(CP_TIMER_CH == TIMER_CH_0){
-        pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL));
-    }else if(CP_TIMER_CH == TIMER_CH_1){
-        pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH1COMCTL));
-        pwm_flag >>= 8;
-    }else{
-        log_e("timer_ch_%d is not supported", CP_TIMER_CH);
-        return 1;
-    }
+    // if(CP_TIMER_CH == TIMER_CH_0){
+    //     pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL));
+    // }else if(CP_TIMER_CH == TIMER_CH_1){
+    //     pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH1COMCTL));
+    //     pwm_flag >>= 8;
+    // }else{
+    //     log_e("timer_ch_%d is not supported", CP_TIMER_CH);
+    //     return 1;
+    // }
 
-    if(TIMER_OC_MODE_PWM0 == pwm_flag){
+    // if(TIMER_OC_MODE_PWM0 == pwm_flag){
+    //     timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
+    //     log_d("PWM0");
+    // }
+    // else if (TIMER_OC_MODE_PWM1 == (pwm_flag)){
+    //     timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 1000-duty_table[cur]);
+    //     log_d("PWM1");
+    // }else{
+    //     log_e("CH%dCOMCTL[2:0]: 0x%X", CP_TIMER_CH, pwm_flag);
+    // }
+
+    if(CP_PWM_MODE == TIMER_OC_MODE_PWM0){
         timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
-        log_d("PWM0");
-    }
-    else if (TIMER_OC_MODE_PWM1 == (pwm_flag)){
+    }else if(CP_PWM_MODE == TIMER_OC_MODE_PWM1){
         timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 1000-duty_table[cur]);
-        log_d("PWM1");
     }else{
-        log_e("CH%dCOMCTL[2:0]: 0x%X", CP_TIMER_CH, pwm_flag);
+        log_e("unknown PWM mode: %d", CP_PWM_MODE);
     }
 
     return 0;
