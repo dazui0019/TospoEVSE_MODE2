@@ -15,21 +15,33 @@ void evse_key_init(void);
 uint8_t Key0_isPressed = false;
 uint8_t Key1_isPressed = false;
 
+static evse_state_t evse_state;
+
 static void task_entry_key_scan(void *parameter)
 {
     evse_key_init();
     for(;;){
         if(Key0_isPressed){
-            log_d("Key0 is pressed!");
-            evse_max_current_switch();
+            evse_state = evse_get_state();
+            if(EVSE_IDLE == evse_state || EVSE_WAIT_PLUGIN == evse_state || EVSE_9V == evse_state){
+                log_d("Key0 is pressed!");
+                evse_max_current_switch();
+            }else{
+                log_d("Busy.");
+            }
             Key0_isPressed = false;
         }
         if(Key1_isPressed){
-            log_d("Key1 is pressed!");
-            evse_delay_inc();
+            evse_state = evse_get_state();
+            if(EVSE_IDLE == evse_state || EVSE_WAIT_PLUGIN == evse_state || EVSE_9V == evse_state){
+                log_d("Key1 is pressed!");
+                evse_delay_inc();
+            }else{
+                log_d("Busy.");
+            }
             Key1_isPressed = false;
         }
-        bos_delay_ms(1);
+        bos_delay_ms(10);
     }
 }
 bos_task_export(key_scan, task_entry_key_scan, BOS_MAX_PRIORITY, NULL);

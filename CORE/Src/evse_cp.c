@@ -38,7 +38,7 @@
 #define CP_12V_TH   3.0f
 #define CP_9V_TH    2.2f
 #define CP_6V_TH    1.4f
-#define CP_OFFSET   0.15f
+#define CP_OFFSET   0.2f
 
 // 定义CP电压状态
 #define STATE_CP_12V    (1<<0)
@@ -522,7 +522,7 @@ cp_state_t get_cp_state(float vol)
     else if((CP_9V_TH-CP_OFFSET < vol) && (vol < CP_9V_TH+CP_OFFSET))   {return CP_9V;} // 检测到插枪
     else if((CP_6V_TH-CP_OFFSET < vol) && (vol < CP_6V_TH+CP_OFFSET))   {return CP_6V;} // 检测到插枪并且S2闭合
     else {
-        log_e("cp vol_err: %f", vol);
+        // log_e("cp vol_err: %f", vol);
         return CP_ERROR;
     }
 }

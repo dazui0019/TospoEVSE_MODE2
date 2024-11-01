@@ -83,6 +83,10 @@ uint8_t evse_get_max_current(void);
  */
 void evse_set_max_current(uint8_t index);
 /**
+ * @brief   获取充电桩状态
+ */
+evse_state_t evse_get_state(void);
+/**
  * @brief   在预设的电流列表中切换最大充电电流
  */
 void evse_max_current_switch(void);

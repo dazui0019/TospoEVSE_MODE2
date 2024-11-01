@@ -74,7 +74,7 @@ static void task_entry_ui_upgrade(void *parameter)
     UG_DrawLine(35,35,91,91,0xFFFF);
     UG_DrawLine(148,91,204,35,0xFFFF);
     UG_DrawLine(149,149,204,204,0xFFFF);
-    UG_PutString(120 - 12, 115 + 10, "KW");
+    UG_PutString(120 - 12, 115 + 10, "kW");
 
     evse_ui_data_last = evse_ui_data;
     evse_ui_update(UI_CMD_UPDATE_DELAY, 0x0000, NULL);
@@ -93,7 +93,7 @@ static void task_entry_ui_upgrade(void *parameter)
             if(evse_ui_data.power != evse_ui_data_last.power){
                 _display_update_power(evse_ui_data.power);
             }
-            if(0 != memcmp(&evse_ui_data.fault, &evse_ui_data_last.fault, sizeof(evse_fault_t))){
+            if(0 != memcmp(&evse_ui_data.fault, &evse_ui_data_last.fault, sizeof(evse_ui_fault_t))){
                 log_d("fault");
                 _display_update_fault(evse_ui_data.fault);
             }
@@ -253,6 +253,9 @@ static void _display_update_state_mode2(uint8_t state)
         /* code */
         UG_PutString(120 - 48+12,40,"Fault");
         break;
+    default:
+        UG_PutString(120 - 48,40,"Unknown");
+        break;
     }
 }
 
@@ -305,21 +308,21 @@ static void _display_update_state_mode3(uint8_t state)
 static void _display_update_fault(evse_ui_fault_t fault)
 {
     GC9A01_fillRect(120 - 48, 240 - 50, 100, 16, 0x0000);
-    if (fault.e_cur_leak){
+    if (0 != fault.e_cur_leak){
         UG_PutString(120 - 48,240 - 50,"Leakage");
-    }else if (fault.e_vol_err){
+    }else if (0 != fault.e_vol_err){
         UG_PutString(120 - 48,240 - 50,"Voltage");
-    }else if (fault.e_over_cur){
+    }else if (0 != fault.e_over_cur){
         UG_PutString(120 - 48,240 - 50,"Current");
-    }else if (fault.e_pe_lost){
+    }else if (0 != fault.e_pe_lost){
         UG_PutString(120 - 48,240 - 50,"Ground");
-    }else if (fault.e_relay_adh){
+    }else if (0 != fault.e_relay_adh){
         UG_PutString(120 - 48,240 - 50,"Adhesion");
-    }else if (fault.e_over_heat){
+    }else if (0 != fault.e_over_heat){
         UG_PutString(120 - 48,240 - 50,"OverTemp");
-    }else if (fault.e_cp_error){
+    }else if (0 != fault.e_cp_error){
         UG_PutString(120 - 48,240 - 50,"CPerror");
-    }else if (fault.e_s1_lost){
+    }else if (0 != fault.e_s1_lost){
         UG_PutString(120 - 48,240 - 50,"Diode");
     }else{
         UG_PutString(120 - 48,240 - 50,"No fault");

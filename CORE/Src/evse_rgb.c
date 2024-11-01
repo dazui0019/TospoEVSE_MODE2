@@ -40,7 +40,11 @@ static uint8_t led_buffer[4096];                // 用2个字节来代表一个W
 static uint32_t fluid_buffer_red[RGB_NUM] = {0x0000ffU, 0x000000U, 0x000000U, 0x000000U};
 static uint32_t fluid_buffer_green[RGB_NUM] = {0x00FF00U, 0x000000U, 0x000000U, 0x000000U};
 static uint32_t fluid_buffer_blue[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0x000000U};
-static uint32_t fluid_buffer_rainbow[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0x000000U};
+static uint32_t fluid_buffer_rainbow[RGB_NUM] = {
+    COLOR_RGB888_SKYBLUE, COLOR_RGB888_VIOLET, COLOR_RGB888_BROWN,
+    COLOR_RGB888_GOLD, COLOR_RGB888_SEAGREEN, COLOR_RGB888_FORESTGREEN,
+    COLOR_RGB888_SEAGREEN, COLOR_RGB888_CRIMSON, COLOR_RGB888_PINK
+};
 
 static evse_state_t evse_state = EVSE_IDLE;
 
@@ -81,18 +85,19 @@ static void task_entry_rgb_upgrade(void *parameter)
             evse_rgb_set_color(COLOR_RGB888_GREEN, 100, 0xFF);
             break;
         /* 充电中 */
-        case EVSE_CHARGING: // 黄灯呼吸
-            rotateArray_uint32(fluid_buffer_green, RGB_NUM, 1);
-            ws2812b_write(&ws2812b, fluid_buffer_green, RGB_NUM, led_buffer, 4096);
-            // if(flag == 0)
-            //     {if((gamma++) == 60) {flag = 1;}}
-            // else if(flag == 1)
-            //     {if((gamma--) == 10) {flag = 0;}}
-            // evse_rgb_set_color(COLOR_RGB888_YELLOW, gamma, 0xFF);
+        case EVSE_CHARGING: // 呼吸
+            // rotateArray_uint32(fluid_buffer_rainbow, RGB_NUM, 1);
+            // left_shift(fluid_buffer_rainbow, RGB_NUM);
+            // ws2812b_write(&ws2812b, fluid_buffer_rainbow, RGB_NUM, led_buffer, 4096);
+            if(flag == 0)
+                {if((gamma++) == 60) {flag = 1;}}
+            else if(flag == 1)
+                {if((gamma--) == 10) {flag = 0;}}
+            evse_rgb_set_color(COLOR_RGB888_PINK, gamma, 0xFF);
             break;
         case EVSE_DONE:
         case EVSE_STOP:
-            evse_rgb_set_color(COLOR_RGB888_INDIGO, 100, 0xFF);
+            evse_rgb_set_color(COLOR_RGB888_CHOCOLATE, 100, 0xFF);
             break;
         /* 故障 */
         case EVSE_CP_ERROR:
@@ -104,7 +109,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             evse_rgb_set_color(COLOR_RGB888_BLACK, 0xFF, 0xFF);
             break;
         }
-        bos_delay_ms(100);
+        bos_delay_ms(200);
     }
 }
 bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);

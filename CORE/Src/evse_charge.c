@@ -41,6 +41,8 @@ extern __IO uint8_t g_over_cur_flag;    // evse_ac
 extern __IO uint8_t g_over_vol_flag;    // evse_ac
 extern __IO uint8_t g_under_vol_flag;   // evse_ac
 extern __IO uint8_t g_pe_error_flag;    // evse_ac
+__IO uint8_t cp_lost_flag = false;      // cp丢失
+__IO uint8_t cp_error_flag = false;     // cp电平故障
 
 static uint8_t max_cur_index;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
@@ -175,6 +177,14 @@ static ErrStatus evse_error_ck(void)
             evse_ui_update(UI_CMD_SET_ERR, FAULT_PE_LOST, NULL);
         }
 
+        if(cp_lost_flag == true){
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_CP_LOST, NULL);
+        }
+
+        if(cp_error_flag == true){
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_CP_ERROR, NULL);
+        }
+
         if(error_flag == false){
             // evse_beep_ctrl(DISABLE);
             break;
@@ -248,6 +258,11 @@ void evse_set_state(evse_state_t state)
     evse.evse_state = state;
     evse_ui_update(UI_CMD_UPDATE_STATE, evse.evse_state, NULL);
     evse_rgb_state_update(evse.evse_state);
+}
+
+evse_state_t evse_get_state(void)
+{
+    return evse.evse_state;
 }
 
 evse_state_t evse_idle_handle(cp_state_t cp_state)
@@ -688,6 +703,8 @@ evse_state_t evse_cp_lost_handle(cp_state_t cp_state)
         // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CP_LOST, NULL);
         log_i("EVSE_CP_LOST.");
     }
+    
+    cp_lost_flag = false; // 更新标志位
 
     switch (evse_state_last)
     {
@@ -732,6 +749,8 @@ evse_state_t evse_cp_lost_handle(cp_state_t cp_state)
             log_e("evse last state: %d", evse_state_last);
             break;
     }
+    
+    cp_lost_flag = true;    // 如果没有return, 说明还是CP_LOST的状态
 
     return EVSE_CP_LOST;
 }
@@ -764,9 +783,11 @@ evse_state_t evse_cp_error_handle(cp_state_t cp_state)
     }
 
     if(cp_state == CP_ERROR){
+        cp_error_flag = true;
         return EVSE_CP_ERROR;
     }
     
+    cp_error_flag = false;  // 从错误中返回，清除标志位
     return state_save;
 }
 
