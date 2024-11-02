@@ -18,8 +18,6 @@ typedef enum{
     EVSE_SIM_6V,        // EV使用的是简易控制导引(12V直接进入6V)
     EVSE_CHARGING,      // 6vPWM
     EVSE_DONE,          // CP电平从6vPWM切换至9v(PWM)
-    EVSE_CP_LOST,       // CP断线
-    EVSE_CP_ERROR,      // CP电平异常
     EVSE_WAIT_S2_OPEN,  // 充电中刷卡
     EVSE_STOP,          // 充电中刷卡后，汽车S2断开
     EVSE_WAIT_S2,       // 9vPWM(等待S2闭合)
@@ -40,6 +38,7 @@ typedef enum{
     FAULT_CP_ERROR,
     FAULT_S2_TIMEOUT,
     FAULT_PE_LOST,
+    FAULT_S1_LOST,
     FAULT_UNKNOWN
 }evse_fault_t;
 
@@ -117,19 +116,12 @@ evse_state_t evse_sim_6v_handle(cp_state_t);
  */
 evse_state_t evse_done_handle(cp_state_t);
 /**
- * @brief   CP断线(从6V直接进入12V)
- */
-evse_state_t evse_cp_lost_handle(cp_state_t);
-/**
  * @brief   充电中
  */
 evse_state_t evse_charging_handle(cp_state_t);
 /**
- * @brief   cp电平异常
- */
-evse_state_t evse_cp_error_handle(cp_state_t);
-/**
- * @brief   充电故障(除了CP之外的其他错误)
+ * @brief   充电故障(统一处理错误), 独立于正常的充电状态切换
+ * @note    
  */
 evse_state_t evse_fault_handle(cp_state_t);
 /**
@@ -140,4 +132,3 @@ evse_state_t evse_fault_handle(cp_state_t);
 evse_state_t evse_stop_handle(cp_state_t cp_state);
 
 evse_state_t evse_wait_s2_open_handle(cp_state_t);
-

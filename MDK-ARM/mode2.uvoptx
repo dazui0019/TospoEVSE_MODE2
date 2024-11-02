@@ -157,38 +157,6 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>412</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134253630</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\CORE\Src\evse_ui.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\mode2\../CORE/Src/evse_ui.c\412</Expression>
-        </Bp>
-        <Bp>
-          <Number>1</Number>
-          <Type>0</Type>
-          <LineNumber>419</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134253666</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\CORE\Src\evse_ui.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\mode2\../CORE/Src/evse_ui.c\419</Expression>
-        </Bp>
-        <Bp>
-          <Number>2</Number>
-          <Type>0</Type>
           <LineNumber>33</LineNumber>
           <EnabledFlag>1</EnabledFlag>
           <Address>134222560</Address>
@@ -202,38 +170,6 @@
           <ExecCommand></ExecCommand>
           <Expression>\\mode2\../CORE/Src/FaultHandler.c\33</Expression>
         </Bp>
-        <Bp>
-          <Number>3</Number>
-          <Type>0</Type>
-          <LineNumber>318</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134228140</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\CORE\Src\evse_ui.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\mode2\../CORE/Src/evse_ui.c\318</Expression>
-        </Bp>
-        <Bp>
-          <Number>4</Number>
-          <Type>0</Type>
-          <LineNumber>175</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134250950</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\CORE\Src\evse_charge.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\mode2\../CORE/Src/evse_charge.c\175</Expression>
-        </Bp>
       </Breakpoint>
       <WatchWindow1>
         <Ww>
@@ -246,7 +182,7 @@
         <Mm>
           <WinNumber>1</WinNumber>
           <SubType>2</SubType>
-          <ItemText>led_buffer</ItemText>
+          <ItemText>0x20004278</ItemText>
           <AccSizeX>0</AccSizeX>
         </Mm>
       </MemoryWindow1>

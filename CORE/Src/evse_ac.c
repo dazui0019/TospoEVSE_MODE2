@@ -144,16 +144,19 @@ static void task_entry_voltage_sample(void *parameter)
             }
 
             max_cur = evse_get_max_current();
-            if(cur > 1.15f*max_cur && g_over_cur_flag == false){// cur > 1.15*I_RMS 时触发过压报警(单位mA)
+            if(cur > 1.15f*max_cur && g_over_cur_flag == false){// cur > 1.15*I_RMS 时触发过流报警(单位mA)
                 if(cur_err_cnt++ > 2){
                     g_over_cur_flag = true;
                     log_e("cur error: %0.2f", cur);
                 }
-            }else if(cur < 1.1f*max_cur && g_over_cur_flag == true){// cur < 1.1*I_RMS 时恢复过压报警(单位mA)
+            }
+            #if defined(CUR_ERR_CAN_BE_CLEAR)   // 判断过流报警是否可以被清除
+            else if(cur < 1.1f*max_cur && g_over_cur_flag == true){// cur < 1.1*I_RMS 时恢复过流报警(单位mA)
                 cur_err_cnt = 0;
                 g_over_cur_flag = false;
                 log_i("clear cur error: %0.2f", cur);
             }
+            #endif
             // log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
             // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
             /* 重新开启中断 */

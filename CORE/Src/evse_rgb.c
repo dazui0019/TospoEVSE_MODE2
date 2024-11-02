@@ -100,8 +100,6 @@ static void task_entry_rgb_upgrade(void *parameter)
             evse_rgb_set_color(COLOR_RGB888_CHOCOLATE, 100, 0xFF);
             break;
         /* 故障 */
-        case EVSE_CP_ERROR:
-        case EVSE_CP_LOST:
         case EVSE_FAULT:    // 红灯常亮
             evse_rgb_set_color(COLOR_RGB888_RED, 100, 0xFF);
             break;

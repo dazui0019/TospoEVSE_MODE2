@@ -246,8 +246,6 @@ static void _display_update_state_mode2(uint8_t state)
         /* code */
         UG_PutString(120 - 48,40,"Finish");
         break;
-    case EVSE_CP_ERROR:
-    case EVSE_CP_LOST:
     case EVSE_FAULT:
         /* code */
         UG_PutString(120 - 48+12,40,"Fault");
@@ -322,7 +320,7 @@ static void _display_update_fault(evse_ui_fault_t fault)
     }else if (0 != fault.e_cp_error){
         UG_PutString(120 - 48,240 - 50,"CPerror");
     }else if (0 != fault.e_s1_lost){
-        UG_PutString(120 - 48,240 - 50,"Diode");
+        UG_PutString(120 - 48+12,240 - 50,"Diode");
     }else{
         UG_PutString(120 - 48,240 - 50,"No fault");
     }
@@ -420,6 +418,9 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
         case FAULT_LEAKAGE:
             evse_ui_data.fault.e_cur_leak = 1;
             break;
+        case FAULT_S1_LOST:
+            evse_ui_data.fault.e_s1_lost = 1;
+            break;
         default:
             break;
         }
@@ -449,6 +450,9 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
             break;
         case FAULT_LEAKAGE:
             evse_ui_data.fault.e_cur_leak = 0;
+            break;
+        case FAULT_S1_LOST:
+            evse_ui_data.fault.e_s1_lost = 0;
             break;
         default:
             break;

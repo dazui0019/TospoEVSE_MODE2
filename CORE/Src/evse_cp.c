@@ -48,10 +48,6 @@
 #define STATE_CP_UNK    (1<<4)  // 未知状态
 #define STATE_CP_ERROR  (1<<5)
 
-// 全局变量
-__IO gndd_state_t g_gndd_state = EVSE_GNDD_OK;    // 接地检测状态
-__IO cp_event_t g_cp_event = EVENT_CP_NONE;       // CP电压状态
-
 extern __IO uint16_t g_Vrefint;  // 芯片内部1.2V参考电压的 ADC 原始值
 uint16_t gnd_base = 0;
 
