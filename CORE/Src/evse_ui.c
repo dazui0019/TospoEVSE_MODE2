@@ -94,7 +94,6 @@ static void task_entry_ui_upgrade(void *parameter)
                 _display_update_power(evse_ui_data.power);
             }
             if(0 != memcmp(&evse_ui_data.fault, &evse_ui_data_last.fault, sizeof(evse_ui_fault_t))){
-                log_d("fault");
                 _display_update_fault(evse_ui_data.fault);
             }
             // if(evse_ui_data.fault.e_cp_error != evse_ui_data_last.fault.e_cp_error){

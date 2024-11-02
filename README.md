@@ -128,6 +128,7 @@
 2. - [ ] `FREQ_IN`这部分电路有点问题, 需要修改。
 3. - [ ] 开`-o1`优化后, 会出现`HardFault`错误, 是`basic_os`的问题。
 4. - [X] 故障显示无法同步(`_display_update_fault()`)。
+5. - [ ] 断地故障，会出现`HardFault`错误。
 
 ## Todos
 

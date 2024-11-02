@@ -737,6 +737,7 @@ evse_state_t evse_cp_lost_handle(cp_state_t cp_state)
                 return EVSE_WAIT_S2_OPEN;
             }
             break;
+        case EVSE_FAULT:
         case EVSE_IDLE:
         case EVSE_WAIT_PLUGIN:
         case EVSE_9V:
