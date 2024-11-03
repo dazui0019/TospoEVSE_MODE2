@@ -255,7 +255,7 @@ void rtc_set_delay_alarm(uint8_t hour, uint8_t minute, uint8_t second)
     rtc_lwoff_wait();
     rtc_alarm_config(timestamp); // UTC+8转换成UTC时间
     rtc_lwoff_wait();
-    rtc_interrupt_enable(RTC_INT_ALARM);
+    // rtc_interrupt_enable(RTC_INT_ALARM);
     rtc_lwoff_wait();
     pmu_backup_write_disable();
 }

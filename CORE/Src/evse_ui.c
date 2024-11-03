@@ -15,27 +15,6 @@
 
 UG_GUI lcd;
 
-/* 存放UI状态 */
-// struct __attribute__((packed, aligned(sizeof(uint32_t)))){
-//     /* EVSE_STATE */
-//     uint8_t state;
-//     /* ERROR BIT */
-//     uint8_t e_cur_leak    :1;
-//     uint8_t e_over_vol    :1;
-//     uint8_t e_over_cur    :1;
-//     uint8_t e_pe_lost     :1;
-//     uint8_t e_relay_adh   :1;
-//     uint8_t e_over_heat   :1;
-//     uint8_t e_cp_error    :1;
-//     uint8_t e_s1_lost     :1;
-//     /* DATA */
-//     uint16_t voltage;
-//     uint16_t current;
-//     uint16_t power;
-//     uint16_t kwh;
-//     uint16_t delay;
-// } evse_ui_data, evse_ui_data_last;
-
 evse_ui_data_t evse_ui_data = {
     .state          = 0xFF,
     .delay          = 0xFFFF,
@@ -215,7 +194,7 @@ static void _display_update_voltage(uint16_t voltage)
 static void _display_update_state_mode2(uint8_t state)
 {
     GC9A01_fillRect(120 - 48, 40, 104, 16, 0x0000);  // 清除状态文字
-    // GC9A01_fillRect(195, 115 + 15, 24, 11, 0x0000); // 清除鉴权图标
+    _display_update_clock(DISABLE);  // 隐藏时钟图标
     switch (state)
     {
     case EVSE_IDLE:
@@ -226,10 +205,9 @@ static void _display_update_state_mode2(uint8_t state)
         /* code */
         UG_PutString(120 - 48,40,"nConnect");
         break;
+    case EVSE_WAIT_DELAY:
+        _display_update_clock(ENABLE);  // 显示时钟图标
     case EVSE_9V:
-        /* code */
-        UG_PutString(120 - 48,40,"Connect");
-        break;
     case EVSE_9V_PWM:
         /* code */
         UG_PutString(120 - 48,40,"Connect");
@@ -377,7 +355,9 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
         evse_ui_data.kwh = (uint16_t)((*(float*)arg_ptr)*10.0f);
         break;
     case UI_CMD_UPDATE_DELAY:
-        evse_ui_data.delay = arg_int;
+        temp_data.two_byte = arg_int/60;
+        temp_data.two_byte = (temp_data.two_byte<<8) | arg_int%60;
+        evse_ui_data.delay = temp_data.two_byte;
         break;
     case UI_CMD_UPDATE_POWER:
         evse_ui_data.power = (uint16_t)((*(float*)arg_ptr)/100.0f);

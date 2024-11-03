@@ -4,7 +4,7 @@
 #define LOG_TAG "evse.delay"
 #include "elog.h"
 
-static uint16_t evse_delay = 0;
+__IO uint16_t g_evse_delay = 0;
 
 void evse_delay_setting(uint16_t delay)
 {
@@ -13,13 +13,9 @@ void evse_delay_setting(uint16_t delay)
 
 void evse_delay_inc(void)
 {
-    uint16_t delay_temp;
-    if((evse_delay += EVSE_DELAY_SETP) > EVSE_MAX_DELAY){
-        evse_delay = 0;
+    if((g_evse_delay += EVSE_DELAY_SETP) > EVSE_MAX_DELAY){
+        g_evse_delay = 0;
     }
-    // log_d("evse_delay: %d", evse_delay);
-    delay_temp = evse_delay/60;
-    delay_temp = (delay_temp<<8) | evse_delay%60;
-    log_d("evse_delay: 0x%04X", delay_temp);
-    evse_ui_update(UI_CMD_UPDATE_DELAY, delay_temp, NULL);
+    // log_d("g_evse_delay: %d", g_evse_delay);
+    evse_ui_update(UI_CMD_UPDATE_DELAY, g_evse_delay, NULL);
 }

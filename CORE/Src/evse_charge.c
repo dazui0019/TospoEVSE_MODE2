@@ -12,6 +12,7 @@
 #include "evse_ui.h"
 #include "evse_rgb.h"
 #include "evse_beep.h"
+#include "drv_rtc.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"
@@ -21,16 +22,13 @@
 #define S1_CK_RCU      RCU_GPIOA
 #define S1_CK_PIN      GPIO_PIN_2
 
-void s1_ck_init(void);
-static ErrStatus evse_error_ck(void);
-
-extern __IO uint16_t (*g_p_adc2_buff)[2];
-extern __IO uint16_t *g_p_cp_buff;
-extern cp_t g_cp;
-extern __IO uint16_t g_Vrefint;  // evse_ac
-
+/* 全局变量 */
+extern __IO uint16_t *g_p_cp_buff;  // CP采样数据DMA缓冲区
+extern cp_t g_cp;                   // CP控制句柄
+extern __IO uint16_t g_Vrefint;     // 1.2V参考电压的 ADC 原始值, evse_ac
+extern __IO uint16_t g_evse_delay;  // 延时上电时间
 #if defined(RFID_ENABLE)
-extern __IO uint8_t g_rfid_flag;
+extern __IO uint8_t g_rfid_flag;    // rfid 刷卡标志
 #endif
 
 /* 错误标志位 */
@@ -61,8 +59,8 @@ evse_state_t (*state_func[])(cp_state_t) = {
     evse_9v_handle,             evse_9v_pwm_handle,     evse_6v_handle,
     /* EVSE_SIM_6V,             EVSE_CHARGING,          EVSE_DONE */
     evse_sim_6v_handle,         evse_charging_handle,   evse_done_handle,
-    /* EVSE_WAIT_S2_OPEN        EVSE_STOP */
-    evse_wait_s2_open_handle,   evse_stop_handle,
+    /* EVSE_WAIT_S2_OPEN        EVSE_STOP               EVSE_WAIT_DELAY */
+    evse_wait_s2_open_handle,   evse_stop_handle,       evse_wait_delay
 };
 
 static void task_entry_evse_main(void *parameter)
@@ -199,10 +197,7 @@ static ErrStatus evse_error_ck(void)
     return SUCCESS;
 }
 
-/**
- * @brief   检查车端二极管S1是否存在
- */
-void s1_ck_init(void)
+static void s1_ck_init(void)
 {
     rcu_periph_clock_enable(S1_CK_RCU);
     gpio_init(S1_CK_PORT, GPIO_MODE_IN_FLOATING, GPIO_OSPEED_MAX, S1_CK_PIN);
@@ -346,7 +341,7 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     #endif
         break;
     case CP_9V:
-        return EVSE_9V_PWM;
+        return (g_evse_delay != 0) ? EVSE_WAIT_DELAY : EVSE_9V_PWM;
     case CP_6V:
         return EVSE_SIM_6V;
     case CP_ERROR:
@@ -391,10 +386,10 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     #if defined(RFID_ENABLE)
         if(g_rfid_flag == true){
             g_rfid_flag = false;
-            return EVSE_9V_PWM;
+            return (g_evse_delay != 0) ? EVSE_WAIT_DELAY : EVSE_9V_PWM;
         }
     #else
-        return EVSE_9V_PWM;
+        return (g_evse_delay != 0) ? EVSE_WAIT_DELAY : EVSE_9V_PWM;
     #endif
         break;
     case CP_6V: // 在未输出PWM的情况下，如果汽车进入CP_6V状态，那么说明是简易导引
@@ -407,6 +402,60 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     }
 
     return EVSE_9V;
+}
+
+evse_state_t evse_wait_delay(cp_state_t cp_state)
+{
+    static uint8_t delay;
+
+    if(evse.evse_state == EVSE_FAULT){    // 从错误中恢复时需要的处理
+        log_i("Return frome EVSE_FAULT.");
+    }
+
+    if(evse.relay_state == close){
+        evse.evse_relay_ctrl(open);
+        evse.relay_state = open;
+    }
+
+    if(evse.p_cp->pwm_state == ENABLE){
+        evse.p_cp->pwm_ctrl(DISABLE);
+        evse.p_cp->pwm_state = DISABLE;
+    }
+
+    if(evse.evse_state != EVSE_WAIT_DELAY){
+        delay = g_evse_delay;
+        // 开启RTC倒计时
+        rtc_set_delay_alarm(0, 1, 0);
+        evse_set_state(EVSE_WAIT_DELAY);
+        log_i("EVSE_WAIT_DELAY.");
+    }
+
+    // 开启多次一分钟的倒计时，直到delay为0
+    if(rtc_flag_get(RTC_FLAG_ALARM) != RESET){
+        rtc_flag_clear(RTC_FLAG_ALARM);
+        if(--delay == 0){
+            evse_ui_update(UI_CMD_UPDATE_DELAY, g_evse_delay, NULL);
+            return EVSE_9V_PWM;
+        }
+        evse_ui_update(UI_CMD_UPDATE_DELAY, delay, NULL);
+        // 重新开启一次一分钟的倒计时
+        rtc_set_delay_alarm(0, 1, 0);
+    }
+
+    switch (cp_state)
+    {
+    case CP_12V:
+        evse_ui_update(UI_CMD_UPDATE_DELAY, g_evse_delay, NULL);
+        return EVSE_IDLE;
+    case CP_ERROR:
+        cp_error_flag = true;
+        break;
+    case CP_9V:
+    default:
+        break;
+    }
+
+    return EVSE_WAIT_DELAY;
 }
 
 evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
@@ -469,6 +518,7 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     return EVSE_9V_PWM;
 }
 
+// 这个状态按道理是不会出现的。
 evse_state_t evse_6v_handle(cp_state_t cp_state)
 {
     if(evse.evse_state == EVSE_FAULT){    // 从错误中恢复时需要的处理

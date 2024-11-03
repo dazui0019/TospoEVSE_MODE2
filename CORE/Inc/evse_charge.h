@@ -20,7 +20,7 @@ typedef enum{
     EVSE_DONE,          // CP电平从6vPWM切换至9v(PWM)
     EVSE_WAIT_S2_OPEN,  // 充电中刷卡
     EVSE_STOP,          // 充电中刷卡后，汽车S2断开
-    EVSE_WAIT_S2,       // 9vPWM(等待S2闭合)
+    EVSE_WAIT_DELAY,    // 等待倒计时结束
     EVSE_FAULT,         // 充电故障
 }evse_state_t;
 
@@ -67,6 +67,15 @@ typedef struct{
     cp_t* p_cp;                         // cp控制
     void (*evse_relay_ctrl)(relay_state_t state);
 }evse_t;
+
+/**
+ * @brief   S1检测初始化
+ */
+static void s1_ck_init(void);
+/**
+ * @brief   检查车端二极管S1是否存在
+ */
+static ErrStatus evse_error_ck(void);
 
 /**
  * @brief   错误检测
@@ -132,3 +141,8 @@ evse_state_t evse_fault_handle(cp_state_t);
 evse_state_t evse_stop_handle(cp_state_t cp_state);
 
 evse_state_t evse_wait_s2_open_handle(cp_state_t);
+
+/**
+ * @brief   等待倒计时结束
+ */
+evse_state_t evse_wait_delay(cp_state_t cp_state);

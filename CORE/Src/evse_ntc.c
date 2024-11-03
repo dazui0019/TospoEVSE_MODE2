@@ -124,7 +124,7 @@ static void task_entry_ntc_sample(void *parameter)
         evse_ntc_get_raw(&ob_ntc, &pl_ntc);
         EventStopA(2);
 
-        log_d("ob_ntc: %d, pl_ntc: %d", ob_ntc, pl_ntc);
+        // log_d("ob_ntc: %d, pl_ntc: %d", ob_ntc, pl_ntc);
 
         if(ob_ntc < 817 && g_overheat_flag == false){   // 70°C
             if(overheat_cnt++ > 10){
