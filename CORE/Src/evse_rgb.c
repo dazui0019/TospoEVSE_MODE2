@@ -33,6 +33,12 @@ const uint8_t GammaTable[] ={
     222,224,227,229,231,233,235,237,239,241,244,246,248,250,252,255
 };
 
+const uint8_t GammaTable2[] = {
+    10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105,
+    110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190,
+    195, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255
+};
+
 static ws2812b_handle_t ws2812b;
 static uint8_t led_buffer[4096];                // 用2个字节来代表一个WS2812比特
 
@@ -57,47 +63,46 @@ static void task_entry_rgb_upgrade(void *parameter)
     static uint8_t index = 0;
     static uint8_t flag = 0;
     evse_rgb_init();
-    evse_rgb_set_color(COLOR_RGB888_BLUE, 100, 0xFF);
+    // evse_rgb_set_color(COLOR_RGB888_GRAY, 100, 0xFF);
     for(;;){
         switch (evse_state)
         {
-        // case EVSE_STARTUP:
-            // if(flag == 0)
-            //     {if((gamma++) == 100) {flag = 1;}}
-            // else if(flag == 1)
-            //     {if((gamma--) == 10) {flag = 0;}}
-            // evse_rgb_set_color(COLOR_RGB888_YELLOW, gamma, 0xFF);
-
-            // break;
+        case EVSE_REBOOT:
+            if(flag == 0)
+                {if((gamma++) == 100) {flag = 1;}}
+            else if(flag == 1)
+                {if((gamma--) == 10) {flag = 0;}}
+            evse_rgb_set_color(COLOR_RGB888_GRAY, gamma, 0xFF);
+            break;
         /* 空闲状态 */
         case EVSE_IDLE:     // 蓝灯呼吸
             if(flag == 0)
-                {if((gamma++) == 60) {flag = 1;}}
+                {if((++gamma) == 35) {flag = 1;}}
             else if(flag == 1)
-                {if((gamma--) == 10) {flag = 0;}}
-            evse_rgb_set_color(COLOR_RGB888_BLUE, gamma, 0xFF);
+                {if((--gamma) == 5) {flag = 0;}}
+            evse_rgb_set_color(COLOR_RGB888_NAVY, GammaTable2[gamma], 0xFF);
             break;
-        /* 已刷卡的状态 */
-        case EVSE_WAIT_PLUGIN:  // 绿灯常亮
+        /* 已刷卡的状态(即插即用款相当于IDLE状态) */
+        case EVSE_WAIT_PLUGIN:  // 蓝灯常亮
             evse_rgb_set_color(COLOR_RGB888_NAVY, 100, 0xFF);
             break;
-        case EVSE_9V_PWM:
+        case EVSE_9V_PWM:   // 绿灯常亮
             evse_rgb_set_color(COLOR_RGB888_GREEN, 100, 0xFF);
             break;
         /* 充电中 */
-        case EVSE_CHARGING: // 呼吸
+        case EVSE_CHARGING: // 绿灯呼吸
             // rotateArray_uint32(fluid_buffer_rainbow, RGB_NUM, 1);
             // left_shift(fluid_buffer_rainbow, RGB_NUM);
             // ws2812b_write(&ws2812b, fluid_buffer_rainbow, RGB_NUM, led_buffer, 4096);
             if(flag == 0)
-                {if((gamma++) == 60) {flag = 1;}}
+                {if((++gamma) == 35) {flag = 1;}}
             else if(flag == 1)
-                {if((gamma--) == 10) {flag = 0;}}
-            evse_rgb_set_color(COLOR_RGB888_PINK, gamma, 0xFF);
+                {if((--gamma) == 5) {flag = 0;}}
+            evse_rgb_set_color(COLOR_RGB888_GREEN, GammaTable2[gamma], 0xFF);
             break;
         case EVSE_DONE:
         case EVSE_STOP:
-            evse_rgb_set_color(COLOR_RGB888_CHOCOLATE, 100, 0xFF);
+            evse_rgb_set_color(COLOR_RGB888_YELLOW, 100, 0xFF);
             break;
         /* 故障 */
         case EVSE_FAULT:    // 红灯常亮
@@ -107,7 +112,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             evse_rgb_set_color(COLOR_RGB888_BLACK, 0xFF, 0xFF);
             break;
         }
-        bos_delay_ms(200);
+        bos_delay_ms(50);
     }
 }
 bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);

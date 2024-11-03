@@ -6,16 +6,16 @@
 #define LOG_TAG "evse.ntc"
 #include "elog.h"
 
-/* 板载NTC */
+/* 板载NTC(NTC0) */
 #define ON_BOARD_NTC_PORT       GPIOB
 #define ON_BOARD_NTC_PORT_RCU   RCU_GPIOB
 #define ON_BOARD_NTC_PIN        GPIO_PIN_0
 #define ON_BOARD_NTC_ADC_CH     ADC_CHANNEL_8
-/* 电源插头NTC */
-#define PLUG_NTC_PORT           GPIOA
-#define PLUG_NTC_PORT_RCU       RCU_GPIOA
-#define PLUG_NTC_PIN            GPIO_PIN_2
-#define PLUG_NTC_ADC_CH         ADC_CHANNEL_2
+/* 电源插头NTC(NTC1) */
+#define PLUG_NTC_PORT           GPIOC
+#define PLUG_NTC_PORT_RCU       RCU_GPIOC
+#define PLUG_NTC_PIN            GPIO_PIN_5
+#define PLUG_NTC_ADC_CH         ADC_CHANNEL_15
 
 /**
  * @brief   温度采集通道
@@ -83,8 +83,9 @@ void evse_ntc_timer_config(uint16_t f)
     // timer_enable(TIMER3);
 }
 
-void evse_ntc_get_raw1(uint16_t *ob_raw, uint16_t *pl_raw)
+void evse_ntc_get_raw(uint16_t *ob_raw, uint16_t *pl_raw)
 {
+    static uint16_t ob_ntc = 0, pl_ntc = 0;
     // adc_flag_clear(ADC1, ADC_FLAG_EOIC);
     ADC_STAT(ADC1) = ~((uint32_t)ADC_FLAG_EOIC);
     
@@ -96,26 +97,11 @@ void evse_ntc_get_raw1(uint16_t *ob_raw, uint16_t *pl_raw)
     // adc_flag_clear(ADC1, ADC_FLAG_EOIC);
     ADC_STAT(ADC1) = ~((uint32_t)ADC_FLAG_EOIC);
 
-    *ob_raw = ADC_IDATA0(ADC1);
-    *pl_raw = ADC_IDATA1(ADC1);
-    
-}
+    ob_ntc = 0.4f*(float)ob_ntc + 0.6f*(float)ADC_IDATA0(ADC1);
+    pl_ntc = 0.4f*(float)pl_ntc + 0.6f*(float)ADC_IDATA1(ADC1);
 
-void evse_ntc_get_raw2(uint16_t *ob_raw, uint16_t *pl_raw)
-{
-    adc_flag_clear(ADC1, ADC_FLAG_EOIC);
-    // ADC_STAT(ADC1) = ~((uint32_t)ADC_FLAG_EOIC);
-    
-    adc_software_trigger_enable(ADC1, ADC_INSERTED_CHANNEL);
-    // ADC_CTL1(ADC1) |= ADC_CTL1_SWICST;
-    
-    while (adc_flag_get(ADC1, ADC_FLAG_EOIC) == RESET){}
-    // while((ADC_STAT(ADC1) & ADC_FLAG_EOIC) == RESET){}
-    adc_flag_clear(ADC1, ADC_FLAG_EOIC);
-    // ADC_STAT(ADC1) = ~((uint32_t)ADC_FLAG_EOIC);
-
-    *ob_raw = ADC_IDATA0(ADC1);
-    *pl_raw = ADC_IDATA1(ADC1);
+    *ob_raw = ob_ntc;
+    *pl_raw = pl_ntc;
 }
 
 __IO uint8_t g_overheat_flag = false;
@@ -135,8 +121,10 @@ static void task_entry_ntc_sample(void *parameter)
 
     for(;;){
         EventStartA(2);
-        evse_ntc_get_raw1(&ob_ntc, &pl_ntc);
+        evse_ntc_get_raw(&ob_ntc, &pl_ntc);
         EventStopA(2);
+
+        log_d("ob_ntc: %d, pl_ntc: %d", ob_ntc, pl_ntc);
 
         if(ob_ntc < 817 && g_overheat_flag == false){   // 70°C
             if(overheat_cnt++ > 10){
@@ -151,4 +139,4 @@ static void task_entry_ntc_sample(void *parameter)
         bos_delay_ms(100);
     }
 }
-// bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);
+bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);

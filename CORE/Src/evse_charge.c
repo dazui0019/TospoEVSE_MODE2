@@ -219,7 +219,7 @@ ErrStatus evse_s1_ck(void)
     timer_enable(TIMER5);
     while(RESET == timer_flag_get(TIMER5, TIMER_FLAG_UP)){
         if(s1_state != gpio_input_bit_get(S1_CK_PORT, S1_CK_PIN)){
-            // return SUCCESS;
+            return SUCCESS;
         }
     }
     return ERROR;
@@ -731,7 +731,8 @@ evse_state_t evse_fault_handle(cp_state_t cp_state){
     if(s1_lost_flag == true){
         switch (cp_state)
         {
-        case CP_12V:    // 拔下枪头，清除s1_lost_flag
+        case CP_12V:    // 拔下枪头或者汽车断开S2，清除s1_lost_flag
+        case CP_9V:
             s1_lost_flag = false;
             break;
         case CP_6V:
