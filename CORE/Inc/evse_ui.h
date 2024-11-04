@@ -41,6 +41,4 @@ typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))){
     uint16_t delay;
 }evse_ui_data_t;
 
-
-
 uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr);

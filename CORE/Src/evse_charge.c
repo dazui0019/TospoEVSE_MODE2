@@ -17,19 +17,23 @@
 #define LOG_TAG "evse.evse"
 #include "elog.h"
 
-// 车端二极管检测
-#define S1_CK_PORT     GPIOA
-#define S1_CK_RCU      RCU_GPIOA
-#define S1_CK_PIN      GPIO_PIN_2
+
+#if defined(S1_CK_ENABLE)
+    // 车端二极管检测
+    #define S1_CK_PORT     GPIOA
+    #define S1_CK_RCU      RCU_GPIOA
+    #define S1_CK_PIN      GPIO_PIN_2
+#endif /* S1_CK_ENABLE */
 
 /* 全局变量 */
 extern __IO uint16_t *g_p_cp_buff;  // CP采样数据DMA缓冲区
 extern cp_t g_cp;                   // CP控制句柄
 extern __IO uint16_t g_Vrefint;     // 1.2V参考电压的 ADC 原始值, evse_ac
 extern __IO uint16_t g_evse_delay;  // 延时上电时间
+
 #if defined(RFID_ENABLE)
 extern __IO uint8_t g_rfid_flag;    // rfid 刷卡标志
-#endif
+#endif /* RFID_ENABLE */
 
 /* 错误标志位 */
 extern __IO uint8_t g_overheat_flag;    // evse_ntc
