@@ -94,5 +94,34 @@
     "C_Cpp.default.defines": [
         "GD32F30X_HD",
         "PRINTF_INCLUDE_CONFIG_H"
-    ]
+    ],
+    "actionButtons": {
+        
+        "commands": [
+            {
+                "cwd": "${workspaceFolder}", 
+                "name": "🔨Rebuild",
+                "color": "white",
+                "singleInstance": true,
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+            },
+            {
+                "cwd": "${workspaceFolder}", 
+                "name": "⏬Download",
+                "color": "white",
+                "singleInstance": true,
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+            },
+            {
+                "cwd": "${workspaceFolder}", 
+                "name": "🚑Run Keil",
+                "color": "white",
+                "singleInstance": true,
+                "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
+            },
+    ],
+        "defaultColor": "white",
+        "reloadButton": "↻",
+        "loadNpmCommands": false
+    }
 }
