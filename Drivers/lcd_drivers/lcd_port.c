@@ -17,7 +17,7 @@ void lcd_gpio_config(void)
     /* LCD_CS: PA15 */
     gpio_init(LCD_CS_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_CS_Pin);
     gpio_bit_set(LCD_CS_GPIO_Port, LCD_CS_Pin);
-    /* LCD_RST:PD2, LCD_DC:PB3, LCD_BLK:PC11 */
+    /* LCD_RST:PD2, LCD_DC:PB3, LCD_BLK:PB4 */
     gpio_init(LCD_RST_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_RST_Pin);
     gpio_init(LCD_BLK_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_BLK_Pin);
     gpio_init(LCD_DC_GPIO_Port, GPIO_MODE_OUT_PP, GPIO_OSPEED_50MHZ, LCD_DC_Pin);
