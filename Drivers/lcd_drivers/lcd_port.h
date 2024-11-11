@@ -14,8 +14,8 @@
 
 #define LCD_RST_Pin         GPIO_PIN_2
 #define LCD_RST_GPIO_Port   GPIOD
-#define LCD_BLK_Pin         GPIO_PIN_11
-#define LCD_BLK_GPIO_Port   GPIOC
+#define LCD_BLK_Pin         GPIO_PIN_4
+#define LCD_BLK_GPIO_Port   GPIOB
 #define LCD_DC_Pin          GPIO_PIN_3
 #define LCD_DC_GPIO_Port    GPIOB
 
