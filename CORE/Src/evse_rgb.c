@@ -6,6 +6,7 @@
 #include "drv_delay.h"
 #include "EventRecorder.h"
 #include "utils.h"
+#include "evse_config.h"
 
 #define LOG_TAG "evse.rgb"
 #include  "elog.h"
@@ -42,8 +43,21 @@ const uint8_t GammaTable2[] = {
 static ws2812b_handle_t ws2812b;
 static uint8_t led_buffer[4096];                // 用2个字节来代表一个WS2812比特
 
+static uint32_t led_state_plugged[2][RGB_NUM] = {
+    {
+        0x000060U, 0x000060U, 0x000060U, 0x000060U,
+        0x000060U, 0x000060U, 0x000060U, 0x000060U,
+        0x000060U, 0x000060U, 0x000060U, 0x000060U
+    },
+    {
+        0x000000U, 0x000000U, 0x000000U, 0x000000U,
+        0x000000U, 0x000000U, 0x000000U, 0x000000U,
+        0x000000U, 0x000000U, 0x000000U, 0x000000U
+    }
+};
+
 /* 特殊效果对应的颜色数组 */
-static uint32_t fluid_buffer_fault[2][RGB_NUM] = {
+static uint32_t led_state_fault[2][RGB_NUM] = {
     {
         0x000000U, 0x000000U, 0x000000U, 0x0F0000U,
         0x2F0000U, 0x3F0000U, 0x3F0000U, 0x2F0000U,
@@ -55,10 +69,14 @@ static uint32_t fluid_buffer_fault[2][RGB_NUM] = {
         0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U
     }
 };
-static uint32_t fluid_buffer_green[2*RGB_NUM] = {
-    0x0000A8U, 0x000098U, 0x000088U, 0x000078U,
-    0x000068U, 0x000058U, 0x000048U, 0x000038U,
-    0x000028U, 0x000018U, 0x000010U, 0x000008U
+static uint32_t fluid_buffer_green[4*RGB_NUM] = {
+    0x0000A8U, 0x0000A0U, 0x000098U, 0x000090U,
+    0x000088U, 0x000080U, 0x000078U, 0x000070U,
+    0x000068U, 0x000060U, 0x000058U, 0x000050U,
+    0x000048U, 0x000040U, 0x000038U, 0x000030U,
+    0x000028U, 0x000020U, 0x000018U, 0x000010U,
+    0x000010U, 0x000008U, 0x000008U, 0x000000U,
+    0x000000U, 0x000000U, 0x000000U, 0x000000U,
 };
 static uint32_t fluid_buffer_blue[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0x000000U};
 // static uint32_t fluid_buffer_rainbow[RGB_NUM] = {
@@ -67,7 +85,7 @@ static uint32_t fluid_buffer_blue[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0
 //     COLOR_RGB888_SEAGREEN, COLOR_RGB888_CRIMSON, COLOR_RGB888_PINK
 // };
 
-static evse_state_t evse_state = EVSE_CHARGING;
+static evse_state_t evse_state = EVSE_SIM_6V;
 
 /**
  * @brief   更新RGB
@@ -79,57 +97,51 @@ static void task_entry_rgb_upgrade(void *parameter)
     
     /* 延时计数 */
     __IO uint8_t fault_cnt = 0;
+    __IO uint8_t delay_cnt = 0;
     evse_rgb_init();
-    // evse_rgb_set_color(COLOR_RGB888_GRAY, 100, 0xFF);
     for(;;){
         switch (evse_state)
         {
+        case EVSE_WAIT_PLUGIN:
         case EVSE_REBOOT:
-            if(flag == 0)
-                {if((++gamma) == 100) {flag = 1;}}
-            else if(flag == 1)
-                {if((--gamma) == 10) {flag = 0;}}
-            evse_rgb_set_color(COLOR_RGB888_GRAY, gamma, 0xFF);
-            break;
         /* 空闲状态 */
         case EVSE_IDLE:     // 蓝灯呼吸
             if(flag == 0)
-                {if((++gamma) == 35) {flag = 1;}}
+                {if((++gamma) == 49) {flag = 1;}}
             else if(flag == 1)
                 {if((--gamma) == 5) {flag = 0;}}
             evse_rgb_set_color(COLOR_RGB888_NAVY, GammaTable2[gamma], 0xFF);
             break;
-        /* 已刷卡的状态(即插即用款相当于IDLE状态) */
-        case EVSE_WAIT_PLUGIN:  // 蓝灯常亮
-            evse_rgb_set_color(COLOR_RGB888_NAVY, 100, 0xFF);
-            break;
+        case EVSE_9V:
         case EVSE_9V_PWM:   // 绿灯常亮
-            evse_rgb_set_color(COLOR_RGB888_GREEN, 100, 0xFF);
+            if(++delay_cnt < 20)
+                break;
+            delay_cnt = 0;
+            flag = (~flag)&0x01;
+            ws2812b_write(&ws2812b, led_state_plugged[flag], RGB_NUM, led_buffer, 4096);
             break;
         /* 充电中 */
         case EVSE_CHARGING:
-            left_shift(fluid_buffer_green, 2*RGB_NUM);
+            left_shift(fluid_buffer_green, 4*RGB_NUM);
             ws2812b_write(&ws2812b, fluid_buffer_green, RGB_NUM, led_buffer, 4096);
             break;
         case EVSE_DONE:
+            evse_rgb_set_color(COLOR_RGB888_GREEN, 100, 0xFF);
+            break;
         case EVSE_STOP:
-            evse_rgb_set_color(COLOR_RGB888_YELLOW, 100, 0xFF);
+            if(flag == 0)
+                {if((++gamma) == 49) {flag = 1;}}
+            else if(flag == 1)
+                {if((--gamma) == 5) {flag = 0;}}
+            evse_rgb_set_color(COLOR_RGB888_GREEN, GammaTable2[gamma], 0xFF);
             break;
         /* 故障 */
         case EVSE_FAULT:
-            if(++fault_cnt < 5)
+            if(++fault_cnt < 10)
                 break;
             fault_cnt = 0;
-
-            if(flag == 0){
-                ws2812b_write(&ws2812b, fluid_buffer_fault[0], RGB_NUM, led_buffer, 4096);
-                flag = 1;
-            }
-            else if(flag == 1){
-                // evse_rgb_set_color(COLOR_RGB888_RED, 0xFF, 0xFF);
-                ws2812b_write(&ws2812b, fluid_buffer_fault[1], RGB_NUM, led_buffer, 4096);
-                flag = 0;
-            }
+            flag = (~flag)&0x01;
+            ws2812b_write(&ws2812b, led_state_fault[flag], RGB_NUM, led_buffer, 4096);
             // if(flag == 0){
             //     for(int i = RGB_NUM; i >= 0; i--){
             //         fluid_buffer_fault[i] += 0x050000U;
@@ -146,7 +158,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             // ws2812b_write(&ws2812b, fluid_buffer_fault, RGB_NUM, led_buffer, 4096);
             break;
         default:
-            evse_rgb_set_color(COLOR_RGB888_BLACK, 0xFF, 0xFF);
+            evse_rgb_set_color(COLOR_RGB888_MAROON, 100, 0xFF);
             break;
         }
         bos_delay_ms(50);
