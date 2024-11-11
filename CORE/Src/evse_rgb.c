@@ -46,13 +46,13 @@ static uint8_t led_buffer[4096];                // 用2个字节来代表一个W
 static uint32_t fluid_buffer_fault[2][RGB_NUM] = {
     {
         0x000000U, 0x000000U, 0x000000U, 0x0F0000U,
-        0x3F0000U, 0x4F0000U, 0x4F0000U, 0x3F0000U,
+        0x2F0000U, 0x3F0000U, 0x3F0000U, 0x2F0000U,
         0x0F0000U, 0x000000U, 0x000000U, 0x000000U
     },
     {
-        0xFF0000U, 0xFF0000U, 0xFF0000U, 0xFF0000U,
-        0xFF0000U, 0xFF0000U, 0xFF0000U, 0xFF0000U,
-        0xFF0000U, 0xFF0000U, 0xFF0000U, 0xFF0000U
+        0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U,
+        0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U,
+        0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U
     }
 };
 static uint32_t fluid_buffer_green[2*RGB_NUM] = {
@@ -117,7 +117,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             break;
         /* 故障 */
         case EVSE_FAULT:
-            if(++fault_cnt < 3)
+            if(++fault_cnt < 5)
                 break;
             fault_cnt = 0;
 
