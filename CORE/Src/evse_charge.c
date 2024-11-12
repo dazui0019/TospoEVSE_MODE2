@@ -14,6 +14,7 @@
 #include "evse_beep.h"
 #include "drv_rtc.h"
 #include "evse_rcd.h"
+#include "evse_cfg.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"
@@ -47,7 +48,7 @@ __IO uint8_t cp_lost_flag = false;      // cp丢失
 __IO uint8_t cp_error_flag = false;     // cp电平故障
 __IO uint8_t s1_lost_flag = false;      // s1二极管缺失
 
-static uint8_t max_cur_index;
+static uint32_t max_cur_index = 0;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
 
 evse_t evse = {
@@ -106,7 +107,8 @@ static void task_entry_evse_main(void *parameter)
     g_cp.init(1000);    // CP输出和检测初始化
     g_cp.pwm_ctrl(DISABLE);
     g_cp.ck_ctrl(ENABLE);
-    evse_set_max_current(0); // 设置最大电流
+    max_cur_index = *((uint32_t*)CFG_CUR_START_ADDR);
+    evse_set_max_current(max_cur_index); // 设置最大电流
     log_d("CP init done.");
 
     #if defined(S1_CK_ENABLE)
@@ -259,6 +261,9 @@ void evse_max_current_switch(void)
     if(++max_cur_index == max_cur_index_size){
         max_cur_index = 0;
     }
+    
+    evse_cfg_erase();
+    evse_cfg_write_cur((uint32_t)(max_cur_index));
 
     evse_set_max_current(max_cur_index);
 }
