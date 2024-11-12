@@ -6,6 +6,7 @@
 #include "evse_charge.h"
 #include "gd32f303x_start.h"
 #include "evse_delay.h"
+#include "evse_beep.h"
 
 #define LOG_TAG "evse.key"
 #include "elog.h"
@@ -29,7 +30,9 @@ static void task_entry_key_scan(void *parameter)
             }else{
                 log_d("Busy.");
             }
+            evse_beep();
             Key0_isPressed = false;
+            continue;   // beep就当延时了。
         }
         if(Key1_isPressed){
             evse_state = evse_get_state();
@@ -39,7 +42,9 @@ static void task_entry_key_scan(void *parameter)
             }else{
                 log_d("Busy.");
             }
+            evse_beep();
             Key1_isPressed = false;
+            continue;   // beep就当延时了。所以跳过后面大循环的 bos_delay_ms(10);
         }
         bos_delay_ms(10);
     }
