@@ -13,6 +13,7 @@
 #include "evse_rgb.h"
 #include "evse_beep.h"
 #include "drv_rtc.h"
+#include "evse_rcd.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"
@@ -44,6 +45,7 @@ extern __IO uint8_t g_pe_error_flag;    // evse_ac
 __IO uint8_t cp_lost_flag = false;      // cp丢失
 __IO uint8_t cp_error_flag = false;     // cp电平故障
 __IO uint8_t s1_lost_flag = false;      // s1二极管缺失
+__IO uint8_t rcd_error_flag = false;    // rcd自检失败
 
 static uint8_t max_cur_index;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
@@ -81,15 +83,12 @@ static void task_entry_evse_main(void *parameter)
 
     evse_state_t last_evse_state, evse_state;
     last_evse_state = evse_state = EVSE_IDLE;
+
+    log_i("EVSE_REBOOT.");
     
     /* 初始化继电器 */
     evse_relay_init();
     evse_relay_ctrl(open);
-    
-    #if defined(S1_CK_ENABLE)
-    /* 车端二极管检测 */
-    s1_ck_init();
-    #endif
 
     /* 获取内部1.2V基准电压的ADC值 */
     adc_verf_config();
@@ -109,10 +108,23 @@ static void task_entry_evse_main(void *parameter)
     g_cp.pwm_ctrl(DISABLE);
     g_cp.ck_ctrl(ENABLE);
     evse_set_max_current(0); // 设置最大电流
-
     log_d("CP init done.");
 
-    log_i("EVSE_REBOOT.");
+    #if defined(S1_CK_ENABLE)
+    /* 车端二极管检测 */
+    s1_ck_init();
+    #endif
+
+    evse_rcd_init();
+    /* RCD 测试 */
+    if(evse_rcd_test() == SET){
+        /* RCD 测试成功需要的操作 */
+        log_i("RCD test success! ");
+    }else{
+        /* RCD 测试失败需要的操作 */
+        log_e("RCD test fail! ");
+        rcd_error_flag = true;
+    }
 
     for(;;){
         // 先检测一下错误标志
@@ -141,7 +153,7 @@ static ErrStatus evse_error_ck(void)
     uint8_t error_flag = false;
 
     for(;;){
-        if( g_over_cur_flag|g_pe_error_flag|cp_error_flag|s1_lost_flag|
+        if( g_over_cur_flag|g_pe_error_flag|cp_error_flag|s1_lost_flag|rcd_error_flag|
             cp_lost_flag|g_overheat_flag|g_under_vol_flag|g_over_vol_flag){
             /* 继电器是检测到错误就关闭 */
             if(evse.relay_state == close){
@@ -160,6 +172,15 @@ static ErrStatus evse_error_ck(void)
                 evse.p_cp->pwm_state = DISABLE;
             }
             evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_CURRENT, NULL);
+        }
+        
+        if(rcd_error_flag == true){
+            /* PWM需要根据具体的错误类型来控制关闭 */
+            if(evse.p_cp->pwm_state == ENABLE){
+                evse.p_cp->pwm_ctrl(DISABLE);
+                evse.p_cp->pwm_state = DISABLE;
+            }
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_LEAKAGE, NULL);
         }
         /* 可恢复错误(不用关闭PWM输出) */
         // if(g_overheat_flag == true){
@@ -502,12 +523,20 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     #if defined(S1_CK_ENABLE)
         if(SUCCESS == evse_s1_ck()){
             log_d("s1_ck ok.");
-            return EVSE_CHARGING;
         }else{
             s1_lost_flag = true;
             log_d("s1_ck error.");
             break;
         }
+
+        if(SET == evse_rcd_test()){
+                log_d("rcd ok.");
+            }else{
+                rcd_error_flag = true;
+                log_d("rcd error.");
+                break;
+            }
+        return EVSE_CHARGING;
     #else
         log_d("skip s1_ck.");
         return EVSE_CHARGING;
@@ -580,12 +609,20 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
         #if defined(S1_CK_ENABLE)
             if(SUCCESS == evse_s1_ck()){
                 log_d("s1_ck ok.");
-                return EVSE_CHARGING;
             }else{
                 s1_lost_flag = true;
                 log_d("s1_ck error.");
                 break;
             }
+
+            if(SET == evse_rcd_test()){
+                log_d("rcd ok.");
+            }else{
+                rcd_error_flag = true;
+                log_d("rcd error.");
+                break;
+            }
+            return EVSE_CHARGING;
         #else
             log_d("skip s1_ck.");
             return EVSE_CHARGING;
@@ -722,12 +759,20 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     #if defined(S1_CK_ENABLE)
         if(SUCCESS == evse_s1_ck()){
             log_d("s1_ck ok.");
-            return EVSE_CHARGING;
         }else{
             s1_lost_flag = true;
             log_d("s1_ck error.");
             break;
         }
+
+        if(SET == evse_rcd_test()){
+            log_d("rcd ok.");
+        }else{
+            rcd_error_flag = true;
+            log_d("rcd error.");
+            break;
+        }
+        return EVSE_CHARGING;
     #else
         log_d("skip s1_ck.");
         return EVSE_CHARGING;
@@ -771,6 +816,9 @@ evse_state_t evse_fault_handle(cp_state_t cp_state){
         }
         if(s1_lost_flag == true){
             log_e("S1_LOST.");
+        }
+        if(rcd_error_flag == true){
+            log_e("RCD_ERROR.");
         }
     }
 

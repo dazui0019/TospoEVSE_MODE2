@@ -2,6 +2,7 @@
 #include "basic_os.h"
 #include "EventRecorder.h"
 #include "drv_delay.h"
+#include "evse_relay.h"
 
 #define LOG_TAG "evse.rcd"
 #include "elog.h"
@@ -33,7 +34,7 @@ void evse_rcd_port_init()
     RCD_TEST_CLOSE();   //关闭RCD测试模式
     RCD_ZERO_CLOSE();   //关闭RCD校准模式
     RCD_RMS_CLOSE();    //关闭RCD校有效值模式
-    delay_ms(100);      //T1 等待100MS
+    bos_delay_ms(100);      //T1 等待100MS
 }
 
 /**
@@ -56,9 +57,9 @@ void evse_rcd_trip_init(void)
     /* connect key EXTI line to key GPIO pin */
     gpio_exti_source_select(RCD_TRIP_EXTI_PORT_SOURCE,RCD_TRIP_EXTI_PIN_SOURCE);
 
+    exti_interrupt_flag_clear(RCD_TRIP_EXTI_LINE);
     /* configure key EXTI line */
     exti_init(RCD_TRIP_EXTI_LINE, EXTI_INTERRUPT, EXTI_TRIG_RISING);  //上升边沿触发引脚外部中断
-    exti_interrupt_flag_clear(RCD_TRIP_EXTI_LINE);
 }
 
 
@@ -70,18 +71,9 @@ void evse_rcd_trip_init(void)
  */
 void evse_rcd_init()
 {
-    evse_rcd_port_init();  //初始化RCD控制引脚
-    evse_rcd_zero();  //校零操作
-    
-    /* RCD 测试 */
-    if(evse_rcd_test() == true){
-        /* RCD 测试成功需要的操作 */
-        log_i("RCD test success! ");
-    }else{
-        /* RCD 测试失败需要的操作 */
-        log_e("RCD test fail! ");
-    }
-    evse_rcd_trip_init();  //配置为中断模式
+    evse_rcd_port_init();   //初始化RCD控制引脚
+    evse_rcd_zero();        //校零操作
+    evse_rcd_trip_init();   //配置为中断模式
 }
 
 /**
@@ -95,12 +87,12 @@ void evse_rcd_zero(void)
     RCD_TEST_CLOSE();   //关闭RCD测试模式
     RCD_RMS_CLOSE();    //关闭RCD校有效值模式
     RCD_ZERO_CLOSE();   //关闭校零
-    delay_ms(20);   //等待20MS
+    bos_delay_ms(20);   //等待20MS
 
     RCD_ZERO_OPEN();    //开启校零
-    delay_ms(80);   //T2  等待80MS
+    bos_delay_ms(80);   //T2  等待80MS
     RCD_ZERO_CLOSE();   //关闭校零
-    delay_ms(550);  //T3  等待550MS
+    bos_delay_ms(550);  //T3  等待550MS
 }
 
 
@@ -114,26 +106,42 @@ uint8_t evse_rcd_test(void)
     uint8_t  i;
     uint8_t  test_state = SET;
 
+    exti_interrupt_disable(RCD_TRIP_EXTI_LINE);
+
     RCD_ZERO_CLOSE();      //关闭校零
     RCD_TEST_OPEN();       //启动测试
-    delay_ms(250);     //等待250MS
+    bos_delay_ms(250);     //等待250MS
 
     for(i=0;i<10;i++){   
         if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == RESET){
             test_state = RESET;  //测试失败
             break;
         }
-        delay_ms(15);//等待25MS
+        bos_delay_ms(15);//等待25MS
     }
     RCD_TEST_CLOSE();  //停止测试
 
     //测试通过
     if(test_state == SET){
-        delay_ms(200); //等待150MS
+        bos_delay_ms(200); //等待150MS
         //等待TRIP信号变低电平
         if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
             test_state = RESET;
         }
     }
-    return  test_state;
+    exti_flag_clear(RCD_TRIP_EXTI_LINE);
+    exti_interrupt_flag_clear(RCD_TRIP_EXTI_LINE);
+    exti_interrupt_enable(RCD_TRIP_EXTI_LINE);
+    return test_state;
+}
+
+extern relay_t g_relay;
+void EXTI10_15_IRQHandler(void)
+{
+    if(RESET != exti_interrupt_flag_get(EXTI_13)){
+        g_relay.ctrl(open);
+        // GPIO_BC(RLY_PORT) = (uint32_t)RLY_PIN; // gpio_bit_reset(RLY_PORT, RLY_PIN);
+        // g_relay.relay_state = open;
+        exti_interrupt_flag_clear(EXTI_13);
+    }
 }

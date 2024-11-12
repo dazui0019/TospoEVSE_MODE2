@@ -62,7 +62,6 @@ int main(){
     // delay_ms(100);
 
     /* 需要纯延时的初始化函数 */
-    // evse_rcd_init();
 
     // delay_deinit(); // 重置用于延时的定时器
 

@@ -69,7 +69,7 @@ static uint32_t led_state_fault[2][RGB_NUM] = {
         0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U
     }
 };
-static uint32_t fluid_buffer_green[4*RGB_NUM] = {
+static uint32_t fluid_buffer_green[3*RGB_NUM] = {
     0x0000A8U, 0x0000A0U, 0x000098U, 0x000090U,
     0x000088U, 0x000080U, 0x000078U, 0x000070U,
     0x000068U, 0x000060U, 0x000058U, 0x000050U,
@@ -85,7 +85,7 @@ static uint32_t fluid_buffer_blue[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0
 //     COLOR_RGB888_SEAGREEN, COLOR_RGB888_CRIMSON, COLOR_RGB888_PINK
 // };
 
-static evse_state_t evse_state = EVSE_SIM_6V;
+static evse_state_t evse_state = EVSE_REBOOT;
 
 /**
  * @brief   更新RGB
@@ -114,7 +114,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             break;
         case EVSE_9V:
         case EVSE_9V_PWM:   // 绿灯常亮
-            if(++delay_cnt < 20)
+            if(++delay_cnt < 25)
                 break;
             delay_cnt = 0;
             flag = (~flag)&0x01;
@@ -122,7 +122,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             break;
         /* 充电中 */
         case EVSE_CHARGING:
-            left_shift(fluid_buffer_green, 4*RGB_NUM);
+            left_shift(fluid_buffer_green, 3*RGB_NUM);
             ws2812b_write(&ws2812b, fluid_buffer_green, RGB_NUM, led_buffer, 4096);
             break;
         case EVSE_DONE:
@@ -137,7 +137,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             break;
         /* 故障 */
         case EVSE_FAULT:
-            if(++fault_cnt < 10)
+            if(++fault_cnt < 25)
                 break;
             fault_cnt = 0;
             flag = (~flag)&0x01;
@@ -161,7 +161,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             evse_rgb_set_color(COLOR_RGB888_MAROON, 100, 0xFF);
             break;
         }
-        bos_delay_ms(50);
+        bos_delay_ms(40);
     }
 }
 bos_task_export(rgb_upgrade, task_entry_rgb_upgrade, BOS_MAX_PRIORITY, NULL);

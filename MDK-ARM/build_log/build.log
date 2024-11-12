@@ -1,4 +1,3 @@
 Load "d:\\MCU\\Project\\TospoEVSE_MODE2\\MDK-ARM\\Objects\\mode2.axf" 
-Internal DLL Error
-Error: Flash Download failed  -  Target DLL has been cancelled
-Flash Load finished at 13:19:30
+Erase Done.Programming Done.Verify OK.Application running ...
+Flash Load finished at 10:12:57
