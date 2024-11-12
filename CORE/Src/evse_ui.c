@@ -75,17 +75,8 @@ static void task_entry_ui_upgrade(void *parameter)
             if(0 != memcmp(&evse_ui_data.fault, &evse_ui_data_last.fault, sizeof(evse_ui_fault_t))){
                 _display_update_fault(evse_ui_data.fault);
             }
-            // if(evse_ui_data.fault.e_cp_error != evse_ui_data_last.fault.e_cp_error){
-            //     _display_update_fault(evse_ui_data.fault.e_cp_error);
-            // }
             /* 更新 evse_ui_data_last */
             evse_ui_data_last = evse_ui_data;
-            /* 刷新UI */
-            // _display_update_voltage(evse_ui_data_last.voltage);   //更新电压
-            // _display_update_current(evse_ui_data_last.current);     //更新电流
-            // _display_update_fault(evse_ui_data_last.fault);
-            // _display_update_kwh(evse_ui_data_last.kwh);
-            // _display_update_delay(evse_ui_data_last.delay);
         }
         bos_delay_ms(10);
     }
