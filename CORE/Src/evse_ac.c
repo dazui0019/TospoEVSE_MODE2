@@ -121,13 +121,13 @@ static void task_entry_voltage_sample(void *parameter)
             }
             /* 设置欠压标志(Urms<187) */
             if(l1_val < 492 && g_under_vol_flag == false){
-                if(vol_err_cnt++ > 2){
+                if(vol_err_cnt++ > 15){
                     vol_err_cnt = 0;
                     g_under_vol_flag = true;
                     log_e("under_vol: %d", l1_val);
                 }
             }else if(l1_val > 513 && g_under_vol_flag == true){ // 当Urms<242时清除欠压标志
-                if(vol_err_cnt++ > 2){
+                if(vol_err_cnt++ > 15){
                     vol_err_cnt = 0;
                     g_under_vol_flag = false;
                     log_i("clear under_vol flag: %d", l1_val);
