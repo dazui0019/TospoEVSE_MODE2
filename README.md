@@ -146,6 +146,7 @@
 3. - [ ] 开`-o1`优化后, 会出现`HardFault`错误, 是`basic_os`的问题。
 4. - [X] 故障显示无法同步(`_display_update_fault()`)。
 5. - [X] 充电中发生断地故障，会出现`HardFault`错误。(没找到原因, 后面将`EVSE_CP_LOST`和`EVSE_CP_ERROR`合并到`EVSE_FAUTL`里就没出现过了)。
+6. - [X] `RCD_TRIP`的`EXTI`无法关闭，导致自检会触发漏电故障(是`bos_delay_ms()`函数导致的)。
 
 ## Todos
 
@@ -161,3 +162,4 @@
 10. - [ ] 实现延时上电功能。
 11. - [X] 验证新版电路的NTC功能。
 12. - [X] 修改充电状态和错误状态的LED效果。
+13. - [ ] RCD自检目前使用的是纯延时，需要优化。

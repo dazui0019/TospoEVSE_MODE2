@@ -18,23 +18,23 @@ void evse_rcd_port_init()
     //RCD测试脚位-输出初始化
     rcu_periph_clock_enable(RCD_TEST_GPIO_CLK);
     gpio_init(RCD_TEST_PORT,GPIO_MODE_OUT_PP,GPIO_OSPEED_50MHZ,RCD_TEST_GPIO_PIN);
-        
+
     //RCD校零脚位-输出初始化
     rcu_periph_clock_enable(RCD_ZERO_GPIO_CLK);
     gpio_init(RCD_ZERO_PORT,GPIO_MODE_OUT_PP,GPIO_OSPEED_50MHZ,RCD_ZERO_GPIO_PIN);
-        
+
     //RCD校有效值脚位-输出初始化
     rcu_periph_clock_enable(RCD_RMS_GPIO_CLK);
     gpio_init(RCD_RMS_PORT,GPIO_MODE_OUT_PP,GPIO_OSPEED_50MHZ,RCD_RMS_GPIO_PIN);
-        
+
     //RCD TRIP初始化为IO输入模式
     rcu_periph_clock_enable(RCD_TRIP_GPIO_CLK);
     gpio_init(RCD_TRIP_GPIO_PORT,GPIO_MODE_IN_FLOATING,GPIO_OSPEED_50MHZ,RCD_TRIP_PIN);
-        
+
     RCD_TEST_CLOSE();   //关闭RCD测试模式
     RCD_ZERO_CLOSE();   //关闭RCD校准模式
     RCD_RMS_CLOSE();    //关闭RCD校有效值模式
-    bos_delay_ms(100);      //T1 等待100MS
+    delay_ms(100);  //T1 等待100MS
 }
 
 /**
@@ -87,12 +87,12 @@ void evse_rcd_zero(void)
     RCD_TEST_CLOSE();   //关闭RCD测试模式
     RCD_RMS_CLOSE();    //关闭RCD校有效值模式
     RCD_ZERO_CLOSE();   //关闭校零
-    bos_delay_ms(20);   //等待20MS
+    delay_ms(20);   //等待20MS
 
     RCD_ZERO_OPEN();    //开启校零
-    bos_delay_ms(80);   //T2  等待80MS
+    delay_ms(80);   //T2  等待80MS
     RCD_ZERO_CLOSE();   //关闭校零
-    bos_delay_ms(550);  //T3  等待550MS
+    delay_ms(550);  //T3  等待550MS
 }
 
 
@@ -110,20 +110,21 @@ uint8_t evse_rcd_test(void)
 
     RCD_ZERO_CLOSE();      //关闭校零
     RCD_TEST_OPEN();       //启动测试
-    bos_delay_ms(250);     //等待250MS
+
+    delay_ms(250);     //等待250MS
 
     for(i=0;i<10;i++){   
         if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == RESET){
             test_state = RESET;  //测试失败
             break;
         }
-        bos_delay_ms(15);//等待25MS
+        delay_ms(15);//等待25MS
     }
     RCD_TEST_CLOSE();  //停止测试
 
     //测试通过
     if(test_state == SET){
-        bos_delay_ms(200); //等待150MS
+        delay_ms(200); //等待150MS
         //等待TRIP信号变低电平
         if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
             test_state = RESET;
