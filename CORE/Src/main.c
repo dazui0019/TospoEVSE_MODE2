@@ -16,6 +16,7 @@
 #include "lcd_drv_conf.h"
 #include "drv_rtc.h"
 #include "evse_beep.h"
+#include "evse_cfg.h"
 
 #define LOG_TAG "evse.main"
 #include "elog.h"
@@ -52,6 +53,7 @@ int main(){
     elog_init();
     elog_start();
 
+    for(;;){}
     // print_clock();
     // log_d("Test.");
 
