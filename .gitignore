@@ -8,4 +8,4 @@
 /MDK-ARM/*.scvd
 !/MDK-ARM/mode2.uvprojx
 /build/*
-!/MDK-ARM/build_log/*
+/MDK-ARM/build_log/*
