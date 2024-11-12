@@ -53,7 +53,6 @@ int main(){
     elog_init();
     elog_start();
 
-    for(;;){}
     // print_clock();
     // log_d("Test.");
 

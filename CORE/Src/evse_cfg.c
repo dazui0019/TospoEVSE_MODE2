@@ -1,5 +1,7 @@
 #include "evse_cfg.h"
 
+__attribute__((section("CFG_SECTION"), used)) uint32_t cur_index = 0;
+
 void evse_cfg_erase(void)
 {
     /* unlock the flash program/erase controller */
