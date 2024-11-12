@@ -16,13 +16,13 @@
 UG_GUI lcd;
 
 evse_ui_data_t evse_ui_data = {
-    .state          = 0xFF,
-    .delay          = 0xFFFF,
-    .voltage        = 0xFFFF,
-    .current        = 0xFFFF,
-    .power          = 0xFFFF,
-    .kwh            = 0xFFFF,
-    .fault          = 0x00,
+    .state          = EVSE_REBOOT,
+    .delay          = 0,
+    .voltage        = 0,
+    .current        = 0,
+    .power          = 0,
+    .kwh            = 0,
+    .fault          = 0,
 };
 evse_ui_data_t evse_ui_data_last;
 
@@ -55,9 +55,9 @@ static void task_entry_ui_upgrade(void *parameter)
     UG_DrawLine(149,149,204,204,0xFFFF);
     UG_PutString(120 - 12, 115 + 10, "kW");
 
+    _display_update_all(&evse_ui_data);
     evse_ui_data_last = evse_ui_data;
-    evse_ui_update(UI_CMD_UPDATE_DELAY, 0x0000, NULL);
-    _display_update_fault(evse_ui_data.fault);
+    
     for(;;){
         if(0 != memcmp(&evse_ui_data, &evse_ui_data_last, sizeof(evse_ui_data_t))){
             if(evse_ui_data.state != evse_ui_data_last.state){
@@ -197,6 +197,10 @@ static void _display_update_state_mode2(uint8_t state)
     _display_update_clock(DISABLE);  // 隐藏时钟图标
     switch (state)
     {
+    case EVSE_REBOOT:
+        /* code */
+        UG_PutString(120 - 48,40,"Booting");
+        break;
     case EVSE_IDLE:
         /* code */
         UG_PutString(120 - 48,40,"Standby");
@@ -316,6 +320,7 @@ static void _display_update_kwh(uint16_t kwh)
 
 static void _display_update_power(uint16_t power)
 {
+    log_d("power: %d", power);
     float power_f = (float)(power)/(10.0f);
     /* 将uint16_t的voltage转换成字符串 */
     char str_kwh[6];
@@ -326,7 +331,12 @@ static void _display_update_power(uint16_t power)
 
 static void _display_update_all(evse_ui_data_t* ui_data)
 {
-    ;
+    _display_update_state_mode2(ui_data->state);
+    _display_update_current(ui_data->current);
+    _display_update_voltage(ui_data->voltage);
+    _display_update_power(ui_data->power);
+    _display_update_delay(ui_data->delay);
+    _display_update_fault(ui_data->fault);
 }
 /**
  * @brief  更新UI状态结构体
@@ -345,6 +355,7 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
     {
     case UI_CMD_UPDATE_STATE:
         evse_ui_data.state = (uint8_t)arg_int;
+        break;
     case UI_CMD_UPDATE_VOLTAGE:
         evse_ui_data.voltage = (uint16_t)((*(float*)arg_ptr)*10.0f);
         break;

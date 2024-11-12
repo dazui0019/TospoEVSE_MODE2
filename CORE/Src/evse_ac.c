@@ -63,9 +63,9 @@ static void evse_ac_adc_config(void);
 static void evse_ac_timer_config(uint16_t f);
 static void freq_exti_config(void);
 
-float vol;
-float cur;
-float power;
+float vol = 0.0f;
+float cur = 0.0f;
+float power = 0.0f;
 
 static void task_entry_voltage_sample(void *parameter)
 {
@@ -75,6 +75,12 @@ static void task_entry_voltage_sample(void *parameter)
     uint16_t vol_err_cnt = 0;   // 电压错误计数
     uint16_t cur_err_cnt = 0;   // 电流错误计数
     uint16_t pe_err_cnt = 0;    // 接地错误计数
+
+    /* 等待充电桩主任务完成初始化 */
+    while (evse_get_state() == EVSE_REBOOT)
+    {
+        bos_delay_ms(1);
+    }
     
     /* 等待vrefint读取完毕 */
     while (g_Vrefint == 0)
@@ -174,6 +180,12 @@ bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NUL
  */
 static void task_entry_kwh_calc(void *parameter)
 {
+    /* 等待充电桩主任务完成初始化 */
+    while (evse_get_state() == EVSE_REBOOT)
+    {
+        bos_delay_ms(1);
+    }
+
     rtc_interrupt_enable(RTC_INT_SECOND);
     for(;;){
         if(second_flag){
@@ -187,6 +199,7 @@ static void task_entry_kwh_calc(void *parameter)
                 power = 0;
             }
             evse_ui_update(UI_CMD_UPDATE_POWER, NULL, &power);
+            // log_d("power: %0.3f", power);
         }
         bos_delay_ms(100);
     }

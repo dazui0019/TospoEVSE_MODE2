@@ -53,7 +53,7 @@ int main(){
     elog_start();
 
     // print_clock();
-    log_d("Test.");
+    // log_d("Test.");
 
     delay_init();   // 初始化延时函数
     evse_beep_init();

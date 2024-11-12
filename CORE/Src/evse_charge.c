@@ -42,10 +42,10 @@ extern __IO uint8_t g_over_cur_flag;    // evse_ac
 extern __IO uint8_t g_over_vol_flag;    // evse_ac
 extern __IO uint8_t g_under_vol_flag;   // evse_ac
 extern __IO uint8_t g_pe_error_flag;    // evse_ac
+extern __IO uint8_t rcd_error_flag;    // rcd自检失败
 __IO uint8_t cp_lost_flag = false;      // cp丢失
 __IO uint8_t cp_error_flag = false;     // cp电平故障
 __IO uint8_t s1_lost_flag = false;      // s1二极管缺失
-__IO uint8_t rcd_error_flag = false;    // rcd自检失败
 
 static uint8_t max_cur_index;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
@@ -82,7 +82,6 @@ static void task_entry_evse_main(void *parameter)
     uint8_t cp_error_cnt = 0;
 
     evse_state_t last_evse_state, evse_state;
-    last_evse_state = evse_state = EVSE_IDLE;
 
     log_i("EVSE_REBOOT.");
     

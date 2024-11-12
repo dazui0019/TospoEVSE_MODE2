@@ -137,10 +137,12 @@ uint8_t evse_rcd_test(void)
 }
 
 extern relay_t g_relay;
+__IO uint8_t rcd_error_flag = false;    // rcd自检失败
 void EXTI10_15_IRQHandler(void)
 {
     if(RESET != exti_interrupt_flag_get(EXTI_13)){
         g_relay.ctrl(open);
+        rcd_error_flag = true;
         // GPIO_BC(RLY_PORT) = (uint32_t)RLY_PIN; // gpio_bit_reset(RLY_PORT, RLY_PIN);
         // g_relay.relay_state = open;
         exti_interrupt_flag_clear(EXTI_13);
