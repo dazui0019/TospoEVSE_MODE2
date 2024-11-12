@@ -114,6 +114,7 @@ static void task_entry_rgb_upgrade(void *parameter)
             break;
         case EVSE_9V:
         case EVSE_9V_PWM:   // 绿灯常亮
+        case EVSE_WAIT_DELAY:
             if(++delay_cnt < 25)
                 break;
             delay_cnt = 0;
