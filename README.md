@@ -147,6 +147,7 @@
 4. - [X] 故障显示无法同步(`_display_update_fault()`)。
 5. - [X] 充电中发生断地故障，会出现`HardFault`错误。(没找到原因, 后面将`EVSE_CP_LOST`和`EVSE_CP_ERROR`合并到`EVSE_FAUTL`里就没出现过了)。
 6. - [X] `RCD_TRIP`的`EXTI`无法关闭，导致自检会触发漏电故障(是`bos_delay_ms()`函数导致的)。
+7. - [ ] 在任务中调用的函数里如果有`bos_delay_ms()`函数，会导致任务执行的时间变长, 对标志位的处理会变得不及时。
 
 ## Todos
 

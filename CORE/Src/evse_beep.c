@@ -1,5 +1,6 @@
 #include "evse_beep.h"
 #include "drv_delay.h"
+#include "basic_os.h"
 
 void evse_beep_init(void){
     rcu_periph_clock_enable(RCU_AF);
@@ -12,7 +13,7 @@ void evse_beep_init(void){
 
 void evse_beep(void){
     GPIO_BOP(BEEP_PORT) = BEEP_PIN;
-    delay_ms(100);
+    bos_delay_ms(50);
     GPIO_BC(BEEP_PORT) = BEEP_PIN;
 }
 
