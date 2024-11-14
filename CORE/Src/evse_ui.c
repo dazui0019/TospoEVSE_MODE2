@@ -196,12 +196,9 @@ static void _display_update_state_mode2(uint8_t state)
         UG_PutString(120 - 48,40,"Booting");
         break;
     case EVSE_IDLE:
-        /* code */
-        UG_PutString(120 - 48,40,"Standby");
-        break;
     case EVSE_WAIT_PLUGIN:
         /* code */
-        UG_PutString(120 - 48,40,"nConnect");
+        UG_PutString(120 - 48,40,"Standby");
         break;
     case EVSE_WAIT_DELAY:
         _display_update_clock(ENABLE);  // 显示时钟图标
