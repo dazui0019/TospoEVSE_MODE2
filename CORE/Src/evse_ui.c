@@ -179,7 +179,7 @@ static void _display_update_voltage(uint16_t voltage)
     }
     /* 将uint16_t的voltage转换成字符串 */
     char str_voltage[6];
-    sprintf(str_voltage, "%03dV", vol_f);
+    sprintf(str_voltage, "%3dV", vol_f);
     /* 重新显示 */
     GC9A01_fillRect(16, 115, 60, 16, 0x0000);
     UG_PutString(16, 115, str_voltage);
@@ -307,7 +307,7 @@ static void _display_update_kwh(uint16_t kwh)
     float kwh_f = (float)(kwh)/(10.0f);
     /* 将uint16_t的voltage转换成字符串 */
     char str_kwh[6];
-    sprintf(str_kwh, "%04.1f", kwh_f);
+    sprintf(str_kwh, "%4.1f", kwh_f);
     GC9A01_fillRect(120 - 26, 115 - 10, 52, 16, 0x0000);
     UG_PutString(120 - 26, 115 - 10, str_kwh);
 }
@@ -318,7 +318,7 @@ static void _display_update_power(uint16_t power)
     float power_f = (float)(power)/(10.0f);
     /* 将uint16_t的voltage转换成字符串 */
     char str_kwh[6];
-    sprintf(str_kwh, "%04.1f", power_f);
+    sprintf(str_kwh, "%4.1f", power_f);
     GC9A01_fillRect(120 - 26, 115 - 10, 52, 16, 0x0000);
     UG_PutString(120 - 26, 115 - 10, str_kwh);
 }
