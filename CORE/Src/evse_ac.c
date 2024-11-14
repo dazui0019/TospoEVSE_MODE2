@@ -88,6 +88,8 @@ static void task_entry_voltage_sample(void *parameter)
         bos_delay_ms(1);
     }
 
+    bos_delay_ms(1000);
+
     evse_ac_adc_config();   // ac_adc和g_Vrefint共用ADC0, 所以等g_Vrefint获取完成后, 再重新配置ADC0给ac_adc用
     freq_exti_config();
     evse_ac_timer_config(5000); // 5000Hz/50Hz = 100个
