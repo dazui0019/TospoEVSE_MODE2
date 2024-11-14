@@ -66,6 +66,9 @@ static void task_entry_ui_upgrade(void *parameter)
             if(evse_ui_data.current != evse_ui_data_last.current){
                 _display_update_current(evse_ui_data.current);
             }
+            // if(evse_ui_data.voltage != evse_ui_data_last.voltage){
+            //     _display_update_voltage(evse_ui_data.voltage);
+            // }
             if(evse_ui_data.delay != evse_ui_data_last.delay){
                 _display_update_delay(evse_ui_data.delay);
             }
@@ -324,7 +327,7 @@ static void _display_update_all(evse_ui_data_t* ui_data)
 {
     _display_update_state_mode2(ui_data->state);
     _display_update_current(ui_data->current);
-    _display_update_voltage(ui_data->voltage);
+    // _display_update_voltage(ui_data->voltage);
     _display_update_power(ui_data->power);
     _display_update_delay(ui_data->delay);
     _display_update_fault(ui_data->fault);
