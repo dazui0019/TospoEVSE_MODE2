@@ -23,6 +23,11 @@ static void task_entry_key_scan(void *parameter)
     evse_key_init();
     for(;;){
         if(Key0_isPressed){
+            if(Key1_isPressed == true){
+                Key0_isPressed = false;
+                Key1_isPressed = false;
+                continue;
+            }
             evse_state = evse_get_state();
             if(EVSE_IDLE == evse_state || EVSE_WAIT_PLUGIN == evse_state || EVSE_9V == evse_state){
                 log_d("Key0 is pressed!");
@@ -35,6 +40,11 @@ static void task_entry_key_scan(void *parameter)
             continue;   // beep就当延时了。
         }
         if(Key1_isPressed){
+            if(Key0_isPressed == true){
+                Key0_isPressed = false;
+                Key1_isPressed = false;
+                continue;
+            }
             evse_state = evse_get_state();
             if(EVSE_IDLE == evse_state || EVSE_WAIT_PLUGIN == evse_state || EVSE_9V == evse_state){
                 log_d("Key1 is pressed!");
@@ -46,7 +56,7 @@ static void task_entry_key_scan(void *parameter)
             Key1_isPressed = false;
             continue;   // beep就当延时了。所以跳过后面大循环的 bos_delay_ms(10);
         }
-        bos_delay_ms(10);
+        bos_delay_ms(50);
     }
 }
 bos_task_export(key_scan, task_entry_key_scan, BOS_MAX_PRIORITY, NULL);
@@ -65,6 +75,7 @@ void EXTI1_IRQHandler(void)
         if(SET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){ Key0_StartTick = getTick(); } // 记录上升沿时刻的Tick值
         else if(RESET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){ // 按键释放后，才算一次完整的按键输入
             Key0_StopTick = getTick();
+            if(SET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){return;}
             if(Key0_StopTick > (Key0_StartTick+50)){
                 Key0_isPressed = true;
             }
@@ -81,6 +92,7 @@ void EXTI2_IRQHandler(void)
         if(SET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){ Key1_StartTick = getTick(); } // 记录上升沿时刻的Tick值
         else if(RESET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){ // 按键释放后，才算一次完整的按键输入
             Key1_StopTick = getTick();
+            if(SET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){return;}
             if(Key1_StopTick > (Key1_StartTick+50)){
                 Key1_isPressed = true;
             }
