@@ -45,9 +45,9 @@ static uint8_t led_buffer[4096];                // 用2个字节来代表一个W
 
 static uint32_t led_state_plugged[2][RGB_NUM] = {
     {
-        0x000060U, 0x000060U, 0x000060U, 0x000060U,
-        0x000060U, 0x000060U, 0x000060U, 0x000060U,
-        0x000060U, 0x000060U, 0x000060U, 0x000060U
+        0x000050U, 0x000050U, 0x000050U, 0x000050U,
+        0x000050U, 0x000050U, 0x000050U, 0x000050U,
+        0x000050U, 0x000050U, 0x000050U, 0x000050U
     },
     {
         0x000000U, 0x000000U, 0x000000U, 0x000000U,
@@ -59,9 +59,9 @@ static uint32_t led_state_plugged[2][RGB_NUM] = {
 /* 特殊效果对应的颜色数组 */
 static uint32_t led_state_fault[2][RGB_NUM] = {
     {
-        0x000000U, 0x000000U, 0x000000U, 0x0F0000U,
-        0x2F0000U, 0x3F0000U, 0x3F0000U, 0x2F0000U,
-        0x0F0000U, 0x000000U, 0x000000U, 0x000000U
+        0x000000U, 0x000000U, 0x000000U, 0x000000U,
+        0x000000U, 0x000000U, 0x000000U, 0x000000U,
+        0x000000U, 0x000000U, 0x000000U, 0x000000U
     },
     {
         0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U,
@@ -107,7 +107,7 @@ static void task_entry_rgb_upgrade(void *parameter)
         /* 空闲状态 */
         case EVSE_IDLE:     // 蓝灯呼吸
             if(flag == 0)
-                {if((++gamma) == 49) {flag = 1;}}
+                {if((++gamma) == 30) {flag = 1;}}
             else if(flag == 1)
                 {if((--gamma) == 5) {flag = 0;}}
             evse_rgb_set_color(COLOR_RGB888_NAVY, GammaTable2[gamma], 0xFF);
@@ -131,14 +131,14 @@ static void task_entry_rgb_upgrade(void *parameter)
             break;
         case EVSE_STOP:
             if(flag == 0)
-                {if((++gamma) == 49) {flag = 1;}}
+                {if((++gamma) == 30) {flag = 1;}}
             else if(flag == 1)
                 {if((--gamma) == 5) {flag = 0;}}
             evse_rgb_set_color(COLOR_RGB888_GREEN, GammaTable2[gamma], 0xFF);
             break;
         /* 故障 */
         case EVSE_FAULT:
-            if(++fault_cnt < 25)
+            if(++fault_cnt < 15)
                 break;
             fault_cnt = 0;
             flag = (~flag)&0x01;
