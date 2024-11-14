@@ -791,7 +791,6 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     return EVSE_DONE;
 }
 
-static uint8_t beep_cnt = 0;
 evse_state_t evse_fault_handle(cp_state_t cp_state){
     if(evse.evse_state != EVSE_FAULT){
         evse_set_state(EVSE_FAULT);
@@ -850,13 +849,6 @@ evse_state_t evse_fault_handle(cp_state_t cp_state){
         default:
             break;
         }
-    }
-
-    if(beep_cnt++ == 0){
-        evse_beep();
-    }
-    if(beep_cnt == 10){
-        beep_cnt = 0;
     }
     
     return EVSE_FAULT;
