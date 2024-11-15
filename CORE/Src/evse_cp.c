@@ -38,7 +38,7 @@
 #define CP_12V_TH   3.0f
 #define CP_9V_TH    2.2f
 #define CP_6V_TH    1.4f
-#define CP_OFFSET   0.2f
+#define CP_OFFSET   0.26f
 
 // 定义CP电压状态
 #define STATE_CP_12V    (1<<0)
