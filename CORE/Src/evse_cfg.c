@@ -32,7 +32,7 @@ void evse_cfg_erase(void)
 void evse_cfg_write(evse_cfg_t* cfg)
 {
     // 判断是否写满
-    if(cfg_write_index == (FLASH_PAGE_SIZE / sizeof(evse_cfg_t))){
+    if(cfg_write_index > (FLASH_PAGE_SIZE / sizeof(evse_cfg_t))){
         log_d("erase evse_cfg.");
         evse_cfg_erase();
     }
@@ -48,12 +48,6 @@ void evse_cfg_write(evse_cfg_t* cfg)
     drv_flash_write_word(CFG_CUR_START_ADDR+cfg_write_index*sizeof(evse_cfg_t), sizeof(evse_cfg_t)>>2, cfg);
     log_d("cfg_write_index: %d", cfg_write_index);
     cfg_write_index++;
-
-    // 判断是否写满
-    if((cfg_write_index++) > (FLASH_PAGE_SIZE / sizeof(evse_cfg_t))){
-        log_d("erase evse_cfg.");
-        evse_cfg_erase();
-    }
 }
 
 /**
