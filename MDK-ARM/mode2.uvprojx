@@ -580,6 +580,11 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\Src\drv_rtc.c</FilePath>
             </File>
+            <File>
+              <FileName>drv_flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Src\drv_flash.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

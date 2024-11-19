@@ -16,7 +16,7 @@
 #define CFG_CUR_END_ADDR            ((uint32_t)(CFG_CUR_START_ADDR+(CFG_CUR_SIZE-1U)))  // 0x08003FFFU
 
 typedef struct __attribute__((packed, aligned(sizeof(uint8_t)))){
-    uint32_t cur;
+    uint32_t max_cur_idx;
 } evse_cfg_t;
 
 void evse_cfg_write(evse_cfg_t* cfg);

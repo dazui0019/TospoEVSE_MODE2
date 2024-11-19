@@ -4,19 +4,19 @@
 #define LOG_TAG "evse.cfg"
 #include "elog.h"
 
-__attribute__((section("CFG_SECTION"), used)) const static evse_cfg_t evse_cfg = {.cur=16};
-__attribute__((section("BACKUP_SECTION"), used)) const static uint32_t test_data = 0;
+__attribute__((section("CFG_SECTION"), used)) const static evse_cfg_t evse_cfg = {.max_cur_idx=0};
+__attribute__((section("BACKUP_SECTION"), used)) const static uint32_t test_data = 0;   // 用于测试，防止弹警告
 
 static uint16_t cfg_write_index = 0;    // 下一个空白位置
 static uint32_t* cfg_buff = (uint32_t*)CFG_BASE_ADDR;   // 将配置文件抽象为一个数组
 
 static void task_entry_flash_test(void *parameter)
 {
-    evse_cfg_t test_cfg = {.cur=0};
+    evse_cfg_t test_cfg = {.max_cur_idx=0};
     for(;;){
         evse_cfg_write(&test_cfg);
-        if(test_cfg.cur++ == 400){
-            test_cfg.cur = 0;
+        if(test_cfg.max_cur_idx++ == 400){
+            test_cfg.max_cur_idx = 0;
         }
         bos_delay_ms(100);
     }
