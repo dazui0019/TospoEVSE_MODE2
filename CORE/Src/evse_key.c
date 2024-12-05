@@ -21,13 +21,12 @@ static evse_state_t evse_state;
 
 static void task_entry_key_scan(void *parameter)
 {
-    __IO uint8_t key_pressed = false;
+    __IO uint8_t cur_changed = false;
     __IO uint32_t first_tick = 0, last_tick = 0;
     evse_key_init();
     for(;;){
         if(Key0_isPressed){
             first_tick = bos_time();
-            key_pressed = true;
             if(Key1_isPressed == true){
                 Key0_isPressed = false;
                 Key1_isPressed = false;
@@ -37,9 +36,10 @@ static void task_entry_key_scan(void *parameter)
             if(EVSE_IDLE == evse_state || EVSE_WAIT_PLUGIN == evse_state || EVSE_9V == evse_state){
                 log_d("Key0 is pressed!");
                 evse_max_current_switch();
+                cur_changed = true;
             }else{
                 log_d("Busy.");
-                key_pressed = false;
+                cur_changed = false;
             }
             evse_beep();
             Key0_isPressed = false;
@@ -47,7 +47,6 @@ static void task_entry_key_scan(void *parameter)
         }
         if(Key1_isPressed){
             first_tick = bos_time();
-            key_pressed = true;
             if(Key0_isPressed == true){
                 Key0_isPressed = false;
                 Key1_isPressed = false;
@@ -59,16 +58,16 @@ static void task_entry_key_scan(void *parameter)
                 evse_delay_inc();
             }else{
                 log_d("Busy.");
-                key_pressed = false;
             }
             evse_beep();
             Key1_isPressed = false;
             continue;   // beep就当延时了。所以跳过后面大循环的 bos_delay_ms(10);
         }
 
-        if(key_pressed && ((bos_time() - first_tick) > 1000)){
+        /* 按键按下1秒后，将电流值写入闪存 */
+        if(cur_changed && ((bos_time() - first_tick) > 1000)){
             log_d("write to flash.");
-            key_pressed = false;
+            cur_changed = false;
             evse_max_current_save();
         }
         bos_delay_ms(50);
