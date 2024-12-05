@@ -39,6 +39,7 @@ static void task_entry_key_scan(void *parameter)
                 evse_max_current_switch();
             }else{
                 log_d("Busy.");
+                key_pressed = false;
             }
             evse_beep();
             Key0_isPressed = false;
@@ -58,6 +59,7 @@ static void task_entry_key_scan(void *parameter)
                 evse_delay_inc();
             }else{
                 log_d("Busy.");
+                key_pressed = false;
             }
             evse_beep();
             Key1_isPressed = false;
