@@ -122,6 +122,7 @@ static void task_entry_evse_main(void *parameter)
     if(evse_rcd_test() == SET){
         /* RCD 测试成功需要的操作 */
         log_i("RCD test success! ");
+        rcd_error_flag = false;
     }else{
         /* RCD 测试失败需要的操作 */
         log_e("RCD test fail! ");
