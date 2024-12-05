@@ -67,7 +67,8 @@
         "evse_config.h": "c",
         "drv_rtc.h": "c",
         "evse_cfg.h": "c",
-        "evse_rcd.h": "c"
+        "evse_rcd.h": "c",
+        "drv_flash.h": "c"
     },
     "C_Cpp.default.includePath": [
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS\\GD\\GD32F30x\\Include",

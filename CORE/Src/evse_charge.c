@@ -48,6 +48,8 @@ __IO uint8_t cp_lost_flag = false;      // cp丢失
 __IO uint8_t cp_error_flag = false;     // cp电平故障
 __IO uint8_t s1_lost_flag = false;      // s1二极管缺失
 
+static evse_cfg_t evse_cfg;
+
 static uint32_t max_cur_index = 0;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
 
@@ -107,7 +109,8 @@ static void task_entry_evse_main(void *parameter)
     g_cp.init(1000);    // CP输出和检测初始化
     g_cp.pwm_ctrl(DISABLE);
     g_cp.ck_ctrl(ENABLE);
-    max_cur_index = *((uint32_t*)CFG_CUR_START_ADDR);
+    evse_cfg_get_last(&evse_cfg);
+    max_cur_index = evse_cfg.max_cur_idx;
     evse_set_max_current(max_cur_index); // 设置最大电流
     log_d("CP init done.");
 
@@ -264,11 +267,14 @@ void evse_max_current_switch(void)
     if(++max_cur_index == max_cur_index_size){
         max_cur_index = 0;
     }
-    
-    evse_cfg_erase();
-    evse_cfg_write_cur((uint32_t)(max_cur_index));
 
     evse_set_max_current(max_cur_index);
+}
+
+void evse_max_current_save(void)
+{
+    evse_cfg.max_cur_idx = max_cur_index;
+    evse_cfg_write(&evse_cfg);
 }
 
 uint8_t evse_get_max_current(void)

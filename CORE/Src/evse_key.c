@@ -7,6 +7,7 @@
 #include "gd32f303x_start.h"
 #include "evse_delay.h"
 #include "evse_beep.h"
+#include "evse_cfg.h"
 
 #define LOG_TAG "evse.key"
 #include "elog.h"
@@ -20,9 +21,13 @@ static evse_state_t evse_state;
 
 static void task_entry_key_scan(void *parameter)
 {
+    __IO uint8_t key_pressed = false;
+    __IO uint32_t first_tick = 0, last_tick = 0;
     evse_key_init();
     for(;;){
         if(Key0_isPressed){
+            first_tick = bos_time();
+            key_pressed = true;
             if(Key1_isPressed == true){
                 Key0_isPressed = false;
                 Key1_isPressed = false;
@@ -40,6 +45,8 @@ static void task_entry_key_scan(void *parameter)
             continue;   // beep就当延时了。
         }
         if(Key1_isPressed){
+            first_tick = bos_time();
+            key_pressed = true;
             if(Key0_isPressed == true){
                 Key0_isPressed = false;
                 Key1_isPressed = false;
@@ -55,6 +62,12 @@ static void task_entry_key_scan(void *parameter)
             evse_beep();
             Key1_isPressed = false;
             continue;   // beep就当延时了。所以跳过后面大循环的 bos_delay_ms(10);
+        }
+
+        if(key_pressed && ((bos_time() - first_tick) > 1000)){
+            log_d("write to flash.");
+            key_pressed = false;
+            evse_max_current_save();
         }
         bos_delay_ms(50);
     }
