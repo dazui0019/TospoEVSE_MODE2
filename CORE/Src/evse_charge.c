@@ -116,6 +116,7 @@ static void task_entry_evse_main(void *parameter)
     s1_ck_init();
     #endif
 
+    #if defined(RCD_CK_ENABLE)
     evse_rcd_init();
     /* RCD 测试 */
     if(evse_rcd_test() == SET){
@@ -126,6 +127,7 @@ static void task_entry_evse_main(void *parameter)
         log_e("RCD test fail! ");
         rcd_error_flag = true;
     }
+    #endif /* RCD_CK_ENABLE */
 
     for(;;){
         // 先检测一下错误标志
@@ -532,19 +534,20 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
             log_d("s1_ck error.");
             break;
         }
-
+    #if defined(RCD_CK_ENABLE)
         if(SET == evse_rcd_test()){
-                log_d("rcd ok.");
-            }else{
-                rcd_error_flag = true;
-                log_d("rcd error.");
-                break;
-            }
+            log_d("rcd ok.");
+        }else{
+            rcd_error_flag = true;
+            log_d("rcd error.");
+            break;
+        }
+    #endif /* RCD_CK_ENABLE */
         return EVSE_CHARGING;
     #else
         log_d("skip s1_ck.");
         return EVSE_CHARGING;
-    #endif
+    #endif /* S1_CK_ENABLE */
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -618,7 +621,7 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
                 log_d("s1_ck error.");
                 break;
             }
-
+        #if defined(RCD_CK_ENABLE)
             if(SET == evse_rcd_test()){
                 log_d("rcd ok.");
             }else{
@@ -626,6 +629,7 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
                 log_d("rcd error.");
                 break;
             }
+        #endif /* RCD_CK_ENABLE */
             return EVSE_CHARGING;
         #else
             log_d("skip s1_ck.");
@@ -768,7 +772,7 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
             log_d("s1_ck error.");
             break;
         }
-
+    #if defined(RCD_CK_ENABLE)
         if(SET == evse_rcd_test()){
             log_d("rcd ok.");
         }else{
@@ -776,6 +780,7 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
             log_d("rcd error.");
             break;
         }
+    #endif /* RCD_CK_ENABLE */
         return EVSE_CHARGING;
     #else
         log_d("skip s1_ck.");
