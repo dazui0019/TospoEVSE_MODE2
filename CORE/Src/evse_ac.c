@@ -136,18 +136,33 @@ static void task_entry_voltage_sample(void *parameter)
                 }
             }
 
-            if(g_pe_error_flag == false && pe_val >= 120){
-                if(pe_err_cnt++ > 2){
-                    pe_err_cnt = 0;
-                    g_pe_error_flag = true;
-                    log_e("pe_error: %d", pe_val);
+            if(pe_val > 350){
+                if(g_pe_error_flag == false && pe_val <= 550){
+                    if(pe_err_cnt++ > 2){
+                        pe_err_cnt = 0;
+                        g_pe_error_flag = true;
+                        log_e("pe_error: %d", pe_val);
+                    }
+                }else if(g_pe_error_flag == true && pe_val >= 700){
+                    if(pe_err_cnt++ > 2){
+                        pe_err_cnt = 0;
+                        g_pe_error_flag = false;
+                        log_i("clear pe_error flag: %d", pe_val);
+                    }
                 }
-                
-            }else if(g_pe_error_flag == true && pe_val <= 10){
-                if(pe_err_cnt++ > 2){
-                    pe_err_cnt = 0;
-                    g_pe_error_flag = false;
-                    log_i("clear pe_error flag: %d", pe_val);
+            }else{
+                if(g_pe_error_flag == false && pe_val >= 120){
+                    if(pe_err_cnt++ > 2){
+                        pe_err_cnt = 0;
+                        g_pe_error_flag = true;
+                        log_e("pe_error: %d", pe_val);
+                    }
+                }else if(g_pe_error_flag == true && pe_val <= 10){
+                    if(pe_err_cnt++ > 2){
+                        pe_err_cnt = 0;
+                        g_pe_error_flag = false;
+                        log_i("clear pe_error flag: %d", pe_val);
+                    }
                 }
             }
 
@@ -166,7 +181,7 @@ static void task_entry_voltage_sample(void *parameter)
             }
             #endif
             // log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
-            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
+            log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
             /* 重新开启中断 */
             exti_interrupt_flag_clear(EXTI_6);
             exti_interrupt_enable(EXTI_6);
