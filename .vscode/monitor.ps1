@@ -1,21 +1,46 @@
 # Get available serial port names
 $portNames = [System.IO.Ports.SerialPort]::GetPortNames()
 
-# List all available serial ports
-Write-Host "Available serial ports:"
-for ($i = 0; $i -lt $portNames.Length; $i++) {
-    Write-Host "$i. $($portNames[$i])"
+# Read config.ini
+$config = Get-Content -Path "config.ini" | ConvertFrom-StringData
+
+if (-not $config.ContainsKey("monitor_port") -or -not $config.ContainsKey("monitor_speed") -or -not $config.ContainsKey("monitor_parity")) {
+    Write-Host "Error: Missing configuration parameters in config.ini"
+    exit
 }
 
-# Let the user select a serial port
-$selection = Read-Host "Please select the serial port number to monitor"
-$portName = $portNames[$selection]
+$portName = $config.monitor_port
+$baudRate = $config.monitor_speed
+$parity = $config.monitor_parity
+$dataBits = 8
+$stopBits = 1
+
+if ($parity -eq "N") {
+    $parity = [System.IO.Ports.Parity]::None
+    $dataBits = 8
+    $stopBits = 1
+} elseif ($parity -eq "E") {
+    $parity = [System.IO.Ports.Parity]::Even
+    $dataBits = 7
+    $stopBits = 2
+} elseif ($parity -eq "O") {
+    $parity = [System.IO.Ports.Parity]::Odd
+    $dataBits = 7
+    $stopBits = 2
+}
+
+# Check if the configured port is available
+if (-not ($portNames -contains $portName)) {
+    Write-Host "Error: Configured port $portName is not available"
+    Write-Host "Available ports: $portNames"
+    exit
+}
 
 # Create a serial port object
-$serialPort = New-Object System.IO.Ports.SerialPort $portName,115200,None,8,One
+$serialPort = New-Object System.IO.Ports.SerialPort $portName,$baudRate,$parity,$dataBits,$stopBits
 
 # Output serial port information
-Write-Host "$portName-115200-8-N-1"
+Write-Host "$portName-$baudRate-$parity-$dataBits-$stopBits"
 
 # Open the serial port
 $serialPort.Open()
