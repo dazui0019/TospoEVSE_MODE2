@@ -52,6 +52,7 @@ int main(){
     retarget_printf(COM0);
     elog_init();
     elog_start();
+    elog_set_filter_lvl(ELOG_LVL_ERROR);
 
     // print_clock();
     // log_d("Test.");

@@ -3,9 +3,46 @@
 #include "EventRecorder.h"
 #include "drv_delay.h"
 #include "evse_relay.h"
+#include "drv_timer.h"
 
 #define LOG_TAG "evse.rcd"
 #include "elog.h"
+
+/**
+ * @brief   定时器初始化
+ * @param   f 定时器更新频率, 单位Hz(1 - 1000000)
+ * @note    TIMER2CLK(TIMER2_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
+*/
+void evse_rcd_timer_init(uint16_t f)
+{
+    timer_parameter_struct timer_initpara;      // 定时器基本参数
+
+    rcu_periph_clock_enable(RCU_TIMER3);
+
+    timer_deinit(TIMER3);
+    /* TIMER configuration */
+    timer_initpara.prescaler         = ((timer_source_clock_get(TIMER3)/1000000U)-1); // TIMER3CLK(TIMER3_CK/PSC) is 100KHz
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
+    timer_initpara.counterdirection  = TIMER_COUNTER_DOWN;
+    timer_initpara.period            = (1000000U/f)-1;
+    timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
+    timer_initpara.repetitioncounter = 0;
+    timer_init(TIMER3,&timer_initpara);
+
+    /* 开启定时器更新事件 */
+    timer_update_event_enable(TIMER3);                                  // 配置TIMERx_CTL0的UPDIS
+    timer_single_pulse_mode_config(TIMER3, TIMER_SP_MODE_REPETITIVE);   // 配置TIMERx_CTL0的SPM(配置为连续模式)
+    timer_update_source_config(TIMER3, TIMER_UPDATE_SRC_REGULAR);       // 配置TIMERx_CTL0的UPS
+
+    /* auto-reload preload enable */
+    timer_auto_reload_shadow_enable(TIMER3);
+    /* auto-reload preload enable */
+    timer_disable(TIMER3);
+
+    timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
+    timer_interrupt_enable(TIMER3, TIMER_INT_UP);
+    nvic_irq_enable(TIMER3_IRQn, 0U, 0U);
+}
 
 /**
  * @brief   RCD引脚初始化(PB3是JTAG端口, 所以需要关闭JTAG，然后将调试功能配置成SWD模式)
@@ -74,6 +111,7 @@ void evse_rcd_init()
     evse_rcd_port_init();   //初始化RCD控制引脚
     evse_rcd_zero();        //校零操作
     evse_rcd_trip_init();   //配置为中断模式
+    // timer2_init(1000);
 }
 
 /**
@@ -141,10 +179,26 @@ __IO uint8_t rcd_error_flag = false;    // rcd自检失败
 void EXTI10_15_IRQHandler(void)
 {
     if(RESET != exti_interrupt_flag_get(EXTI_13)){
-        g_relay.ctrl(open);
-        rcd_error_flag = true;
+        // g_relay.ctrl(open);
+        // rcd_error_flag = true;
         // GPIO_BC(RLY_PORT) = (uint32_t)RLY_PIN; // gpio_bit_reset(RLY_PORT, RLY_PIN);
         // g_relay.relay_state = open;
+        if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
+            // 开启定时器
+            timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
+            timer_counter_value_config(TIMER3, 999);
+            timer_enable(TIMER3);
+        }
         exti_interrupt_flag_clear(EXTI_13);
     }
+}
+
+void TIMER3_IRQHandler(void)
+{
+    timer_disable(TIMER3);
+    if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
+        g_relay.ctrl(open);
+        rcd_error_flag = true;
+    }
+    timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
 }
