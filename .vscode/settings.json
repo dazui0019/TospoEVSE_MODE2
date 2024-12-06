@@ -122,6 +122,13 @@
                 "singleInstance": true,
                 "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
             },
+            {
+                "cwd": "${workspaceFolder}", 
+                "name": "🔍Monitor",
+                "color": "white",
+                "singleInstance": true,
+                "command": ".vscode/monitor.ps1"
+            }
     ],
         "defaultColor": "white",
         "reloadButton": "↻",
