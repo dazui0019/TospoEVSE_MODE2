@@ -92,6 +92,13 @@
                 "color": "white",
                 "singleInstance": true,
                 "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
+            },
+            {
+                "cwd": "${workspaceFolder}",
+                "name": "\ud83d\udd25RTT Viewer",
+                "color": "white",
+                "singleInstance": true,
+                "command": "openocd -f board/st_nucleo_f4.cfg -f ./openocd_rtt.cfg & telnet localhost 8888"
             }
         ],
         "defaultColor": "white",
