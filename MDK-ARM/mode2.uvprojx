@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>GD32F30X_HD,PRINTF_INCLUDE_CONFIG_H</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime;..\Drivers\lcd_drivers;..\Libraries\UGUI;..\Drivers\ws2812b\src;..\Drivers\ws2812b;..\Drivers\ws2812b_port;..\Libraries\utils</IncludePath>
+              <IncludePath>..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS\GD\GD32F30x\Include;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\CMSIS;..\Drivers\GD32F30x_Firmware_Library_V2.2.0\GD32F30x_standard_peripheral\Include;..\CORE\Inc;..\Middlewares\BasicOS;..\BSP\Inc;..\Libraries\printf;..\Libraries\elog;..\Libraries\lwrb;..\Libraries\crc16;..\Libraries\fifo;..\Libraries\datetime;..\Drivers\lcd_drivers;..\Libraries\UGUI;..\Drivers\ws2812b\src;..\Drivers\ws2812b;..\Drivers\ws2812b_port;..\Libraries\utils;..\Drivers\SEGGER_RTT_V810k\RTT;..\Drivers\SEGGER_RTT_V810k\Config</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -940,6 +940,21 @@
               <FileName>utils.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Libraries\utils\utils.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers/SeggerRTT</GroupName>
+          <Files>
+            <File>
+              <FileName>SEGGER_RTT.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\SEGGER_RTT_V810k\RTT\SEGGER_RTT.c</FilePath>
+            </File>
+            <File>
+              <FileName>SEGGER_RTT_printf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\SEGGER_RTT_V810k\RTT\SEGGER_RTT_printf.c</FilePath>
             </File>
           </Files>
         </Group>
