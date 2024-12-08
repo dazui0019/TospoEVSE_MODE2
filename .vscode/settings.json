@@ -70,6 +70,34 @@
         "evse_rcd.h": "c",
         "drv_flash.h": "c"
     },
+    "actionButtons": {
+        "commands": [
+            {
+                "cwd": "${workspaceFolder}",
+                "name": "\ud83d\udd28Rebuild",
+                "color": "white",
+                "singleInstance": true,
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+            },
+            {
+                "cwd": "${workspaceFolder}",
+                "name": "\u23ecDownload",
+                "color": "white",
+                "singleInstance": true,
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+            },
+            {
+                "cwd": "${workspaceFolder}",
+                "name": "\ud83d\ude91Run Keil",
+                "color": "white",
+                "singleInstance": true,
+                "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
+            }
+        ],
+        "defaultColor": "white",
+        "reloadButton": "\u21bb",
+        "loadNpmCommands": false
+    },
     "C_Cpp.default.includePath": [
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS\\GD\\GD32F30x\\Include",
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS",
@@ -89,42 +117,16 @@
         "Drivers\\ws2812b",
         "Drivers\\ws2812b_port",
         "Libraries\\utils",
+        "Drivers\\SEGGER_RTT_V810k\\RTT",
+        "Drivers\\SEGGER_RTT_V810k\\Config",
         "MDK-ARM/RTE/Compiler",
         "MDK-ARM/RTE/_Target_1",
         "D:/ProgramFiles/Keil_v5/ARM/Packs/GigaDevice/GD32F30x_DFP/2.2.1/Device/Include",
-        "D:/ProgramFiles/Keil_v5/ARM/Packs/Keil/ARM_Compiler/1.7.2/Include"
+        "D:/ProgramFiles/Keil_v5/ARM/Packs/Keil/ARM_Compiler/1.7.2/Include",
+        "D:/Keil_v5/ARM/Packs/Keil/ARM_Compiler/1.7.2/Include"
     ],
     "C_Cpp.default.defines": [
         "GD32F30X_HD",
         "PRINTF_INCLUDE_CONFIG_H"
-    ],
-    "actionButtons": {
-        
-        "commands": [
-            {
-                "cwd": "${workspaceFolder}", 
-                "name": "🔨Rebuild",
-                "color": "white",
-                "singleInstance": true,
-                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
-            },
-            {
-                "cwd": "${workspaceFolder}", 
-                "name": "⏬Download",
-                "color": "white",
-                "singleInstance": true,
-                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
-            },
-            {
-                "cwd": "${workspaceFolder}", 
-                "name": "🚑Run Keil",
-                "color": "white",
-                "singleInstance": true,
-                "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
-            },
-    ],
-        "defaultColor": "white",
-        "reloadButton": "↻",
-        "loadNpmCommands": false
-    }
+    ]
 }
