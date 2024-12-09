@@ -30,6 +30,8 @@
 #include "drv_uart.h"
 #include "basic_os.h"
 #include "printf.h"
+// #include <stdio.h>
+#include "SEGGER_RTT.h"
 
 static void elog_print(const char *log, size_t size);
 
@@ -80,9 +82,12 @@ ElogErrCode elog_port_deinit(void) {
  */
 void elog_port_output(const char *log, size_t size) {
     // elog_print(log, size);
-    UART_Transmit(USART0, (uint8_t *)log, size);
+    // UART_Transmit(USART0, (uint8_t *)log, size);
     // xSemaphoreTake(elog_dma_lockHandle, portMAX_DELAY);
     //TODO output to flash
+    /* output to terminal */
+    // SEGGER_RTT_printf(0, "%.*s", size, log);
+    SEGGER_RTT_Write(0, log, size);
 }
 
 /**

@@ -98,7 +98,7 @@
                 "name": "\ud83d\udd25RTT Viewer",
                 "color": "white",
                 "singleInstance": true,
-                "command": "openocd -f board/st_nucleo_f4.cfg -f ./openocd_rtt.cfg & telnet localhost 8888"
+                "command": "openocd -f ./openocd_daplink.cfg -f ./openocd_rtt.cfg & telnet localhost 8888"
             },
             {
                 "cwd": "${workspaceFolder}", 

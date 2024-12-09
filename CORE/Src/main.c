@@ -31,10 +31,10 @@ __attribute__((used)) uint8_t stack[10240];
 /* print out the clock frequency of system, AHB, APB1 and APB2 */
 void print_clock(void)
 {
-    printf("CK_SYS is %d Hz\r\n", rcu_clock_freq_get(CK_SYS));
-    printf("CK_AHB is %d Hz\r\n", rcu_clock_freq_get(CK_AHB));
-    printf("CK_APB1 is %d Hz\r\n", rcu_clock_freq_get(CK_APB1));
-    printf("CK_APB2 is %d Hz\r\n", rcu_clock_freq_get(CK_APB2));
+    SEGGER_RTT_printf(0, "CK_SYS is %d Hz\r\n", rcu_clock_freq_get(CK_SYS));
+    SEGGER_RTT_printf("CK_AHB is %d Hz\r\n", rcu_clock_freq_get(CK_AHB));
+    SEGGER_RTT_printf("CK_APB1 is %d Hz\r\n", rcu_clock_freq_get(CK_APB1));
+    SEGGER_RTT_printf("CK_APB2 is %d Hz\r\n", rcu_clock_freq_get(CK_APB2));
 }
 
 int main(){
@@ -48,15 +48,9 @@ int main(){
     evse_relay_init();
     evse_relay_ctrl(open);
     
-    /* 初始化串口(Debug) */
-    gd_usart_tx_init(COM0, 115200);
-    retarget_printf(COM0);
     elog_init();
     elog_start();
     elog_set_filter_lvl(ELOG_LVL_ERROR);
-
-    // print_clock();
-    // log_d("Test.");
 
     delay_init();   // 初始化延时函数
     evse_beep_init();

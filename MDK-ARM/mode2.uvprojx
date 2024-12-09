@@ -1000,6 +1000,24 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>Drivers/SeggerRTT</GroupName>
+          <Files>
+            <File>
+              <FileName>SEGGER_RTT.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\SEGGER_RTT_V810k\RTT\SEGGER_RTT.c</FilePath>
+            </File>
+            <File>
+              <FileName>SEGGER_RTT_printf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\SEGGER_RTT_V810k\RTT\SEGGER_RTT_printf.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>::Compiler</GroupName>
+        </Group>
+        <Group>
           <GroupName>::Compiler</GroupName>
         </Group>
       </Groups>
@@ -2623,6 +2641,9 @@
               <FilePath>..\Drivers\SEGGER_RTT_V810k\RTT\SEGGER_RTT_printf.c</FilePath>
             </File>
           </Files>
+        </Group>
+        <Group>
+          <GroupName>::Compiler</GroupName>
         </Group>
         <Group>
           <GroupName>::Compiler</GroupName>

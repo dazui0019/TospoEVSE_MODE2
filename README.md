@@ -4,6 +4,10 @@
 
 ## News / Change History
 
+### 2024/12/9
+
+- 将`elog`的输出改为`SEGGER_RTT`。
+
 ### 2024/12/6
 
 - 增加L线和N线反接时的PE检测。
