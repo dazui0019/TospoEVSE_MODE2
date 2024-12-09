@@ -99,6 +99,13 @@
                 "color": "white",
                 "singleInstance": true,
                 "command": "openocd -f board/st_nucleo_f4.cfg -f ./openocd_rtt.cfg & telnet localhost 8888"
+            },
+            {
+                "cwd": "${workspaceFolder}", 
+                "name": "🔍Monitor",
+                "color": "white",
+                "singleInstance": true,
+                "command": ".vscode/monitor.ps1"
             }
         ],
         "defaultColor": "white",
