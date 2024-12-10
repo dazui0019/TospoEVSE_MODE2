@@ -503,7 +503,7 @@
 
   <Group>
     <GroupName>CORE</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -706,8 +706,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\CORE\Src\evse_delay.c</PathWithFileName>
-      <FilenameWithoutPath>evse_delay.c</FilenameWithoutPath>
+      <PathWithFileName>..\CORE\Src\evse_cfg.c</PathWithFileName>
+      <FilenameWithoutPath>evse_cfg.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -718,8 +718,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\CORE\Src\evse_cfg.c</PathWithFileName>
-      <FilenameWithoutPath>evse_cfg.c</FilenameWithoutPath>
+      <PathWithFileName>..\CORE\Src\test_main.c</PathWithFileName>
+      <FilenameWithoutPath>test_main.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -730,8 +730,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\CORE\Src\test_main.c</PathWithFileName>
-      <FilenameWithoutPath>test_main.c</FilenameWithoutPath>
+      <PathWithFileName>..\CORE\Src\evse_timer.c</PathWithFileName>
+      <FilenameWithoutPath>evse_timer.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
