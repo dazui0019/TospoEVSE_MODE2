@@ -4,3 +4,4 @@
 #include "evse_config.h"
 
 void evse_delay_inc(void);
+void evse_timer_init(void);

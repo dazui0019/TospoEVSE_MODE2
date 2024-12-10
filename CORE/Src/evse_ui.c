@@ -17,7 +17,7 @@ UG_GUI lcd;
 
 evse_ui_data_t evse_ui_data = {
     .state          = EVSE_REBOOT,
-    .delay          = 0,
+    .time           = 0,
     .voltage        = 0,
     .current        = 0,
     .power          = 0,
@@ -36,7 +36,7 @@ static void _display_update_fault(evse_ui_fault_t fault);
 static void _display_update_kwh(uint16_t voltage);
 static void _display_update_power(uint16_t voltage);
 static void _display_update_clock(ControlStatus status);
-static void _display_update_delay(uint16_t delay);
+static void _display_update_time(uint16_t time);
 static void _display_update_all(evse_ui_data_t* ui_data);
 
 /**
@@ -69,8 +69,8 @@ static void task_entry_ui_upgrade(void *parameter)
             // if(evse_ui_data.voltage != evse_ui_data_last.voltage){
             //     _display_update_voltage(evse_ui_data.voltage);
             // }
-            if(evse_ui_data.delay != evse_ui_data_last.delay){
-                _display_update_delay(evse_ui_data.delay);
+            if(evse_ui_data.time != evse_ui_data_last.time){
+                _display_update_time(evse_ui_data.time);
             }
             if(evse_ui_data.power != evse_ui_data_last.power){
                 _display_update_power(evse_ui_data.power);
@@ -98,7 +98,7 @@ static void task_entry_ui_test(void *parameter)
         evse_ui_update(UI_CMD_UPDATE_CURRENT, 6, NULL);
         kwh = 6.2f;
         evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
-        evse_ui_update(UI_CMD_UPDATE_DELAY, 3000, NULL);
+        evse_ui_update(UI_CMD_UPDATE_TIME, 3000, NULL);
         bos_delay_ms(1000);
         evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
         vol = 220.0f;
@@ -106,7 +106,7 @@ static void task_entry_ui_test(void *parameter)
         evse_ui_update(UI_CMD_UPDATE_CURRENT, 16, NULL);
         kwh = 15.1f;
         evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
-        evse_ui_update(UI_CMD_UPDATE_DELAY, 0, NULL);
+        evse_ui_update(UI_CMD_UPDATE_TIME, 0, NULL);
 
         // _display_update_current(16);
         // _display_update_state(EVSE_9V_PWM);
@@ -136,11 +136,11 @@ static void evse_ui_init(void)
     gpio_bit_set(LCD_BLK_GPIO_Port, LCD_BLK_Pin);
 }
 
-static void _display_update_delay(uint16_t delay)
+static void _display_update_time(uint16_t time)
 {
-    char str_delay[6];
-    sprintf(str_delay, "%02d:%02d", delay>>8, delay&0xFF);
-    UG_PutString(195-26, 115, str_delay);
+    char str_time[6];
+    sprintf(str_time, "%02d:%02d", time>>8, time&0xFF);
+    UG_PutString(195-26, 115, str_time);
 }
 
 static void _display_update_clock(ControlStatus status)
@@ -326,7 +326,7 @@ static void _display_update_all(evse_ui_data_t* ui_data)
     _display_update_current(ui_data->current);
     // _display_update_voltage(ui_data->voltage);
     _display_update_power(ui_data->power);
-    _display_update_delay(ui_data->delay);
+    _display_update_time(ui_data->time);
     _display_update_fault(ui_data->fault);
 }
 /**
@@ -356,10 +356,13 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
     case UI_CMD_UPDATE_KWH:
         evse_ui_data.kwh = (uint16_t)((*(float*)arg_ptr)*10.0f);
         break;
-    case UI_CMD_UPDATE_DELAY:
-        temp_data.two_byte = arg_int/60;
-        temp_data.two_byte = (temp_data.two_byte<<8) | arg_int%60;
-        evse_ui_data.delay = temp_data.two_byte;
+    case UI_CMD_UPDATE_TIME:
+        temp_data.two_byte = arg_int/60; // 小时
+        temp_data.two_byte = (temp_data.two_byte<<8) | arg_int%60; // 分钟
+        if(temp_data.two_byte>99){
+            temp_data.two_byte = 9960;
+        }
+        evse_ui_data.time = temp_data.two_byte;
         break;
     case UI_CMD_UPDATE_POWER:
         evse_ui_data.power = (uint16_t)((*(float*)arg_ptr)/100.0f);

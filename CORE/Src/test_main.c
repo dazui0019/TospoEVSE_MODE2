@@ -76,6 +76,11 @@ void TIMER3_IRQHandler(void)
     timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
 }
 
+// 用于计算充电时间
+static uint32_t charging_time_last = 0;
+static uint32_t charging_time_now = 0;
+static uint32_t charging_time_total = 0;
+
 int main(){
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);
     
@@ -85,19 +90,25 @@ int main(){
     rtc_reconfiguration();
     
     /* 初始化串口(Debug) */
-    gd_usart_tx_init(COM0, 115200);
-    retarget_printf(COM0);
     elog_init();
     elog_start();
-    elog_set_filter_lvl(ELOG_LVL_ERROR);
-
-    // print_clock();
-    // log_d("Test.");
-
+    // elog_set_filter_lvl(ELOG_LVL_INFO);
+    
     delay_init();   // 初始化延时函数
-    evse_rcd_timer_init(1000);
+
+    log_d("Test.");
 
     /* 函数测试 */
+    for(;;){
+        // 计算充电时间
+        charging_time_now = rtc_counter_get();
+        if(charging_time_now - charging_time_last > 60){
+            charging_time_last = charging_time_now;
+            charging_time_total++;
+            log_d("charging_time_total: %d", charging_time_total);
+        }
+        delay_ms(100);
+    }
 
     /* 启动BasicOS */
     systick_config();
