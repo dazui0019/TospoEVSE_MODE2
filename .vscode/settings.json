@@ -68,7 +68,8 @@
         "drv_rtc.h": "c",
         "evse_cfg.h": "c",
         "evse_rcd.h": "c",
-        "drv_flash.h": "c"
+        "drv_flash.h": "c",
+        "evse_timer.h": "c"
     },
     "actionButtons": {
         "commands": [

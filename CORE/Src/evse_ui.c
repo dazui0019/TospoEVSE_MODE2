@@ -357,8 +357,11 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
         evse_ui_data.kwh = (uint16_t)((*(float*)arg_ptr)*10.0f);
         break;
     case UI_CMD_UPDATE_TIME:
-        temp_data.two_byte = arg_int/60;
-        temp_data.two_byte = (temp_data.two_byte<<8) | arg_int%60;
+        temp_data.two_byte = arg_int/60; // 小时
+        temp_data.two_byte = (temp_data.two_byte<<8) | arg_int%60; // 分钟
+        if(temp_data.two_byte>99){
+            temp_data.two_byte = 9960;
+        }
         evse_ui_data.time = temp_data.two_byte;
         break;
     case UI_CMD_UPDATE_POWER:

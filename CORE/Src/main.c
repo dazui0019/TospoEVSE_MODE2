@@ -18,6 +18,7 @@
 #include "evse_beep.h"
 #include "evse_cfg.h"
 #include "SEGGER_RTT.h"
+#include "evse_timer.h"
 
 #define LOG_TAG "evse.main"
 #include "elog.h"
@@ -50,7 +51,7 @@ int main(){
     
     elog_init();
     elog_start();
-    elog_set_filter_lvl(ELOG_LVL_ERROR);
+    // elog_set_filter_lvl(ELOG_LVL_ERROR);
 
     delay_init();   // 初始化延时函数
     evse_beep_init();

@@ -53,6 +53,11 @@ static evse_cfg_t evse_cfg;
 static uint32_t max_cur_index = 0;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
 
+// 用于计算充电时间
+static uint32_t charging_time_last = 0;
+static uint32_t charging_time_now = 0;
+static uint32_t charging_time_total = 0;
+
 evse_t evse = {
     .inited = false,
     .evse_relay_ctrl = evse_relay_ctrl,
@@ -294,6 +299,13 @@ evse_state_t evse_get_state(void)
     return evse.evse_state;
 }
 
+// 在进入IDLE前，清理一下充电桩
+static void evse_idle_handle_before(void)
+{
+    charging_time_total = 0;
+    evse_ui_update(UI_CMD_UPDATE_TIME, charging_time_total, NULL);
+}
+
 evse_state_t evse_idle_handle(cp_state_t cp_state)
 {
     if(evse.evse_state == EVSE_FAULT){    // 从错误中恢复时需要的处理
@@ -419,6 +431,7 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     switch (cp_state)
     {
     case CP_12V:
+        evse_idle_handle_before();
         return EVSE_IDLE;
     case CP_9V:
     #if defined(RFID_ENABLE)
@@ -483,7 +496,7 @@ evse_state_t evse_wait_delay(cp_state_t cp_state)
     switch (cp_state)
     {
     case CP_12V:
-        evse_ui_update(UI_CMD_UPDATE_TIME, g_evse_delay, NULL);
+        evse_idle_handle_before();
         return EVSE_IDLE;
     case CP_ERROR:
         cp_error_flag = true;
@@ -675,6 +688,7 @@ evse_state_t evse_sim_6v_handle(cp_state_t cp_state)
     switch (cp_state)
     {
     case CP_12V:
+        evse_idle_handle_before();
         return EVSE_IDLE;
     case CP_9V:
         return EVSE_9V;
@@ -695,6 +709,8 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
         evse.p_cp->pwm_state = ENABLE;
         log_i("Return frome EVSE_FAULT.");
         // bos_delay_ms(100);
+        charging_time_last = rtc_counter_get();
+        evse_ui_update(UI_CMD_UPDATE_TIME, charging_time_total, NULL);
     }
 
     if(evse.relay_state == open){
@@ -708,6 +724,8 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
         // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_CHARGING, NULL);
         evse_set_state(EVSE_CHARGING);
         log_i("EVSE_CHARGING.");
+        charging_time_last = rtc_counter_get();
+        evse_ui_update(UI_CMD_UPDATE_TIME, charging_time_total, NULL);
     }
 
     #if defined(RFID_ENABLE)
@@ -732,6 +750,14 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
         break;
     }
 
+    // 计算充电时间
+    charging_time_now = rtc_counter_get();
+    if(charging_time_now - charging_time_last > 0){
+        charging_time_last = charging_time_now;
+        charging_time_total++;
+        evse_ui_update(UI_CMD_UPDATE_TIME, charging_time_total, NULL);
+        log_d("charging_time_total: %d", charging_time_total);
+    }
     return EVSE_CHARGING;
 }
 
@@ -767,6 +793,7 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
             g_rfid_flag = false;
         }
     #endif
+        evse_idle_handle_before();
         return EVSE_IDLE;
     case CP_9V:
         break;
@@ -892,6 +919,7 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     switch (cp_state)
     {
     case CP_12V:
+        evse_idle_handle_before();
         return EVSE_IDLE;
     case CP_9V:
         break;

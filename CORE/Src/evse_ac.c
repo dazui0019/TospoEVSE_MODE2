@@ -52,7 +52,7 @@ __IO double g_kwh = 0;
 /* 中断标志位 */
 static __IO uint8_t start_flag = false; // 正弦波一个周期开始的标志
 static __IO uint8_t cplt_flag = false;
-static __IO uint8_t second_flag = false;
+extern __IO uint8_t second_flag;
 
 // adc 采样数据DMA缓冲区
 __attribute((used)) uint16_t ac_adc_buff[100][3];
@@ -181,7 +181,7 @@ static void task_entry_voltage_sample(void *parameter)
             }
             #endif
             // log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
-            log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
+            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
             /* 重新开启中断 */
             exti_interrupt_flag_clear(EXTI_6);
             exti_interrupt_enable(EXTI_6);
@@ -222,16 +222,6 @@ static void task_entry_kwh_calc(void *parameter)
     }
 }
 bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
-
-void RTC_IRQHandler()
-{
-    if(rtc_flag_get(RTC_FLAG_SECOND) != RESET){
-        rtc_flag_clear(RTC_FLAG_SECOND);
-        // log_d("RTC second interrupt");
-        // log_d("%d", rtc_counter_get());
-        second_flag = true;
-    }
-}
 
 /**
  * @brief   获取芯片内部1.2V基准电压值
