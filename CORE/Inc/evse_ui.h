@@ -12,7 +12,7 @@
 #define UI_CMD_SET_ERR              5U    // 更新错误信息
 #define UI_CMD_RESET_ERR            6U    // 更新错误信息
 #define UI_CMD_UPDATE_CNN_STATE     7U    // 更新枪线和汽车的连接状态
-#define UI_CMD_UPDATE_DELAY         8U    // 更新延迟上电时间
+#define UI_CMD_UPDATE_TIME          8U    // 更新时间(包括延时上电时间和累计充电时间)
 #define UI_CMD_UPDATE_CHG_STATE     9U    // 更新充电状态
 #define UI_CMD_UPDATE_STATE         10U   // 更新充电桩状态
 #define UI_CMD_ERR_CLR_ALL          11U   // 清除所有错误
@@ -38,7 +38,7 @@ typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))){
     uint16_t current;
     uint16_t power;
     uint16_t kwh;
-    uint16_t delay;
+    uint16_t time;
 }evse_ui_data_t;
 
 uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr);

@@ -17,5 +17,5 @@ void evse_delay_inc(void)
         g_evse_delay = 0;
     }
     // log_d("g_evse_delay: %d", g_evse_delay);
-    evse_ui_update(UI_CMD_UPDATE_DELAY, g_evse_delay, NULL);
+    evse_ui_update(UI_CMD_UPDATE_TIME, g_evse_delay, NULL);
 }

@@ -472,10 +472,10 @@ evse_state_t evse_wait_delay(cp_state_t cp_state)
     if(rtc_flag_get(RTC_FLAG_ALARM) != RESET){
         rtc_flag_clear(RTC_FLAG_ALARM);
         if(--delay == 0){
-            evse_ui_update(UI_CMD_UPDATE_DELAY, g_evse_delay, NULL);
+            evse_ui_update(UI_CMD_UPDATE_TIME, g_evse_delay, NULL);    // 显示配置的倒计时时间
             return EVSE_9V_PWM;
         }
-        evse_ui_update(UI_CMD_UPDATE_DELAY, delay, NULL);
+        evse_ui_update(UI_CMD_UPDATE_TIME, delay, NULL);    // 显示剩余的倒计时时间
         // 重新开启一次一分钟的倒计时
         rtc_set_delay_alarm(0, 1, 0);
     }
@@ -483,7 +483,7 @@ evse_state_t evse_wait_delay(cp_state_t cp_state)
     switch (cp_state)
     {
     case CP_12V:
-        evse_ui_update(UI_CMD_UPDATE_DELAY, g_evse_delay, NULL);
+        evse_ui_update(UI_CMD_UPDATE_TIME, g_evse_delay, NULL);
         return EVSE_IDLE;
     case CP_ERROR:
         cp_error_flag = true;
