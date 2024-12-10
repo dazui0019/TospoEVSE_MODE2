@@ -654,7 +654,7 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
         break;
     }
 
-    return EVSE_6V;
+    return EVSE_CHARGING;
 }
 
 // 从12V直接进入6V的情况

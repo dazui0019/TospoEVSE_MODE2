@@ -32,9 +32,9 @@ __attribute__((used)) uint8_t stack[10240];
 void print_clock(void)
 {
     SEGGER_RTT_printf(0, "CK_SYS is %d Hz\r\n", rcu_clock_freq_get(CK_SYS));
-    SEGGER_RTT_printf("CK_AHB is %d Hz\r\n", rcu_clock_freq_get(CK_AHB));
-    SEGGER_RTT_printf("CK_APB1 is %d Hz\r\n", rcu_clock_freq_get(CK_APB1));
-    SEGGER_RTT_printf("CK_APB2 is %d Hz\r\n", rcu_clock_freq_get(CK_APB2));
+    SEGGER_RTT_printf(0, "CK_AHB is %d Hz\r\n", rcu_clock_freq_get(CK_AHB));
+    SEGGER_RTT_printf(0, "CK_APB1 is %d Hz\r\n", rcu_clock_freq_get(CK_APB1));
+    SEGGER_RTT_printf(0, "CK_APB2 is %d Hz\r\n", rcu_clock_freq_get(CK_APB2));
 }
 
 int main(){

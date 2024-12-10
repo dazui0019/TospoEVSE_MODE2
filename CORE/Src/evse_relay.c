@@ -43,7 +43,7 @@ static void task_entry_relay_vol_sw(void *parameter)
         bos_delay_ms(1000);
     }
 }
-// bos_task_export(vol_sw, task_entry_relay_vol_sw, BOS_MAX_PRIORITY, NULL);
+bos_task_export(vol_sw, task_entry_relay_vol_sw, BOS_MAX_PRIORITY, NULL);
 
 /**
  * @brief   继电器初始化
