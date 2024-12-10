@@ -78,6 +78,7 @@
                 "name": "\ud83d\udd28Rebuild",
                 "color": "white",
                 "singleInstance": true,
+                "saveAll": true,
                 "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
             },
             {
