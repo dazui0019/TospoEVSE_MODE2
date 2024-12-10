@@ -50,7 +50,7 @@ int main(){
     
     elog_init();
     elog_start();
-    elog_set_filter_lvl(ELOG_LVL_ERROR);
+    // elog_set_filter_lvl(ELOG_LVL_ERROR);
 
     delay_init();   // 初始化延时函数
     evse_beep_init();

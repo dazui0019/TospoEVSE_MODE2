@@ -181,7 +181,7 @@ static void task_entry_voltage_sample(void *parameter)
             }
             #endif
             // log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
-            log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
+            // log_i("pe_val: %d, l1_val: %d, c_val: %d", pe_val, l1_val, c_val);
             /* 重新开启中断 */
             exti_interrupt_flag_clear(EXTI_6);
             exti_interrupt_enable(EXTI_6);
