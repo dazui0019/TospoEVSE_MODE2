@@ -359,7 +359,7 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
     case UI_CMD_UPDATE_TIME:
         temp_data.two_byte = arg_int/60; // 小时
         if(temp_data.two_byte>99){
-            temp_data.two_byte = 9960;
+            temp_data.two_byte = 0x9960; // 超过99小时，显示99:6
         }else{
             temp_data.two_byte = (temp_data.two_byte<<8) | arg_int%60; // 分钟
         }
