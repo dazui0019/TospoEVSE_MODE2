@@ -77,6 +77,7 @@ evse_state_t (*state_func[])(cp_state_t) = {
     evse_wait_s2_open_handle,   evse_stop_handle,       evse_wait_delay
 };
 
+// uint16_t debug_cnt = 0;
 static void task_entry_evse_main(void *parameter)
 {
     uint16_t cp_val, gnd_val;                       // CP电平和接地检测的ADC Raw值。
@@ -150,6 +151,11 @@ static void task_entry_evse_main(void *parameter)
             }else{
                 evse_fault_handle(evse.p_cp->state);  // 检测到错误时, 直接调用错误处理函数(不会修改变量evse_state)
             }
+            // if(debug_cnt++ > 1000){
+                // debug_cnt = 0;
+                // log_d("cp_val: %d", cp_val);
+                // log_d("cp_val: %d, cp_vol: %0.2f", evse.p_cp->get_cp_vol(g_p_cp_buff, 10), (1.2f*(float)evse.p_cp->get_cp_vol(g_p_cp_buff, 10))/(float)g_Vrefint);
+            // }
         }
         bos_delay_ms(1);
     }
@@ -345,7 +351,8 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     case CP_9V:
         return EVSE_9V;
     case CP_6V:
-        return EVSE_SIM_6V;
+        // return EVSE_SIM_6V;
+        return EVSE_CHARGING;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -393,7 +400,8 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     case CP_9V:
         return (g_evse_delay != 0) ? EVSE_WAIT_DELAY : EVSE_9V_PWM;
     case CP_6V:
-        return EVSE_SIM_6V;
+        // return EVSE_SIM_6V;
+        return EVSE_CHARGING;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -444,7 +452,8 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     #endif
         break;
     case CP_6V: // 在未输出PWM的情况下，如果汽车进入CP_6V状态，那么说明是简易导引
-        return EVSE_SIM_6V;
+        // return EVSE_SIM_6V;
+        return EVSE_CHARGING;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -756,7 +765,7 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
         charging_time_last = charging_time_now;
         charging_time_total++;
         evse_ui_update(UI_CMD_UPDATE_TIME, charging_time_total, NULL);
-        log_d("charging_time_total: %d", charging_time_total);
+        // log_d("charging_time_total: %d", charging_time_total);
     }
     return EVSE_CHARGING;
 }
@@ -924,7 +933,8 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     case CP_9V:
         break;
     case CP_6V:
-        return EVSE_SIM_6V; // 未开启PWM的情况下，不能直接进入到CP_6V
+        // return EVSE_SIM_6V; // 未开启PWM的情况下，不能直接进入到CP_6V
+        return EVSE_CHARGING;
     case CP_ERROR:
         cp_error_flag = true;
         break;

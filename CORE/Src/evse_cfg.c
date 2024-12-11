@@ -4,7 +4,7 @@
 #define LOG_TAG "evse.cfg"
 #include "elog.h"
 
-__attribute__((section("CFG_SECTION"), used)) const static evse_cfg_t evse_cfg = {.max_cur_idx=0};
+__attribute__((section("CFG_SECTION"), used)) const static evse_cfg_t evse_cfg = {.max_cur_idx=6};
 __attribute__((section("BACKUP_SECTION"), used)) const static uint32_t test_data = 0;   // 用于测试，防止弹警告
 
 static uint16_t cfg_write_index = 0;    // 下一个空白位置
