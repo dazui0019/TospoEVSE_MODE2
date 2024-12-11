@@ -69,13 +69,14 @@
         "evse_cfg.h": "c",
         "evse_rcd.h": "c",
         "drv_flash.h": "c",
-        "evse_timer.h": "c"
+        "evse_timer.h": "c",
+        "evse_key.h": "c"
     },
     "actionButtons": {
         "commands": [
             {
                 "cwd": "${workspaceFolder}",
-                "name": "\ud83d\udd28Rebuild",
+                "name": "🥹Rebuild",
                 "color": "white",
                 "singleInstance": true,
                 "saveAll": true,
@@ -83,35 +84,35 @@
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "\u23ecDownload",
+                "name": "🥰Flash",
                 "color": "white",
                 "singleInstance": true,
                 "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "\ud83d\ude91Run Keil",
+                "name": "🐥Run Keil",
                 "color": "white",
                 "singleInstance": true,
                 "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "\ud83d\udd25RTT Viewer",
+                "name": "🤔RTT Viewer",
                 "color": "white",
                 "singleInstance": true,
                 "command": "openocd -f ./openocd_daplink.cfg -f ./openocd_rtt.cfg & telnet localhost 8888"
             },
             {
                 "cwd": "${workspaceFolder}", 
-                "name": "🔍Monitor",
+                "name": "🧐Monitor",
                 "color": "white",
                 "singleInstance": true,
                 "command": ".vscode/monitor.ps1"
             }
         ],
         "defaultColor": "white",
-        "reloadButton": "\u21bb",
+        "reloadButton": "🫡",
         "loadNpmCommands": false
     },
     "C_Cpp.default.includePath": [
