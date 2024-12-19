@@ -23,9 +23,6 @@
 #define LOG_TAG "evse.main"
 #include "elog.h"
 
-uint8_t temp_array[48];
-void a_ws2812b_write_one_frame(uint32_t rgb, uint8_t temp[48]);
-
 /* Stack for BasicOS */
 __attribute__((used)) uint8_t stack[10240];
 

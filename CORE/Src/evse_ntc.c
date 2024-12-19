@@ -2,6 +2,7 @@
 #include "basic_os.h"
 #include "EventRecorder.h"
 #include "drv_timer.h"
+#include "evse_charge.h"
 
 #define LOG_TAG "evse.ntc"
 #include "elog.h"
@@ -20,7 +21,7 @@
 /**
  * @brief   温度采集通道
  */
-void evse_ntc_config(void)
+void evse_ntc_init(void)
 {
     adc_deinit(ADC1);
 
@@ -111,12 +112,10 @@ static void task_entry_ntc_sample(void *parameter)
 {
     uint16_t ob_ntc, pl_ntc, overheat_cnt = 0;
 
-    evse_ntc_config();
-
-    /* 等待vrefint读取完毕 */
-    while (g_Vrefint == 0)
+    /* 等待充电桩主任务完成初始化 */
+    while (evse_get_state() == EVSE_REBOOT)
     {
-        bos_delay_ms(1);
+        bos_delay_ms(10);
     }
 
     for(;;){

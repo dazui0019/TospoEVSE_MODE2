@@ -12,8 +12,6 @@
 #define LOG_TAG "evse.key"
 #include "elog.h"
 
-void evse_key_init(void);
-
 uint8_t Key0_isPressed = false;
 uint8_t Key1_isPressed = false;
 
@@ -23,7 +21,7 @@ static void task_entry_key_scan(void *parameter)
 {
     __IO uint8_t cur_changed = false;
     __IO uint32_t first_tick = 0, last_tick = 0;
-    evse_key_init();
+
     for(;;){
         if(Key0_isPressed){
             first_tick = bos_time();

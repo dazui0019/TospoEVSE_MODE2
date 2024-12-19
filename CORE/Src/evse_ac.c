@@ -58,7 +58,7 @@ extern __IO uint8_t second_flag;
 __attribute((used)) uint16_t ac_adc_buff[100][3];
 
 /* 函数声明 */
-static uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index);
+static uint16_t get_sin_val(__IO const uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index);
 static void evse_ac_adc_config(void);
 static void evse_ac_timer_config(uint16_t f);
 static void freq_exti_config(void);
@@ -79,13 +79,12 @@ static void task_entry_voltage_sample(void *parameter)
     /* 等待充电桩主任务完成初始化 */
     while (evse_get_state() == EVSE_REBOOT)
     {
-        bos_delay_ms(1);
+        bos_delay_ms(10);
     }
-
-    evse_ac_adc_config();   // ac_adc和g_Vrefint共用ADC0, 所以等g_Vrefint获取完成后, 再重新配置ADC0给ac_adc用
-    freq_exti_config();
-    evse_ac_timer_config(5000); // 5000Hz/50Hz = 100个
-    exti_interrupt_enable(EXTI_6);
+    
+    /* 初始化AC检测 */
+    evse_ac_init();
+    rtc_interrupt_enable(RTC_INT_SECOND);
 
     for(;;){
         if(cplt_flag == true){
@@ -177,7 +176,15 @@ static void task_entry_voltage_sample(void *parameter)
             exti_interrupt_flag_clear(EXTI_6);
             exti_interrupt_enable(EXTI_6);
         }
-        bos_delay_ms(1);
+        if(second_flag){
+            second_flag = false;
+            // log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
+            if(power < 50.0f){
+                power = 0;
+            }
+            evse_ui_update(UI_CMD_UPDATE_POWER, NULL, &power);
+        }
+        bos_delay_ms(10);
     }
 }
 bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
@@ -191,10 +198,9 @@ static void task_entry_kwh_calc(void *parameter)
     /* 等待充电桩主任务完成初始化 */
     while (evse_get_state() == EVSE_REBOOT)
     {
-        bos_delay_ms(1);
+        bos_delay_ms(10);
     }
-
-    rtc_interrupt_enable(RTC_INT_SECOND);
+    second_flag = false;
     for(;;){
         if(second_flag){
             second_flag = false;
@@ -212,7 +218,16 @@ static void task_entry_kwh_calc(void *parameter)
         bos_delay_ms(100);
     }
 }
-bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
+
+void evse_ac_init(void)
+{
+    cplt_flag = false;
+    evse_ac_adc_config();
+    freq_exti_config();
+    evse_ac_timer_config(5000); // 5000Hz/50Hz = 100个
+    exti_interrupt_enable(EXTI_6);
+}
 
 /**
  * @brief   获取芯片内部1.2V基准电压值
@@ -418,7 +433,7 @@ void DMA0_Channel0_IRQHandler(void)
 /**
  * @brief   获取正弦波正半波的平均值
  */
-static uint16_t get_sin_val(__IO uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index)
+static uint16_t get_sin_val(__IO const uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index)
 {
     static uint32_t val;
     static uint16_t base_val;

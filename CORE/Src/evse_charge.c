@@ -15,6 +15,10 @@
 #include "drv_rtc.h"
 #include "evse_rcd.h"
 #include "evse_cfg.h"
+#include "evse_ntc.h"
+#include "evse_key.h"
+#include "evse_timer.h"
+#include "drv_delay.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"
@@ -43,7 +47,7 @@ extern __IO uint8_t g_over_cur_flag;    // evse_ac
 extern __IO uint8_t g_over_vol_flag;    // evse_ac
 extern __IO uint8_t g_under_vol_flag;   // evse_ac
 extern __IO uint8_t g_pe_error_flag;    // evse_ac
-extern __IO uint8_t rcd_error_flag;    // rcd自检失败
+extern __IO uint8_t rcd_error_flag;     // rcd自检失败
 __IO uint8_t cp_lost_flag = false;      // cp丢失
 __IO uint8_t cp_error_flag = false;     // cp电平故障
 __IO uint8_t s1_lost_flag = false;      // s1二极管缺失
@@ -138,6 +142,14 @@ static void task_entry_evse_main(void *parameter)
         rcd_error_flag = true;
     }
     #endif /* RCD_CK_ENABLE */
+
+    /* 初始化NTC */
+    evse_ntc_init();
+
+    /* 初始化按键 */
+    evse_key_init();
+
+    bos_delay_ms(4000); // 电流互感器上电会有一个比较大的值，需要延时一下(等它上电完成)
 
     for(;;){
         // 先检测一下错误标志
@@ -353,6 +365,7 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     case CP_6V:
         // return EVSE_SIM_6V;
         return EVSE_CHARGING;
+        // return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -402,6 +415,7 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     case CP_6V:
         // return EVSE_SIM_6V;
         return EVSE_CHARGING;
+        // return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -454,6 +468,7 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     case CP_6V: // 在未输出PWM的情况下，如果汽车进入CP_6V状态，那么说明是简易导引
         // return EVSE_SIM_6V;
         return EVSE_CHARGING;
+        // return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;

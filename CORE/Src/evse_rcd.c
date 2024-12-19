@@ -179,16 +179,16 @@ __IO uint8_t rcd_error_flag = false;    // rcd自检失败
 void EXTI10_15_IRQHandler(void)
 {
     if(RESET != exti_interrupt_flag_get(EXTI_13)){
-        // g_relay.ctrl(open);
-        // rcd_error_flag = true;
-        // GPIO_BC(RLY_PORT) = (uint32_t)RLY_PIN; // gpio_bit_reset(RLY_PORT, RLY_PIN);
-        // g_relay.relay_state = open;
-        if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
-            // 开启定时器
-            timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
-            timer_counter_value_config(TIMER3, 999);
-            timer_enable(TIMER3);
-        }
+        g_relay.ctrl(open);
+        rcd_error_flag = true;
+        GPIO_BC(RLY_PORT) = (uint32_t)RLY_PIN; // gpio_bit_reset(RLY_PORT, RLY_PIN);
+        g_relay.relay_state = open;
+        // if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
+        //     // 开启定时器
+        //     timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
+        //     timer_counter_value_config(TIMER3, 999);
+        //     timer_enable(TIMER3);
+        // }
         exti_interrupt_flag_clear(EXTI_13);
     }
 }

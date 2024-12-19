@@ -94,7 +94,6 @@ void cp_pwm_init(uint32_t f)
     /*Configure PIN as remap function*/
     rcu_periph_clock_enable(CP_PORT_RCU);
     rcu_periph_clock_enable(RCU_AF);
-    gpio_pin_remap_config(GPIO_TIMER2_PARTIAL_REMAP, ENABLE);       // 开启TIMER2的REMAP
     gpio_init(CP_PORT, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, CP_PIN); // 配置GPIO AF功能
 
     rcu_periph_clock_enable(CP_TIMER_RCU);
@@ -128,7 +127,7 @@ void cp_pwm_init(uint32_t f)
 
     timer_interrupt_flag_clear(CP_TIMER, TIMER_INT_UP);
     timer_interrupt_disable(CP_TIMER, TIMER_INT_UP);
-    nvic_irq_enable(CP_TIMER_IRQ, 5, 0);
+    nvic_irq_enable(CP_TIMER_IRQ, 4, 0);
 
     timer_enable(CP_TIMER);
 
@@ -560,10 +559,6 @@ void quickSort(uint16_t arr[], int low, int high) {
 void task_entry_cp_test(void *parameter)
 {
     uint16_t vol;
-    // cp_pwm_init(1000);
-    // cp_cur_set(16);
-    // pwm_ctrl(ENABLE);
-    // timer_interrupt_enable(TIMER2, TIMER_INT_UP);
     /* 初始化CP */
     g_cp.init(1000);    // CP输出和检测初始化
     g_cp.set_cur(17);   // 设置最大电流
