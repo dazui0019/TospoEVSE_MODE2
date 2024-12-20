@@ -51,8 +51,8 @@
 extern __IO uint16_t g_Vrefint;  // 芯片内部1.2V参考电压的 ADC 原始值
 uint16_t gnd_base = 0;
 
-// 占空比表， 是CAR寄存器的数值, 表示最大电流值所对应的CP波形占空比数值
-// 其中第一个元素(50), 表示占空比为5%需要进行数字通信而不是电流
+// 占空比表， 是CAR寄存器的数值, 表示最大电流值所对应的CP波形占空比数值(index表示电流大小)
+// 其中第一个元素(index=0), 占空比为5%，表示需要进行数字通信而不是电流最大值
 const static uint16_t duty_table[] = {
      50, 100, 100, 100, 100, 100, 100, 117, 133, 150,
     167, 183, 200, 217, 233, 250, 267, 283, 300, 317,
@@ -78,8 +78,8 @@ cp_t g_cp = {
 /* ADC转换完成后，该指针指向存放ADC原始数据的DMA缓冲区 */
 __IO uint16_t *g_p_cp_buff = NULL;
 
-// adc 采样数据DMA缓冲区
-__attribute((used)) uint16_t cp_buff[2][10];
+// adc 采样数据DMA缓冲区有两组， 每组SAMPLE_NUM个点，是一个乒乓缓冲(并不是有两个通道)
+__attribute((used)) uint16_t cp_buff[2][SAMPLE_NUM];
 
 /**
  * @brief   CP PWM 输出初始化, 默认输出低电平
@@ -143,11 +143,6 @@ void TIMER2_IRQHandler(void)
     /* TIMER2只开了一个中断，所以就不判断了 */
     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
     TIMER_INTF(TIMER2) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
-    // if(timer_interrupt_flag_get(TIMER2, TIMER_INT_UP) != RESET){
-    //     timer_interrupt_flag_clear(TIMER2, TIMER_INT_UP);
-    //     adc_software_trigger_enable(CK_ADC, ADC_REGULAR_CHANNEL);
-    //     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;
-    // }
 }
 
 /**
@@ -158,11 +153,6 @@ void TIMER1_IRQHandler(void)
     /* TIMER1只开了一个中断，所以就不判断了 */
     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
     TIMER_INTF(TIMER1) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
-    // if(timer_interrupt_flag_get(TIMER2, TIMER_INT_UP) != RESET){
-    //     timer_interrupt_flag_clear(TIMER2, TIMER_INT_UP);
-    //     adc_software_trigger_enable(CK_ADC, ADC_REGULAR_CHANNEL);
-    //     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;
-    // }
 }
 
 /**
@@ -178,14 +168,14 @@ static void cp_check_dma_config(void)
 
     rcu_periph_clock_enable(RCU_DMA1);
     /* initialize DMA single data mode */
-    dma_data_parameter.periph_addr  = (uint32_t)(&ADC_RDATA(ADC2));
+    dma_data_parameter.periph_addr  = (uint32_t)(&ADC_RDATA(CK_ADC));
     dma_data_parameter.periph_inc   = DMA_PERIPH_INCREASE_DISABLE;
     dma_data_parameter.memory_addr  = (uint32_t)(cp_buff);
     dma_data_parameter.memory_inc   = DMA_MEMORY_INCREASE_ENABLE;
     dma_data_parameter.periph_width = DMA_PERIPHERAL_WIDTH_16BIT;
     dma_data_parameter.memory_width = DMA_MEMORY_WIDTH_16BIT;
     dma_data_parameter.direction    = DMA_PERIPHERAL_TO_MEMORY;
-    dma_data_parameter.number       = 10*2;
+    dma_data_parameter.number       = SAMPLE_NUM*2; // 采样次数*2(乒乓缓冲)
     dma_data_parameter.priority     = DMA_PRIORITY_HIGH;
     dma_flag_clear(DMA1, DMA_CH4, DMA_FLAG_HTF|DMA_FLAG_FTF);
     dma_init(DMA1, DMA_CH4, &dma_data_parameter);
