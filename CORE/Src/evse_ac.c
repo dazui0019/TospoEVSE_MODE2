@@ -38,8 +38,9 @@
 #define TRIG_SOURCE_PORT        GPIO_PORT_SOURCE_GPIOA
 #define TRIG_SOURCE_PIN         GPIO_PIN_SOURCE_6
 
-#define CH_NUM                  (3)
-#define SAMPLE_NUM              (100)
+#define CH_NUM                  (3)     // 采样通道数
+#define SAMPLE_NUM              (100)   // 采样次数(100个点, 对于50Hz的正弦波来说，就是采样了两个周期)
+#define SAMPLE_FREQ             (5000)  // 采样频率
 
 /* 全局变量 */
 __IO uint8_t  g_over_cur_flag = false;
@@ -55,7 +56,7 @@ static __IO uint8_t cplt_flag = false;
 extern __IO uint8_t second_flag;
 
 // adc 采样数据DMA缓冲区
-__attribute((used)) uint16_t ac_adc_buff[100][3];
+__attribute((used)) uint16_t ac_adc_buff[SAMPLE_NUM][CH_NUM];
 
 /* 函数声明 */
 static uint16_t get_sin_val(__IO const uint16_t pBuff[][CH_NUM], uint16_t length, uint16_t index);
@@ -67,6 +68,10 @@ float vol = 0.0f;
 float cur = 0.0f;
 float power = 0.0f;
 
+/**
+ * @brief   电压采样任务
+ * @note    刚上电的时候，电流互感器可能会有一个比较大的值，需要滤波
+ */
 static void task_entry_voltage_sample(void *parameter)
 {
     uint16_t pe_val = 0, l1_val = 0, c_val = 0;
@@ -225,7 +230,7 @@ void evse_ac_init(void)
     cplt_flag = false;
     evse_ac_adc_config();
     freq_exti_config();
-    evse_ac_timer_config(5000); // 5000Hz/50Hz = 100个
+    evse_ac_timer_config(5000); // 采样频率5000Hz
     exti_interrupt_enable(EXTI_6);
 }
 
@@ -263,7 +268,9 @@ void adc_verf_config(void)
     adc_calibration_enable(ADC0);
 }
 
-/* 用来标记一个正弦波的开始 */
+/**
+ * @brief   当正弦波开始时，触发EXTI中断(用来开启定时器)
+ */
 static void freq_exti_config(void)
 {
     /* enable the GPIO clock */
@@ -282,9 +289,9 @@ static void freq_exti_config(void)
 }
 
 /**
- * @brief   timer1 pwm(TIMER1_CH1)初始化(用来触发adc采样)
+ * @brief   timer0 pwm(TIMER0_CH0)初始化(用来触发adc采样)
  * @param   f 定时器更新频率, 单位Hz(2 - 1000000)
- * @note    TIMER1CLK(TIMER1_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
+ * @note    TIMER0CLK(TIMER0_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
 */
 static void evse_ac_timer_config(uint16_t f)
 {
@@ -297,7 +304,7 @@ static void evse_ac_timer_config(uint16_t f)
     /* TIMER configuration */
     timer_initpara.prescaler         = ((timer_source_clock_get(TIMER0)/1000000U)-1); // TIMER2CLK(TIMER2_CK/PSC) is 100KHz
     timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
-    timer_initpara.counterdirection  = TIMER_COUNTER_UP;
+    timer_initpara.counterdirection  = TIMER_COUNTER_DOWN;
     timer_initpara.period            = (1000000U/f)-1;
     timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
     timer_initpara.repetitioncounter = 0;
@@ -332,7 +339,7 @@ static void adc0_dma_config(uint16_t number)
 {
     /* ADC_DMA_channel configuration */
     dma_parameter_struct dma_data_parameter;
-    
+
     /* ADC_DMA_channel deinit */
     dma_deinit(DMA0, DMA_CH0);
 
@@ -359,7 +366,7 @@ static void adc0_dma_config(uint16_t number)
 }
 
 /**
- * @brief   电压采集通道
+ * @brief   ADC交流采样通道配置
  */
 static void evse_ac_adc_config(void)
 {
@@ -412,8 +419,8 @@ static void evse_ac_adc_config(void)
 */
 void EXTI5_9_IRQHandler(void)
 {
-    if(RESET != (EXTI_PD & (uint32_t)EXTI_6)){   // 开启电压采集: 开启定时器
-        timer_counter_value_config(TIMER0, 0xC7); // timer_counter_value_config(TIMER0, 0xC7);
+    if(RESET != (EXTI_PD & (uint32_t)EXTI_6)){  // 开启电压采集: 开启定时器
+        TIMER_CNT(TIMER0) = 0U; //timer_counter_value_config(TIMER0, 0);  // 定时器配置为向下计数
         timer_enable(TIMER0); // timer_enable(TIMER0);
         EXTI_PD = (uint32_t)EXTI_6;         // exti_interrupt_flag_clear(EXTI_6);
     }
@@ -423,7 +430,7 @@ void DMA0_Channel0_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){    // 完成采样后, 先暂停采样
         DMA_INTC(DMA0) |= DMA_FLAG_ADD(DMA_INT_FLAG_FTF, DMA_CH0); // dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
-        TIMER_CTL0(TIMER0) &= ~(uint32_t)TIMER_CTL0_CEN;    // timer_disable(TIMER1);
+        TIMER_CTL0(TIMER0) &= ~(uint32_t)TIMER_CTL0_CEN;    // timer_disable(TIMER0);
         EXTI_INTEN &= ~(uint32_t)EXTI_6;    // exti_interrupt_disable(EXTI_6);
 
         cplt_flag = true;
@@ -448,7 +455,7 @@ static uint16_t get_sin_val(__IO const uint16_t pBuff[][CH_NUM], uint16_t length
     for(uint32_t i = 0; i < length; i++){
         sum += pBuff[i][index];
     }
-    base_val = ((6*base_val) + (uint16_t)(4.0*(sum/length)))/10.0;
+    base_val = ((6*base_val) + (uint16_t)(4.0*(sum/length)))/10.0; // 一阶互补滤波，获取基准电压
     // log_d("base_val: %d", base_val);
 
     for(uint32_t i = 0; i < length; i++){
