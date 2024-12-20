@@ -23,7 +23,7 @@ void evse_rcd_timer_init(uint16_t f)
     /* TIMER configuration */
     timer_initpara.prescaler         = ((timer_source_clock_get(TIMER3)/1000000U)-1); // TIMER3CLK(TIMER3_CK/PSC) is 100KHz
     timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
-    timer_initpara.counterdirection  = TIMER_COUNTER_DOWN;
+    timer_initpara.counterdirection  = TIMER_COUNTER_UP;
     timer_initpara.period            = (1000000U/f)-1;
     timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
     timer_initpara.repetitioncounter = 0;
@@ -187,7 +187,7 @@ void EXTI10_15_IRQHandler(void)
         if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
             // 开启定时器
             timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
-            timer_counter_value_config(TIMER3, 999);
+            timer_counter_value_config(TIMER3, 0);
             timer_enable(TIMER3);
         }
         exti_interrupt_flag_clear(EXTI_13);
