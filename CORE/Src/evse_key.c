@@ -19,12 +19,17 @@ static evse_state_t evse_state;
 
 static void task_entry_key_scan(void *parameter)
 {
+    // 只有电流改变时，才需要写入闪存
     __IO uint8_t cur_changed = false;
-    __IO uint32_t first_tick = 0, last_tick = 0;
+    // 最后一次按键按下的时间, 用于判断何时写入闪存
+    __IO uint32_t tick_last = 0;
+    // 当前时间
+    __IO uint32_t tick_now = 0;
+
 
     for(;;){
         if(Key0_isPressed){
-            first_tick = bos_time();
+            tick_last = bos_time();
             if(Key1_isPressed == true){
                 Key0_isPressed = false;
                 Key1_isPressed = false;
@@ -44,7 +49,7 @@ static void task_entry_key_scan(void *parameter)
             continue;   // beep就当延时了。
         }
         if(Key1_isPressed){
-            first_tick = bos_time();
+            tick_last = bos_time();
             if(Key0_isPressed == true){
                 Key0_isPressed = false;
                 Key1_isPressed = false;
@@ -62,11 +67,18 @@ static void task_entry_key_scan(void *parameter)
             continue;   // beep就当延时了。所以跳过后面大循环的 bos_delay_ms(10);
         }
 
-        /* 按键按下1秒后，将电流值写入闪存 */
-        if(cur_changed && ((bos_time() - first_tick) > 1000)){
-            log_d("write to flash.");
-            cur_changed = false;
-            evse_max_current_save();
+        /* 按键按下1秒后，并且电流改变时，将电流值写入闪存 */
+        if(cur_changed){
+            tick_now = bos_time();
+            if(tick_now > (tick_last + 1000)){
+                log_d("write to flash.");
+                cur_changed = false;
+                evse_max_current_save();
+            }else if((tick_now < tick_last) && (0xFFFFFFFF - tick_last + tick_now) > 1000){ // 溢出处理
+                log_d("write to flash.");
+                cur_changed = false;
+                evse_max_current_save();
+            }
         }
         bos_delay_ms(50);
     }
