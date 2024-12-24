@@ -45,9 +45,19 @@ static void _display_update_all(evse_ui_data_t* ui_data);
  */
 static void task_entry_ui_upgrade(void *parameter)
 {
-    evse_ui_init();    
+    evse_ui_init();
+    // 显示Booting
+    UG_FontSelect(&FONT_12X20);
+    UG_PutString(20, 110, "System init ...");
+    /* 等待充电桩主任务完成初始化 */
+    while (evse_get_state() == EVSE_REBOOT)
+    {
+        bos_delay_ms(10);
+    }
+    UG_FillScreen(GC9A01_Color565(0x00, 0x00, 0x00));
     /* ----------------默认显示---------------- */
-    /* 时钟轮廓 */         
+    UG_FontSelect(&FONT_12X16);
+    /* 时钟轮廓 */
     UG_DrawCircle(120, 120, 40, 0xFFFF);
     UG_DrawLine(35,204,91,148,0xFFFF);
     UG_DrawLine(35,35,91,91,0xFFFF);
@@ -131,7 +141,6 @@ static void evse_ui_init(void)
     GC9A01_init();
     GC9A01_setRotation(0);
     UG_Init(&lcd, GC9A01_drawPixel, 240, 240);
-    UG_FontSelect(&FONT_12X16);
     UG_FillScreen(GC9A01_Color565(0x00, 0x00, 0x00));
     gpio_bit_set(LCD_BLK_GPIO_Port, LCD_BLK_Pin);
 }
@@ -359,7 +368,7 @@ uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr)
     case UI_CMD_UPDATE_TIME:
         temp_data.two_byte = arg_int/60; // 小时
         if(temp_data.two_byte>99){
-            temp_data.two_byte = 0x9960; // 超过99小时，显示99:6
+            temp_data.two_byte = 0x633C; // 超过99小时，显示99:60
         }else{
             temp_data.two_byte = (temp_data.two_byte<<8) | arg_int%60; // 分钟
         }
