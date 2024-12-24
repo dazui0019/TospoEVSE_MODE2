@@ -57,6 +57,8 @@ static uint32_t led_state_plugged[2][RGB_NUM] = {
 };
 
 /* 特殊效果对应的颜色数组 */
+
+// 故障状态红灯闪烁
 static uint32_t led_state_fault[2][RGB_NUM] = {
     {
         0x000000U, 0x000000U, 0x000000U, 0x000000U,
@@ -69,15 +71,18 @@ static uint32_t led_state_fault[2][RGB_NUM] = {
         0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U
     }
 };
+
+// 充电中绿色渐变(流水灯)
 static uint32_t fluid_buffer_green[3*RGB_NUM] = {
-    0x0000A8U, 0x0000A0U, 0x000098U, 0x000090U,
-    0x000088U, 0x000080U, 0x000078U, 0x000070U,
-    0x000068U, 0x000060U, 0x000058U, 0x000050U,
-    0x000048U, 0x000040U, 0x000038U, 0x000030U,
-    0x000028U, 0x000020U, 0x000018U, 0x000010U,
-    0x000010U, 0x000008U, 0x000008U, 0x000000U,
-    0x000000U, 0x000000U, 0x000000U, 0x000000U,
+    0x0000FFU, 0x0000F5U, 0x0000EBU, 0x0000E1U,
+    0x0000D7U, 0x0000CDU, 0x0000C3U, 0x0000B9U,
+    0x0000AFU, 0x0000A5U, 0x00009BU, 0x000091U,
+    0x000087U, 0x00007DU, 0x000073U, 0x000069U,
+    0x00005FU, 0x000055U, 0x00004BU, 0x000041U,
+    0x000037U, 0x00002DU, 0x000023U, 0x000019U,
 };
+
+// 蓝灯呼吸
 static uint32_t fluid_buffer_blue[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0x000000U};
 // static uint32_t fluid_buffer_rainbow[RGB_NUM] = {
 //     COLOR_RGB888_SKYBLUE, COLOR_RGB888_VIOLET, COLOR_RGB888_BROWN,
