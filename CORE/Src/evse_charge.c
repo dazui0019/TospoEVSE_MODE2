@@ -213,9 +213,10 @@ static ErrStatus evse_error_ck(void)
             evse_ui_update(UI_CMD_SET_ERR, FAULT_LEAKAGE, NULL);
         }
         /* 可恢复错误(不用关闭PWM输出) */
-        // if(g_overheat_flag == true){
-        //     error_flag = true;
-        // }
+        if(g_overheat_flag == true){
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_HEAT, NULL);
+            error_flag = true;
+        }
         
         if(g_under_vol_flag == true){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_UNDER_VOLTAGE, NULL);
