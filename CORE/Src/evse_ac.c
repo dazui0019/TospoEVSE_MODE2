@@ -90,6 +90,7 @@ static void task_entry_voltage_sample(void *parameter)
     /* 初始化AC检测 */
     evse_ac_init();
     rtc_interrupt_enable(RTC_INT_SECOND);
+    cplt_flag = false;
 
     for(;;){
         if(cplt_flag == true){
