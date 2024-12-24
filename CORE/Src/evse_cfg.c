@@ -15,9 +15,6 @@ static void task_entry_flash_test(void *parameter)
     evse_cfg_t test_cfg = {.max_cur_idx=0};
     for(;;){
         evse_cfg_write(&test_cfg);
-        if(test_cfg.max_cur_idx++ == 400){
-            test_cfg.max_cur_idx = 0;
-        }
         bos_delay_ms(100);
     }
 }
@@ -32,7 +29,10 @@ void evse_cfg_erase(void)
 void evse_cfg_write(evse_cfg_t* cfg)
 {
     // 判断是否写满
-    if(cfg_write_index > (FLASH_PAGE_SIZE / sizeof(evse_cfg_t))){
+    if(cfg_write_index >= (FLASH_PAGE_SIZE / sizeof(evse_cfg_t))){
+        if(cfg_write_index > (FLASH_PAGE_SIZE / sizeof(evse_cfg_t))){
+            log_e("cfg_write_index overflow. (cfg_write_index: %d)", cfg_write_index);
+        }
         log_d("erase evse_cfg.");
         evse_cfg_erase();
     }
@@ -40,7 +40,7 @@ void evse_cfg_write(evse_cfg_t* cfg)
     if(FLASH_EMPTY_DATA != cfg_buff[cfg_write_index]){
         evse_cfg_get_last(cfg);
         if(FLASH_EMPTY_DATA != cfg_buff[cfg_write_index]){
-            log_e("cannot get evse_cfg.");
+            log_e("cannot get evse_cfg. (cfg_write_index: %d)", cfg_write_index);
             return;
         }
     }
