@@ -120,8 +120,10 @@ static void task_entry_rgb_upgrade(void *parameter)
                 {if((--gamma) == 5) {flag = 0;}}
             evse_rgb_set_color(COLOR_RGB888_NAVY, GammaTable2[gamma], 0xFF);
             break;
-        case EVSE_9V:
-        case EVSE_9V_PWM:   // 绿灯常亮
+        case EVSE_9V:       // 绿灯常亮
+        case EVSE_6V:
+        case EVSE_9V_PWM:
+        case EVSE_6V_PWM:
         case EVSE_WAIT_DELAY:
             if(++delay_cnt < 25)
                 break;
@@ -151,20 +153,9 @@ static void task_entry_rgb_upgrade(void *parameter)
             fault_cnt = 0;
             flag = (~flag)&0x01;
             ws2812b_write(&ws2812b, led_state_fault[flag], RGB_NUM, led_buffer, 4096);
-            // if(flag == 0){
-            //     for(int i = RGB_NUM; i >= 0; i--){
-            //         fluid_buffer_fault[i] += 0x050000U;
-            //         if(fluid_buffer_fault[i] > 0xFF0000) fluid_buffer_fault[i] = 0xFF0000;
-            //     }
-            //     if((++gamma) == 20) {flag = 1;}
-            // }else if(flag == 1){
-            //     for(int i = RGB_NUM; i >= 0; i--){
-            //         fluid_buffer_fault[i] -= 0x050000U;
-            //         if(fluid_buffer_fault[i] > 0xFF0000) fluid_buffer_fault[i] = 0x00;
-            //     }
-            //     if((--gamma) == 0) {flag = 0;}
-            // }
-            // ws2812b_write(&ws2812b, fluid_buffer_fault, RGB_NUM, led_buffer, 4096);
+            break;
+        case EVSE_SIM_6V:
+            evse_rgb_set_color(COLOR_RGB888_PINK, 100, 0xFF);
             break;
         default:
             evse_rgb_set_color(COLOR_RGB888_MAROON, 100, 0xFF);

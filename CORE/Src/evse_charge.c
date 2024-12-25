@@ -620,7 +620,7 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
         // evse.evse_state = EVSE_6V;
         // evse_comm_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
         // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_6V, NULL);
-        evse_set_state(EVSE_6V);
+        // evse_set_state(EVSE_6V); // 不需要设置状态，因为EVSE_6V状态是临时状态
         log_i("EVSE_6V.");
     }
 
@@ -950,7 +950,7 @@ evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
 
     if(evse.evse_state != EVSE_6V_PWM){
         evse.evse_state = EVSE_6V_PWM;
-        evse_set_state(EVSE_6V_PWM);
+        // evse_set_state(EVSE_6V_PWM); // 不需要设置状态，因为EVSE_6V_PWM状态是临时状态
         log_i("EVSE_6V_PWM.");
     }
 

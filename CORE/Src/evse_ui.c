@@ -212,7 +212,9 @@ static void _display_update_state_mode2(uint8_t state)
     case EVSE_WAIT_DELAY:
         _display_update_clock(ENABLE);  // 显示时钟图标
     case EVSE_9V:
+    case EVSE_6V:
     case EVSE_9V_PWM:
+    case EVSE_6V_PWM:
         /* code */
         UG_PutString(120 - 48,40,"Connect");
         break;
@@ -231,6 +233,10 @@ static void _display_update_state_mode2(uint8_t state)
     case EVSE_FAULT:
         /* code */
         UG_PutString(120 - 48+12,40,"Fault");
+        break;
+    case EVSE_SIM_6V:
+        /* code */
+        UG_PutString(120 - 48+10,40,"SIM_6V");
         break;
     default:
         UG_PutString(120 - 48,40,"Unknown");
@@ -280,6 +286,9 @@ static void _display_update_state_mode3(uint8_t state)
     case EVSE_FAULT:
         /* code */
         UG_PutString(120 - 48,40,"Fault");
+        break;
+    default:
+        UG_PutString(120 - 48,40,"Unknown");
         break;
     }
 }
