@@ -80,6 +80,7 @@ static uint32_t fluid_buffer_green[3*RGB_NUM] = {
     0x000087U, 0x00007DU, 0x000073U, 0x000069U,
     0x00005FU, 0x000055U, 0x00004BU, 0x000041U,
     0x000037U, 0x00002DU, 0x000023U, 0x000019U,
+    0x000010U, 0x000010U, 0x000000U, 0x000000U,
 };
 
 // 蓝灯呼吸
@@ -107,8 +108,10 @@ static void task_entry_rgb_upgrade(void *parameter)
     for(;;){
         switch (evse_state)
         {
-        case EVSE_WAIT_PLUGIN:
         case EVSE_REBOOT:
+            evse_rgb_set_color(COLOR_RGB888_NAVY, 100, 0xFF);
+            break;
+        case EVSE_WAIT_PLUGIN:
         /* 空闲状态 */
         case EVSE_IDLE:     // 蓝灯呼吸
             if(flag == 0)
