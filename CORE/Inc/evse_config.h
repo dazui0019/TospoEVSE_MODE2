@@ -2,6 +2,8 @@
 
 #include "gd32f30x.h"
 
+#define EVSE_SIMPLE_GUIDE       // 是否支持简易导引
+
 /* 功能参数 */
 // #define RFID_ENABLE             // RFID开启    
 #define S1_CK_ENABLE            // S1检测开启
