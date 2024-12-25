@@ -17,6 +17,17 @@ uint8_t Key1_isPressed = false;
 
 static evse_state_t evse_state;
 
+static void task_entry_key_test(void *parameter)
+{
+    for(;;){
+        if(Key0_isPressed == false){
+            Key0_isPressed = true;
+        }
+        bos_delay_ms(100);
+    }
+}
+// bos_task_export(key_test, task_entry_key_test, BOS_MAX_PRIORITY, NULL);
+
 static void task_entry_key_scan(void *parameter)
 {
     // 只有电流改变时，才需要写入闪存
@@ -26,7 +37,12 @@ static void task_entry_key_scan(void *parameter)
     // 当前时间
     __IO uint32_t tick_now = 0;
 
-
+    // 等待充电桩启动
+    while (evse_get_state() == EVSE_REBOOT)
+    {
+        bos_delay_ms(10);
+    }
+    
     for(;;){
         if(Key0_isPressed){
             tick_last = bos_time();
@@ -75,6 +91,7 @@ static void task_entry_key_scan(void *parameter)
                 cur_changed = false;
                 evse_max_current_save();
             }else if((tick_now < tick_last) && (0xFFFFFFFF - tick_last + tick_now) > 1000){ // 溢出处理
+                log_d("tick overflow.");
                 log_d("write to flash.");
                 cur_changed = false;
                 evse_max_current_save();
