@@ -21,6 +21,7 @@ typedef enum{
     EVSE_WAIT_S2_OPEN,  // 充电中刷卡
     EVSE_STOP,          // 充电中刷卡后，汽车S2断开
     EVSE_WAIT_DELAY,    // 等待倒计时结束
+    EVSE_6V_PWM,        // 6vPWM
     EVSE_FAULT,         // 充电故障
 }evse_state_t;
 
@@ -150,3 +151,8 @@ evse_state_t evse_wait_s2_open_handle(cp_state_t);
  * @brief   等待倒计时结束
  */
 evse_state_t evse_wait_delay(cp_state_t cp_state);
+
+/**
+ * @brief   6V_PWM
+ */
+evse_state_t evse_6v_pwm_handle(cp_state_t cp_state);
