@@ -78,7 +78,9 @@ evse_state_t (*state_func[])(cp_state_t) = {
     /* EVSE_SIM_6V,             EVSE_CHARGING,          EVSE_DONE */
     evse_sim_6v_handle,         evse_charging_handle,   evse_done_handle,
     /* EVSE_WAIT_S2_OPEN        EVSE_STOP               EVSE_WAIT_DELAY */
-    evse_wait_s2_open_handle,   evse_stop_handle,       evse_wait_delay
+    evse_wait_s2_open_handle,   evse_stop_handle,       evse_wait_delay,
+    /* EVSE_6V_PWM */
+    evse_6v_pwm_handle
 };
 
 // uint16_t debug_cnt = 0;
@@ -156,20 +158,20 @@ static void task_entry_evse_main(void *parameter)
         if(g_p_cp_buff != NULL){
             cp_val = evse.p_cp->get_cp_vol(g_p_cp_buff, 10);
             evse.p_cp->state = evse.p_cp->get_cp_state((1.2f*(float)cp_val)/(float)g_Vrefint);
-            // log_d("cp_val: %d, cp_vol: %0.2f", evse.p_cp->get_cp_vol(g_p_cp_buff, 10), (1.2f*(float)evse.p_cp->get_cp_vol(g_p_cp_buff, 10))/(float)g_Vrefint);
+            // log_d("cp_val: %d, cp_vol: %0.2f", cp_val, (1.2f*(float)cp_val)/(float)g_Vrefint);
             g_p_cp_buff = NULL;
             if(SUCCESS == evse_error_ck()){
                 evse_state = state_func[evse_state](evse.p_cp->state);
             }else{
                 evse_fault_handle(evse.p_cp->state);  // 检测到错误时, 直接调用错误处理函数(不会修改变量evse_state)
             }
-            // if(debug_cnt++ > 1000){
-                // debug_cnt = 0;
-                // log_d("cp_val: %d", cp_val);
-                // log_d("cp_val: %d, cp_vol: %0.2f", evse.p_cp->get_cp_vol(g_p_cp_buff, 10), (1.2f*(float)evse.p_cp->get_cp_vol(g_p_cp_buff, 10))/(float)g_Vrefint);
+            // if(debug_cnt++ > 100){
+            //     debug_cnt = 0;
+            //     log_d("cp_val: %d", cp_val);
+            //     log_d("cp_val: %d, cp_vol: %0.2f", cp_val, (1.2f*(float)cp_val)/(float)g_Vrefint);
             // }
         }
-        bos_delay_ms(1);
+        bos_delay_ms(5);
     }
 }
 bos_task_export(evse_main, task_entry_evse_main, BOS_MAX_PRIORITY, NULL);
@@ -364,9 +366,7 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     case CP_9V:
         return EVSE_9V;
     case CP_6V:
-        // return EVSE_SIM_6V;
-        return EVSE_CHARGING;
-        // return EVSE_6V;
+        return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -414,9 +414,7 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     case CP_9V:
         return (g_evse_delay != 0) ? EVSE_WAIT_DELAY : EVSE_9V_PWM;
     case CP_6V:
-        // return EVSE_SIM_6V;
-        return EVSE_CHARGING;
-        // return EVSE_6V;
+        return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -467,9 +465,7 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     #endif
         break;
     case CP_6V: // 在未输出PWM的情况下，如果汽车进入CP_6V状态，那么说明是简易导引
-        // return EVSE_SIM_6V;
-        return EVSE_CHARGING;
-        // return EVSE_6V;
+        return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -633,53 +629,10 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
     case CP_9V:
         return EVSE_9V;
     case CP_6V: // 实际上应该不会出现CP_6V但是还没有PWM输出的情况(相当于CP_12V直接进入CP_6V，也就是简易导引)。
-    #if defined(RFID_ENABLE)
-        if(g_rfid_flag == true){
-            if(evse.p_cp->pwm_state == DISABLE){
-                evse.p_cp->pwm_ctrl(ENABLE);
-                evse.p_cp->pwm_state = ENABLE;
-            }
-            g_rfid_flag = false;
-        #if defined(S1_CK_ENABLE)
-            if(SUCCESS == evse_s1_ck()){
-                log_d("s1_ck ok.");
-                return EVSE_CHARGING;
-            }else{
-                log_d("s1_ck error.");
-                break;
-            }
-        #else
-            log_d("skip s1_ck.");
-            return EVSE_CHARGING;
-        #endif
-        }
+    #if defined(EVSE_SIMPLE_GUIDE)
+        return EVSE_6V_PWM;
     #else
-        if(evse.p_cp->pwm_state == DISABLE){
-            evse.p_cp->pwm_ctrl(ENABLE);
-            evse.p_cp->pwm_state = ENABLE;
-        }
-        #if defined(S1_CK_ENABLE)
-            if(SUCCESS == evse_s1_ck()){
-                log_d("s1_ck ok.");
-            }else{
-                s1_lost_flag = true;
-                log_d("s1_ck error.");
-                break;
-            }
-        #if defined(RCD_CK_ENABLE)
-            if(SET == evse_rcd_test()){
-                log_d("rcd ok.");
-            }else{
-                rcd_error_flag = true;
-                log_d("rcd error.");
-                break;
-            }
-        #endif /* RCD_CK_ENABLE */
-            return EVSE_CHARGING;
-        #else
-            log_d("skip s1_ck.");
-            return EVSE_CHARGING;
-        #endif
+        return EVSE_SIM_6V;
     #endif
         break;
     case CP_12V:
@@ -823,28 +776,7 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     case CP_9V:
         break;
     case CP_6V:
-    #if defined(S1_CK_ENABLE)
-        if(SUCCESS == evse_s1_ck()){
-            log_d("s1_ck ok.");
-        }else{
-            s1_lost_flag = true;
-            log_d("s1_ck error.");
-            break;
-        }
-    #if defined(RCD_CK_ENABLE)
-        if(SET == evse_rcd_test()){
-            log_d("rcd ok.");
-        }else{
-            rcd_error_flag = true;
-            log_d("rcd error.");
-            break;
-        }
-    #endif /* RCD_CK_ENABLE */
-        return EVSE_CHARGING;
-    #else
-        log_d("skip s1_ck.");
-        return EVSE_CHARGING;
-    #endif
+        return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -920,7 +852,7 @@ evse_state_t evse_fault_handle(cp_state_t cp_state){
 
 /**
  * @brief   充电桩主动停止充电(充电中刷卡)
- * @note    断开继电器
+ * @note    断开继电器，
  */
 evse_state_t evse_stop_handle(cp_state_t cp_state)
 {
@@ -949,8 +881,7 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     case CP_9V:
         break;
     case CP_6V:
-        // return EVSE_SIM_6V; // 未开启PWM的情况下，不能直接进入到CP_6V
-        return EVSE_CHARGING;
+        return EVSE_6V;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -1001,4 +932,64 @@ evse_state_t evse_wait_s2_open_handle(cp_state_t cp_state)
 
     // return EVSE_WAIT_S2_OPEN;
     return EVSE_STOP;  // 暂时先直接断开继电器
+}
+
+/**
+ * @brief   6V_PWM, 主要是为了支持简易导引模式(开启PWM输出并进入EVSE_CHARGING状态)
+ */
+evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
+{
+    if(evse.evse_state == EVSE_FAULT){    // 从错误中恢复时需要的处理
+        log_i("Return frome EVSE_FAULT.");
+    }
+
+    if(evse.p_cp->pwm_state == DISABLE){
+        evse.p_cp->pwm_ctrl(ENABLE);
+        evse.p_cp->pwm_state = ENABLE;
+    }
+
+    if(evse.evse_state != EVSE_6V_PWM){
+        evse.evse_state = EVSE_6V_PWM;
+        evse_set_state(EVSE_6V_PWM);
+        log_i("EVSE_6V_PWM.");
+    }
+
+    switch (cp_state)
+    {
+    case CP_9V:
+        return EVSE_9V_PWM;
+    case CP_12V:
+        evse_idle_handle_before();
+        return EVSE_IDLE;
+    case CP_ERROR:
+        cp_error_flag = true;
+        break;
+    case CP_6V:
+    #if defined(S1_CK_ENABLE)
+        if(SUCCESS == evse_s1_ck()){
+            log_d("s1_ck ok.");
+        }else{
+            s1_lost_flag = true;
+            log_d("s1_ck error.");
+            break;
+        }
+    #if defined(RCD_CK_ENABLE)
+        if(SET == evse_rcd_test()){
+            log_d("rcd ok.");
+        }else{
+            rcd_error_flag = true;
+            log_d("rcd error.");
+            break;
+        }
+    #endif /* RCD_CK_ENABLE */
+        return EVSE_CHARGING;
+    #else
+        log_d("skip s1_ck.");
+        return EVSE_CHARGING;
+    #endif
+    default:
+        break;
+    }
+
+    return EVSE_6V_PWM;
 }
