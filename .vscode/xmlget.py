@@ -4,8 +4,8 @@ import re
 import os
 import sys
 
-settings_json_path = '.vscode\\settings.json'
-mdk_prj_path = 'MDK-ARM\\mode2.uvprojx'
+settings_json_path = '.vscode/settings.json'
+mdk_prj_path = 'project.uvprojx'
 
 # 检查是否存在.uvprojx文件
 if (len(mdk_prj_path) == 0):
@@ -44,6 +44,12 @@ for path in raw_list:
         compare_flag = False
     else:
         path_list.append(path)
+
+# 如果定义了__RTTHREAD__，则修改path_list，在路径前面添加"..\"
+if "__RTTHREAD__" in define_list:
+    path_list = ["..\\" + path for path in path_list]
+    path_list.append("board")
+    path_list.append(".")
 
 # 检查是否存在settings.json文件
 if os.path.isfile(settings_json_path) != True:
