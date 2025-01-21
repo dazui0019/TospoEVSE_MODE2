@@ -31,6 +31,12 @@
     #define S1_CK_PIN      GPIO_PIN_2
 #endif /* S1_CK_ENABLE */
 
+/**
+ * @brief   充电前检查
+ * @return  0: 检查通过, 1: 车端二极管检测失败, 2: RCD检测失败, 3: 车端二极管检测失败且RCD检测失败
+ */
+static uint8_t evse_check_before_charging(void);
+
 /* 全局变量 */
 extern __IO uint16_t *g_p_cp_buff;  // CP采样数据DMA缓冲区
 extern cp_t g_cp;                   // CP控制句柄
@@ -255,6 +261,7 @@ static ErrStatus evse_error_ck(void)
     return SUCCESS;
 }
 
+#if defined(S1_CK_ENABLE)
 static void s1_ck_init(void)
 {
     rcu_periph_clock_enable(S1_CK_RCU);
@@ -277,6 +284,7 @@ ErrStatus evse_s1_ck(void)
     }
     return ERROR;
 }
+#endif /* S1_CK_ENABLE */
 
 void evse_set_max_current(uint8_t index)
 {
@@ -567,28 +575,24 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     #endif
         break;
     case CP_6V:
-    #if defined(S1_CK_ENABLE)
-        if(SUCCESS == evse_s1_ck()){
-            log_d("s1_ck ok.");
-        }else{
+        switch (evse_check_before_charging())
+        {
+        case 0:
+            return EVSE_CHARGING;
+        case 1:
             s1_lost_flag = true;
-            log_d("s1_ck error.");
             break;
-        }
-    #if defined(RCD_CK_ENABLE)
-        if(SET == evse_rcd_test()){
-            log_d("rcd ok.");
-        }else{
+        case 2:
             rcd_error_flag = true;
-            log_d("rcd error.");
+            break;
+        case 3:
+            s1_lost_flag = true;
+            rcd_error_flag = true;
+            break;
+        default:
             break;
         }
-    #endif /* RCD_CK_ENABLE */
-        return EVSE_CHARGING;
-    #else
-        log_d("skip s1_ck.");
-        return EVSE_CHARGING;
-    #endif /* S1_CK_ENABLE */
+        break;
     case CP_ERROR:
         cp_error_flag = true;
         break;
@@ -965,31 +969,56 @@ evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
         cp_error_flag = true;
         break;
     case CP_6V:
+        switch (evse_check_before_charging())
+        {
+        case 0:
+            return EVSE_CHARGING;
+        case 1:
+            s1_lost_flag = true;
+            break;
+        case 2:
+            rcd_error_flag = true;
+            break;
+        case 3:
+            s1_lost_flag = true;
+            rcd_error_flag = true;
+            break;
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return EVSE_6V_PWM;
+}
+
+static uint8_t evse_check_before_charging(void)
+{
+    uint8_t error_code = 0;
+    
     #if defined(S1_CK_ENABLE)
         if(SUCCESS == evse_s1_ck()){
             log_d("s1_ck ok.");
         }else{
             s1_lost_flag = true;
             log_d("s1_ck error.");
-            break;
         }
+    #else
+        log_d("skip s1_ck.");
+    #endif
+
     #if defined(RCD_CK_ENABLE)
         if(SET == evse_rcd_test()){
             log_d("rcd ok.");
         }else{
             rcd_error_flag = true;
             log_d("rcd error.");
-            break;
         }
-    #endif /* RCD_CK_ENABLE */
-        return EVSE_CHARGING;
     #else
-        log_d("skip s1_ck.");
-        return EVSE_CHARGING;
+        log_d("skip rcd_ck.");
     #endif
-    default:
-        break;
-    }
 
-    return EVSE_6V_PWM;
+    return error_code;
 }
