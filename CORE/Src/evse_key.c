@@ -116,7 +116,7 @@ void EXTI1_IRQHandler(void)
         if(SET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){ Key0_StartTick = getTick(); } // 记录上升沿时刻的Tick值
         else if(RESET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){ // 按键释放后，才算一次完整的按键输入
             Key0_StopTick = getTick();
-            if(SET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){return;}
+            if(SET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){return;} // 防止两个按键(Key0和Key1)同时按下
             if(Key0_StopTick > (Key0_StartTick+50)){
                 Key0_isPressed = true;
             }
@@ -133,7 +133,7 @@ void EXTI2_IRQHandler(void)
         if(SET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){ Key1_StartTick = getTick(); } // 记录上升沿时刻的Tick值
         else if(RESET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){ // 按键释放后，才算一次完整的按键输入
             Key1_StopTick = getTick();
-            if(SET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){return;}
+            if(SET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){return;} // 防止两个按键(Key0和Key1)同时按下
             if(Key1_StopTick > (Key1_StartTick+50)){
                 Key1_isPressed = true;
             }
