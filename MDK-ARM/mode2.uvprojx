@@ -581,6 +581,11 @@
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_timer.c</FilePath>
             </File>
+            <File>
+              <FileName>evse_s1_ck.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_s1_ck.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2226,6 +2231,11 @@
               <FileName>evse_timer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\CORE\Src\evse_timer.c</FilePath>
+            </File>
+            <File>
+              <FileName>evse_s1_ck.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\CORE\Src\evse_s1_ck.c</FilePath>
             </File>
           </Files>
         </Group>

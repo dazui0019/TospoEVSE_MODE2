@@ -70,7 +70,8 @@
         "evse_rcd.h": "c",
         "drv_flash.h": "c",
         "evse_timer.h": "c",
-        "evse_key.h": "c"
+        "evse_key.h": "c",
+        "evse_s1_ck.h": "c"
     },
     "actionButtons": {
         "commands": [
