@@ -8,66 +8,27 @@ typedef enum{
     CP_9V,
     CP_6V,
     CP_ERROR,
-    CP_ERROR_CLEAR,
-    CC_ERROR
 } cp_state_t;
 
 /**
- * CP频率为1KHz(周期1ms)，ADC采样频率30KHz(周期1/30ms)。
- * ADC对一个周期的CP波形，采样30次数据
-*/
-
-#define SAMPLE_NUM      (10)    // 采样次数(SAMPLE_NUM个CP周期)
-#define ADC_TH          (0x30)  // ADC限幅滤波阈值
-
-/* CP输出 */
-#define CP_TIMER        (TIMER2)
-#define CP_TIMER_RCU    (RCU_TIMER2)
-#define CP_TIMER_CH     (TIMER_CH_1)
-#define CP_PORT         (GPIOB)
-#define CP_PIN          (GPIO_PIN_5)
-#define CP_PORT_RCU     (RCU_GPIOB)
-
-#define CK_ADC          ADC0
-#define CK_ADC_RCU      RCU_ADC0
-/* CP检测 */
-#define CK_CP_PORT      GPIOB
-#define CK_CP_RCU       RCU_GPIOB
-#define CK_CP_PIN       GPIO_PIN_1
-
-#define CK_CP_ADC_CH    ADC_CHANNEL_9
-/* 接地检测 */
-#define CK_GND_PORT     GPIOA
-#define CK_GND_RCU      RCU_GPIOA
-#define CK_GND_PIN      GPIO_PIN_6
-
-#define CK_GND_ADC_CH   ADC_CHANNEL_6
-
-// 定义CP电平阈值
-#define CP_12V_TH   4000
-#define CP_9V_TH    2940
-#define CP_6V_TH    2150
-#define CP_OFFSET   100
-
-// 定义CP电压状态
-#define STATE_CP_12V    (1<<0)
-#define STATE_CP_9V     (1<<1)
-#define STATE_CP_6V     (1<<2)
-#define STATE_CP_3V     (1<<3)
-#define STATE_CP_UNK    (1<<4)  // 未知状态
-#define STATE_CP_ERROR  (1<<5)
-
-// 车端二极管检测
-#define S1_CK_PORT     GPIOB
-#define S1_CK_RCU      RCU_GPIOB
-#define S1_CK_PIN      GPIO_PIN_15
+ * @brief   充电桩状态切换事件
+ * @note    用来触发充电桩状态切换
+ */
+typedef enum{
+    EVENT_CP_NONE,
+    EVENT_CP_12V,
+    EVENT_CP_9V,
+    EVENT_CP_6V,
+    EVENT_CP_LOST,
+    EVENT_CP_ERROR,
+}cp_event_t;
 
 /**
  * @brief   PWM输出状态标志
  */
 typedef enum{
-    CP_PWM = 0,
-    CP_HIGH
+    PWM_ENABLE = 0,
+    PWM_DISABLE
 }out_state_t;
 
 /**
@@ -85,12 +46,14 @@ typedef struct{
     // todo: 添加互斥锁(更新cp状态时可能需要上锁)
     __IO uint8_t current;                   // 记录最大输出电流
     __IO cp_state_t state;                  // 记录CP状态
-    __IO out_state_t pwm_state;             // 记录PWM输出状态
+    __IO ControlStatus pwm_state;           // 记录PWM输出状态
     __IO uint8_t ck_state;                  // 记录电平检测是否开启
     void (*init)(uint32_t f);               // 初始化
     uint8_t (*set_cur)(uint8_t);            // 设置最大电流
     void (*pwm_ctrl)(ControlStatus status); // 控制PWM输出
     void (*ck_ctrl)(ControlStatus status);  // CP电压检测控制
+    uint16_t (*get_cp_vol)(__IO uint16_t pBuff[], uint16_t length);
+    cp_state_t (*get_cp_state)(float vol);
 }cp_t;
 
 /**
@@ -102,7 +65,7 @@ void cp_check_init(void);
  * @param   f PWM频率, 单位Hz(2 - 1000000)
  * @note    TIMERxCLK(TIMERx_CK/PSC)固定为1000 000Hz(1MHz), 通过这个算出PSC寄存器的数值
 */
-void cp_init(uint32_t f);
+void cp_pwm_init(uint32_t f);
 /**
  * @brief   PWM输出控制
  * @param   status:
@@ -145,10 +108,6 @@ int32_t abs(int32_t x);
 */
 void quickSort(uint16_t arr[], int low, int high);
 
-/* CP状态机 */
-cp_state_t cp_state_reboot(uint16_t vol);
-cp_state_t cp_state_12V(uint16_t vol);
-cp_state_t cp_state_9V(uint16_t vol);
-cp_state_t cp_state_6V(uint16_t vol);
-cp_state_t cp_state_error(uint16_t vol);
-cp_state_t cp_state_err_clear(uint16_t vol);
+uint16_t get_cp_vol(__IO uint16_t pBuff[][2], uint16_t length);
+uint16_t get_gnd_vol(__IO uint16_t pBuff[][2], uint16_t length);
+cp_state_t get_cp_state(float vol);

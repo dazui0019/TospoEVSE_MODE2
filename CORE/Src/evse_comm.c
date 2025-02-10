@@ -1,27 +1,37 @@
 /**
  * @file        evse_comm.c
- * @brief       与LCD板通信的串口驱动
+ * @brief       与LCD板通信的串口驱动, 任务void task_entry_comm(void *parameter)用于串口接收。
  */
 #include "evse_comm.h"
 #include "lwrb.h"
 #include "basic_os.h"
 #include "EventRecorder.h"
 #include "crc16.h"
+#include "fifo.h"
 
 #define LOG_TAG "evse.comm"
 #include "elog.h"
 
-#define COMM_BUFF_LENGTH   64
+/* 存放卡号(可以存放10张卡) */
+__attribute__((used)) static uint8_t card_id[10][4] = {{ 0xAA, 0xBB, 0xCC, 0xDD },};
 
+#define COMM_BUFF_LENGTH   64
 /* ring buffer for uart */
 static lwrb_t uart_rb;
 static uint8_t lwrb_buffer[COMM_BUFF_LENGTH]  = { 0x00 };
 
+#define SEND_BUFFER_LENGTH 256
+static fifo_s_t send_fifo;
+static uint8_t fifo_buffer[SEND_BUFFER_LENGTH];
+
 /* 中断标志位 */
-__IO static uint8_t rx_cplt_flag = false;
+static __IO uint8_t rx_cplt_flag = false;
+
+/* 全局变量 */
+__IO uint8_t g_rfid_flag = false;
 
 /* DMA缓冲区 */
-uint8_t meter_buff[COMM_BUFF_LENGTH];
+uint8_t receive_buffer[COMM_BUFF_LENGTH];
 
 /**
  * @brief       启动串口DMA接收，并开启串口空闲中断；DMA开启全满和半满中断。
@@ -30,7 +40,9 @@ void evse_comm_init(void)
 {
     lwrb_init(&uart_rb, lwrb_buffer, COMM_BUFF_LENGTH);
     gd_usart_init(COM2, 9600);
-    dma_rx_config(COM2, (uint32_t)meter_buff, COMM_BUFF_LENGTH);
+    dma_rx_config(COM2, (uint32_t)receive_buffer, COMM_BUFF_LENGTH);
+
+    fifo_s_init(&send_fifo, fifo_buffer, 256);
 
     usart_flag_clear(USART2, USART_FLAG_TC);
     nvic_irq_enable(USART2_IRQn, 4, 0);
@@ -47,15 +59,15 @@ void evse_comm_init(void)
  * @param[in] {pack_len} 计算校验和长度
  * @return 校验和
  */
-uint8_t get_check_sum(uint8_t pack[], uint16_t pack_len)
+uint8_t evse_comm_check_sum(uint8_t pack[], uint16_t pack_len)
 {
     uint16_t i;
-    uint8_t check_sum = 0;
+    uint16_t check_sum = 0;
     
     for(i = 0; i < pack_len; i ++) {
         check_sum += *pack ++;
     }
-    
+    check_sum &= 0x00FF;    // 舍弃进位部分, 只保留低8位
     return check_sum;
 }
 
@@ -67,56 +79,62 @@ uint8_t get_check_sum(uint8_t pack[], uint16_t pack_len)
  */
 uint8_t evse_comm_ui_update(uint8_t cmd, uint8_t arg_int, void *arg_ptr)
 {
+    return 0;
     float f_kwh;
     uint16_t s_kwh;
     /* 帧缓冲区 */
-    uint8_t frame_buff[FRAME_LEN_MAX] = {0x5A};
+    uint8_t frame_buff[FRAME_LEN_MAX] = {0x5A}; // 帧头0x5A
     
     switch (cmd)
     {
     case FUNC_CODE_UPDATE_ERR:
-        frame_buff[1] = FUNC_CODE_UPDATE_ERR;   // 功能码
-        frame_buff[2] = 0x01;                   // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_ERR;   // 功能码
+        // frame_buff[2] = 0x01;                   // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_CHG:
-        frame_buff[1] = FUNC_CODE_UPDATE_CHG;   // 功能码
-        frame_buff[2] = 0x01;                   // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_CHG;   // 功能码
+        // frame_buff[2] = 0x01;                   // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_DELAY:
-        frame_buff[1] = FUNC_CODE_UPDATE_DELAY; // 功能码
-        frame_buff[2] = 0x01;                   // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_DELAY; // 功能码
+        // frame_buff[2] = 0x01;                   // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_CURRENT:
-        frame_buff[1] = FUNC_CODE_UPDATE_CURRENT;   // 功能码
-        frame_buff[2] = 0x01;                       // payload长度
-        frame_buff[3] = arg_int;
-        frame_buff[4] = get_check_sum(frame_buff, 4);
-        frame_buff[5] = 0x55;
-        UART_Transmit(USART2, frame_buff, 6);
+        // frame_buff[1] = FUNC_CODE_UPDATE_CURRENT;   // 功能码
+        // frame_buff[2] = 0x01;                       // payload长度
+        // frame_buff[3] = arg_int;
+        // frame_buff[4] = evse_comm_check_sum(frame_buff, 4);
+        // frame_buff[5] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 6);
+        // fifo_s_puts(&send_fifo, frame_buff, 6);
         break;
     case FUNC_CODE_UPDATE_KWH:
-        f_kwh = *(float*)arg_ptr;
-        s_kwh = (uint16_t)(f_kwh*10);
+        // f_kwh = *(float*)arg_ptr;
+        // s_kwh = (uint16_t)(f_kwh*10);
     
-        frame_buff[1] = FUNC_CODE_UPDATE_KWH;   // 功能码
-        frame_buff[2] = 0x02;                   // payload长度
-        frame_buff[3] = ((uint16_t)s_kwh) >> 8;
-        frame_buff[4] = ((uint16_t)s_kwh)&0x00FF;
-        frame_buff[5] = get_check_sum(frame_buff, 5);
-        frame_buff[6] = 0x55;
-        UART_Transmit(USART2, frame_buff, 7);
+        // frame_buff[1] = FUNC_CODE_UPDATE_KWH;   // 功能码
+        // frame_buff[2] = 0x02;                   // payload长度
+        // frame_buff[3] = ((uint16_t)s_kwh) >> 8;
+        // frame_buff[4] = ((uint16_t)s_kwh)&0x00FF;
+        // frame_buff[5] = evse_comm_check_sum(frame_buff, 5);
+        // frame_buff[6] = 0x55;
+        // UART_Transmit(USART2, frame_buff, 7);
+        // fifo_s_puts(&send_fifo, frame_buff, 7);
         break;
     default:
         log_e("unknown cmd: 0x%02X.", cmd);
@@ -141,7 +159,7 @@ void COMM_RxEventCallback(uint32_t Size, uint16_t it_source)
 
     Rx_length = Size - dma_buf_pos;
 
-    lwrb_write(&uart_rb, meter_buff+dma_buf_pos, (lwrb_sz_t)Rx_length);
+    lwrb_write(&uart_rb, receive_buffer+dma_buf_pos, (lwrb_sz_t)Rx_length);
 
     if(it_source == S_UART)
         rx_cplt_flag = true; // 空闲中断或者超时中断表示一帧结束
@@ -185,6 +203,14 @@ void DMA0_Channel2_IRQHandler(){
     }
 }
 
+static uint8_t evse_rfid_process(const uint8_t id[4])
+{
+    for(int i = 0; i < 10; i++){
+        if(0 == memcmp(id, card_id[i], 4)) return 0;
+    }
+    return 1;
+}
+
 void evse_key_process(uint8_t key_val)
 {
     switch (key_val)
@@ -207,40 +233,67 @@ void evse_key_process(uint8_t key_val)
     };
 }
 
-static void task_entry_comm(void *parameter)
+// todo: 处理fifo中需要发送的数据(还没使用)
+void evse_comm_send_handle(void)
+{
+    uint8_t frame_buff[FRAME_LEN_MAX];
+    uint8_t data_temp;
+    if(fifo_s_isempty(&send_fifo) == 1){return;}
+
+    // 如果发送队列不为空则发送
+    if((data_temp = fifo_s_get(&send_fifo)) == 0x5A){
+        ;
+    }
+}
+
+static void task_entry_comm_receive(void *parameter)
 {
     /* 初始化LCD板通信串口 */
     evse_comm_init();
     uint8_t frame[FRAME_LEN_MAX];
     uint8_t rx_length;
+
     for(;;){
-        if(rx_cplt_flag){
-            EventStartA(1);
-            rx_cplt_flag = false;
-            rx_length = lwrb_get_full(&uart_rb);    // 直接将ring buffer已使用的长度作为本次串口接收的长度, 不太可靠需要优化
-            lwrb_read(&uart_rb, frame, rx_length);
-            /* 检查帧头和帧尾 */
-            if(0x5A == frame[0] &&  0x55 == frame[rx_length-1]){
+        bos_delay_ms(10);
+        if(true != rx_cplt_flag)
+            continue;
+        
+        EventStartA(1);
+        rx_cplt_flag = false;
+        rx_length = lwrb_get_full(&uart_rb);    // todo: 这里是直接将ring buffer已使用的长度作为本次串口接收的长度, 不太可靠, 需要优化
+        lwrb_read(&uart_rb, frame, rx_length);
+        log_d("rx_length: %d.", rx_length);
+        /* 检查帧头*/
+        if(0xAA == frame[0] &&  0x55 == frame[1]){
+            /* 检查数据长度 */
+            // todo: 这里不应该是检查长度，而是要通过数据帧里的第四位来截取缓冲区里当前帧的数据。
+            if(frame[3] == (rx_length - 5)){
                 /* 检查校验位 */
-                if(get_check_sum(frame, rx_length-2) != frame[rx_length-2]){ // rx_length减去校验位本身和帧尾长度
-                    log_e("checksum error: 0x%02X, should be: 0x%02X.", frame[rx_length-2], get_check_sum(frame, rx_length-2));
+                if(evse_comm_check_sum(frame, rx_length-1) != frame[rx_length-1]){ // rx_length减去校验位本身和帧尾长度
+                    log_e("checksum error: 0x%02X, should be: 0x%02X.", frame[rx_length-1], evse_comm_check_sum(frame, rx_length-1));
                     continue;
                 }
-                log_d("code: 0x%02X.", frame[1]);
-                switch (frame[1])
+                /* 处理帧数据 */
+                switch (frame[2])
                 {
                 case 0x3A:
                     evse_key_process(frame[3]);
                     break;
-                default:
-                    log_e("code: 0x%02X.", frame[1]);
+                case 0x28:
+                    evse_rfid_process(frame+4) == 0 ? g_rfid_flag = true : log_d("rfid error.");
                     break;
+                default:// 未知命令
+                    log_e("code: 0x%02X.", frame[1]);
+                    continue;
                 }
+            }else{  // 数据长度错误
+                log_e("frame length error: %d, should be: %d.", rx_length, frame[3]+5);
+                continue;
             }
-            EventStopA(1);
-            continue;
-        }else
-            bos_delay_ms(1);
+        }else{  // 帧头错误
+            log_e("frame head error: 0x%02X, 0x%02X.", frame[0], frame[1]);
+        }
+        EventStopA(1);
     }
 }
-bos_task_export(lcd_comm, task_entry_comm, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(comm_receive, task_entry_comm_receive, BOS_MAX_PRIORITY, NULL);

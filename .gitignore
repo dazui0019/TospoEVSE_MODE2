@@ -3,9 +3,8 @@
 /MDK-ARM/elf/*
 /MDK-ARM/Objects/*
 !/MDK-ARM/Objects/*.sct
-/MDK-ARM/Objects/*
 /MDK-ARM/mode2.uvguix*
 /MDK-ARM/*.scvd
 !/MDK-ARM/mode2.uvprojx
 /build/*
-MDK-ARM/build_log/*
+/MDK-ARM/build_log/*

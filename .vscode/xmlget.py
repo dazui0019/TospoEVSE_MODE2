@@ -4,8 +4,8 @@ import re
 import os
 import sys
 
-settings_json_path = '.vscode\settings.json'
-mdk_prj_path = 'MDK-ARM\mode2.uvprojx'
+settings_json_path = '.vscode/settings.json'
+mdk_prj_path = 'project.uvprojx'
 
 # 检查是否存在.uvprojx文件
 if (len(mdk_prj_path) == 0):
@@ -26,9 +26,11 @@ else:
 
 # 获取 Include Path
 if(IncludePath != None):
-    raw_list = re.findall(r'(?<=\.\.\\)[^;]+', IncludePath) # 这样提取出来后是一个list
+    raw_list = re.findall(r'(?:\.{2}|\\)[\\/]([^;]+)(?:;|$)', IncludePath) # 这样提取出来后是一个list
 else:
     raw_list = []
+
+print(raw_list)
 
 compare_flag = False
 path_list = []
@@ -43,12 +45,18 @@ for path in raw_list:
     else:
         path_list.append(path)
 
+# 如果定义了__RTTHREAD__，则修改path_list，在路径前面添加"..\"
+if "__RTTHREAD__" in define_list:
+    path_list = ["..\\" + path for path in path_list]
+    path_list.append("board")
+    path_list.append(".")
+
 # 检查是否存在settings.json文件
 if os.path.isfile(settings_json_path) != True:
     print("'settings.json' does not exist.")
     sys.exit(0)
 
-with open(settings_json_path, "r") as json_file:
+with open(settings_json_path, "r", encoding='utf-8') as json_file:
     json_raw = json.load(json_file) # 将Json文件读取为Python对象
 
 # 删除原来的 includePath 和 defines
@@ -62,7 +70,7 @@ json_raw['C_Cpp.default.includePath'] = path_list
 json_raw['C_Cpp.default.defines'] = define_list
 
 # 将修改保存到文件
-with open(settings_json_path, "w") as json_file:
+with open(settings_json_path, "w", encoding='utf-8') as json_file:
     json.dump(json_raw, json_file, indent=4)
 
 print("Done.")

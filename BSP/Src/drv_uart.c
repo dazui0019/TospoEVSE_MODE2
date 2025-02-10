@@ -2,7 +2,7 @@
 #include "drv_uart.h"
 #include "gd32f30x_usart.h"
 #include "printf.h"
-#include "delay.h"
+#include "drv_delay.h"
 
 /* private variables */
 //                                                     USART0               USART1              USART2              UART3               };
@@ -122,7 +122,7 @@ void gd_usart_rx_init(GD_COMxTypedef com_num, uint32_t baudval)
     rcu_periph_clock_enable(USART_CLK[com_num]);
 
     /* connect port to USARTx_Rx */
-    gpio_init(USART_PORT[com_num], GPIO_MODE_IN_FLOATING, GPIO_OSPEED_50MHZ, USART_PIN_RX[com_num]);
+    gpio_init(USART_PORT[com_num], GPIO_MODE_IPU, GPIO_OSPEED_50MHZ, USART_PIN_RX[com_num]);
 
     /* configure USART */
     usart_deinit(USARTx[com_num]);
