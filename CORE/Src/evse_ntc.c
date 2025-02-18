@@ -8,15 +8,15 @@
 #include "elog.h"
 
 /* 板载NTC(NTC0) */
-#define ON_BOARD_NTC_PORT       GPIOB
-#define ON_BOARD_NTC_PORT_RCU   RCU_GPIOB
-#define ON_BOARD_NTC_PIN        GPIO_PIN_0
-#define ON_BOARD_NTC_ADC_CH     ADC_CHANNEL_8
+#define ON_BOARD_NTC_PORT       GPIOC
+#define ON_BOARD_NTC_PORT_RCU   RCU_GPIOC
+#define ON_BOARD_NTC_PIN        GPIO_PIN_1
+#define ON_BOARD_NTC_ADC_CH     ADC_CHANNEL_11
 /* 电源插头NTC(NTC1) */
 #define PLUG_NTC_PORT           GPIOC
 #define PLUG_NTC_PORT_RCU       RCU_GPIOC
-#define PLUG_NTC_PIN            GPIO_PIN_5
-#define PLUG_NTC_ADC_CH         ADC_CHANNEL_15
+#define PLUG_NTC_PIN            GPIO_PIN_2
+#define PLUG_NTC_ADC_CH         ADC_CHANNEL_12
 
 /**
  * @brief   温度采集通道
@@ -115,7 +115,7 @@ static void task_entry_ntc_sample(void *parameter)
     /* 等待充电桩主任务完成初始化 */
     while (evse_get_state() == EVSE_REBOOT)
     {
-        bos_delay_ms(10);
+        bos_delay_ms(100);
     }
 
     for(;;){
@@ -135,7 +135,7 @@ static void task_entry_ntc_sample(void *parameter)
             g_overheat_flag = false;
             log_i("clear overheat flag: %d", ob_ntc);
         }
-        bos_delay_ms(100);
+        bos_delay_ms(1000);
     }
 }
 bos_task_export(ntc_sample, task_entry_ntc_sample, BOS_MAX_PRIORITY, NULL);
