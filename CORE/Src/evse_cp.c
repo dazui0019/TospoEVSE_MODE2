@@ -136,7 +136,7 @@ void cp_pwm_init(uint32_t f)
     timer_enable(CP_TIMER);
 
     /* CP电平检测初始化 */
-    // cp_check_init();
+    cp_check_init();
 }
 
 /**
@@ -157,6 +157,13 @@ void TIMER1_IRQHandler(void)
     /* TIMER1只开了一个中断，所以就不判断了 */
     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
     TIMER_INTF(TIMER1) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
+}
+
+void TIMER0_UP_IRQHandler(void)
+{
+    /* TIMER0只开了一个中断，所以就不判断了 */
+    ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
+    TIMER_INTF(TIMER0) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
 }
 
 /**
@@ -493,16 +500,15 @@ void task_entry_cp_test(void *parameter)
     g_cp.init(1000);    // CP输出和检测初始化
     g_cp.set_cur(17);   // 设置最大电流
     g_cp.pwm_ctrl(ENABLE);
-    // g_cp.ck_ctrl(ENABLE);
-    // cp_pwm_init(1000);
+    g_cp.ck_ctrl(ENABLE);
     for(;;){
-        // if(g_p_cp_buff != NULL){
-        //     vol = get_voltage(g_p_cp_buff, 10);
-        //     log_i("vol: %d", vol);
-        //     g_p_cp_buff = NULL;
-        // }
-        log_i("EVSE.");
-        bos_delay_ms(500);
+        if(g_p_cp_buff != NULL){
+            vol = get_voltage(g_p_cp_buff, 10);
+            log_i("vol: %d", vol);
+            g_p_cp_buff = NULL;
+        }
+        // log_i("EVSE.");
+        bos_delay_ms(1);
     }
 }
-bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);
