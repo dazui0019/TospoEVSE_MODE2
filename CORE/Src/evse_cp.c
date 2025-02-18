@@ -13,12 +13,12 @@
 #define ADC_TH          (0x30)  // ADC限幅滤波阈值
 
 /* CP输出 */
-#define CP_TIMER        (TIMER1)
-#define CP_TIMER_RCU    (RCU_TIMER1)
-#define CP_TIMER_CH     (TIMER_CH_1)
-#define CP_TIMER_IRQ    (TIMER1_IRQn)
+#define CP_TIMER        (TIMER0)
+#define CP_TIMER_RCU    (RCU_TIMER0)
+#define CP_TIMER_CH     (TIMER_CH_0)
+#define CP_TIMER_IRQ    (TIMER0_UP_IRQn)
 #define CP_PORT         (GPIOA)
-#define CP_PIN          (GPIO_PIN_1)
+#define CP_PIN          (GPIO_PIN_8)
 #define CP_PORT_RCU     (RCU_GPIOA)
 #define CP_PWM_MODE     (TIMER_OC_MODE_PWM1)
 #define CK_ADC          ADC2
@@ -108,8 +108,12 @@ void cp_pwm_init(uint32_t f)
     timer_init(CP_TIMER, &timer_initpara);
 
     /* configurate CHx in PWM modex */
-    timer_ocintpara.ocpolarity  = TIMER_OC_POLARITY_HIGH;
-    timer_ocintpara.outputstate = TIMER_CCX_ENABLE;
+    timer_ocintpara.outputstate  = TIMER_CCX_ENABLE;
+    timer_ocintpara.outputnstate = TIMER_CCXN_DISABLE;
+    timer_ocintpara.ocpolarity   = TIMER_OC_POLARITY_HIGH;
+    timer_ocintpara.ocnpolarity  = TIMER_OCN_POLARITY_HIGH;
+    timer_ocintpara.ocidlestate  = TIMER_OC_IDLE_STATE_LOW;
+    timer_ocintpara.ocnidlestate = TIMER_OCN_IDLE_STATE_LOW;    
     timer_channel_output_config(CP_TIMER, CP_TIMER_CH, &timer_ocintpara);
 
     timer_update_event_enable(CP_TIMER);                                  // 配置TIMERx_CTL0的UPDIS
@@ -117,11 +121,11 @@ void cp_pwm_init(uint32_t f)
     timer_update_source_config(CP_TIMER, TIMER_UPDATE_SRC_GLOBAL);        // 配置TIMERx_CTL0的UPS
 
     /* TIMERx channelx duty cycle = (((TIMER_CAR(CP_TIMER)+1)/20)/ TIMER_CAR(CP_TIMER))* 100  = 5% */    
-    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, CP_PWM_MODE);        // 先输出低电平
-    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 950); //
-    timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_ENABLE);  // 使能CHxCV寄存器的影子寄存器
+    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_HIGH);    // 先输出高电平
+    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 500); //
+    timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_DISABLE);  // 使能CHxCV寄存器的影子寄存器
 
-    timer_primary_output_config(CP_TIMER, DISABLE);
+    timer_primary_output_config(CP_TIMER, ENABLE);  // 只有TIMER0和TIMER7需要配置这个
     /* auto-reload preload enable */
     timer_auto_reload_shadow_enable(CP_TIMER);
 
@@ -132,7 +136,7 @@ void cp_pwm_init(uint32_t f)
     timer_enable(CP_TIMER);
 
     /* CP电平检测初始化 */
-    cp_check_init();
+    // cp_check_init();
 }
 
 /**
@@ -253,10 +257,12 @@ void DMA1_Channel3_4_IRQHandler(void)
 void pwm_ctrl(ControlStatus status){
     switch(status){
     case ENABLE:
-        cp_enable();
+        // cp_enable();
+        timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, CP_PWM_MODE);
         break;
     case DISABLE:
-        cp_disable();
+        // cp_disable();
+        timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_DISABLE);
         break;
     default:
         break;
@@ -553,14 +559,16 @@ void task_entry_cp_test(void *parameter)
     g_cp.init(1000);    // CP输出和检测初始化
     g_cp.set_cur(17);   // 设置最大电流
     g_cp.pwm_ctrl(ENABLE);
-    g_cp.ck_ctrl(ENABLE);
+    // g_cp.ck_ctrl(ENABLE);
+    // cp_pwm_init(1000);
     for(;;){
-        if(g_p_cp_buff != NULL){
-            vol = get_voltage(g_p_cp_buff, 10);
-            log_i("vol: %d", vol);
-            g_p_cp_buff = NULL;
-        }
-        bos_delay_ms(1);
+        // if(g_p_cp_buff != NULL){
+        //     vol = get_voltage(g_p_cp_buff, 10);
+        //     log_i("vol: %d", vol);
+        //     g_p_cp_buff = NULL;
+        // }
+        log_i("EVSE.");
+        bos_delay_ms(500);
     }
 }
 // bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);
