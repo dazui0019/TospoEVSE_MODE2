@@ -257,76 +257,10 @@ void DMA1_Channel3_4_IRQHandler(void)
 void pwm_ctrl(ControlStatus status){
     switch(status){
     case ENABLE:
-        // cp_enable();
         timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, CP_PWM_MODE);
         break;
     case DISABLE:
-        // cp_disable();
         timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_DISABLE);
-        break;
-    default:
-        break;
-    }
-}
-
-/**
- * @brief   开启PWM输出
- * @note    参考timer_channel_output_mode_config()函数
-*/
-void cp_enable(void)
-{
-    switch(CP_TIMER_CH){
-    /* configure TIMER_CH_0 */
-    case TIMER_CH_0:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH0COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)CP_PWM_MODE;
-        break;
-    /* configure TIMER_CH_1 */
-    case TIMER_CH_1:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH1COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)((uint32_t)(CP_PWM_MODE) << 8U);
-        break;
-    /* configure TIMER_CH_2 */
-    case TIMER_CH_2:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH2COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)CP_PWM_MODE;
-        break;
-    /* configure TIMER_CH_3 */
-    case TIMER_CH_3:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH3COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)((uint32_t)(CP_PWM_MODE) << 8U);
-        break;
-    default:
-        break;
-    }
-}
-
-/**
- * @brief   关闭PWM输出(强制输出高电平)
- * @note    参考timer_channel_output_mode_config()函数
-*/
-void cp_disable(void)
-{
-    switch(CP_TIMER_CH){
-    /* configure TIMER_CH_0 */
-    case TIMER_CH_0:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH0COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_HIGH;
-        break;
-    /* configure TIMER_CH_1 */
-    case TIMER_CH_1:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH1COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_HIGH) << 8U);
-        break;
-    /* configure TIMER_CH_2 */
-    case TIMER_CH_2:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH2COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_HIGH;
-        break;
-    /* configure TIMER_CH_3 */
-    case TIMER_CH_3:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH3COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_HIGH) << 8U);
         break;
     default:
         break;
@@ -571,4 +505,4 @@ void task_entry_cp_test(void *parameter)
         bos_delay_ms(500);
     }
 }
-// bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);
+bos_task_export(evse_cp, task_entry_cp_test, BOS_MAX_PRIORITY, NULL);
