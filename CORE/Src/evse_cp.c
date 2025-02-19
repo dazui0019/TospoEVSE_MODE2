@@ -40,14 +40,6 @@
 #define CP_6V_TH    1.4f    // 1.4V
 #define CP_OFFSET   0.24f   // 0.26V
 
-// 定义CP电压状态
-#define STATE_CP_12V    (1<<0)
-#define STATE_CP_9V     (1<<1)
-#define STATE_CP_6V     (1<<2)
-#define STATE_CP_3V     (1<<3)
-#define STATE_CP_UNK    (1<<4)  // 未知状态
-#define STATE_CP_ERROR  (1<<5)
-
 extern __IO uint16_t g_Vrefint;  // 芯片内部1.2V参考电压的 ADC 原始值
 uint16_t gnd_base = 0;
 
@@ -65,7 +57,7 @@ const static uint16_t duty_table[] = {
 
 cp_t g_cp = {
     .pwm_state  = DISABLE,
-    .ck_state   = CK_OFF,
+    .ck_state   = DISABLE,
     .state      = CP_INIT,
     .init       = cp_pwm_init,
     .set_cur    = cp_cur_set,
@@ -264,10 +256,10 @@ void DMA1_Channel3_4_IRQHandler(void)
 void pwm_ctrl(ControlStatus status){
     switch(status){
     case ENABLE:
-        timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, CP_PWM_MODE);
+        timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, CP_PWM_MODE);
         break;
     case DISABLE:
-        timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_DISABLE);
+        timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_HIGH);
         break;
     default:
         break;
@@ -337,62 +329,6 @@ void ck_ctrl(ControlStatus status){
     default:
         break;
     }
-}
-
-uint16_t get_cp_vol(__IO uint16_t pBuff[][2], uint16_t length)
-{
-    static uint16_t voltage;
-    uint16_t temp = 0;
-    uint32_t sum = 0, count = 0;
-    uint16_t temp_buff[SAMPLE_NUM] = {0};
-
-    /* 检测CP */
-    /**
-     * 在采样数据中找到第一个大于100的数(正常的ADC_RAW值会大于2000)，赋值给temp，作为滤波器的初始值。
-     * 这一步是为了防止temp设置过小，导致滤波结果不准确。
-    */
-    for(uint32_t i = 0; i < (length-1); i++){
-        if(abs(pBuff[i][0] - pBuff[i+1][0]) <= ADC_TH){
-            temp = pBuff[i][0];
-            if (temp > 100){
-                break;
-            }
-        }
-    }
-
-    for(uint32_t i = 0; i < length; i++){
-        if(abs((int32_t)(pBuff[i][0] - temp)) <= ADC_TH){
-            sum += pBuff[i][0];
-            temp = pBuff[i][0];
-            temp_buff[i] = pBuff[i][0];
-            count++;
-        }
-    }
-
-    if(count >= (length/2))  // 如果求和数量太少的话(小于一半), 本次计算出来的数据可信度就会比较低，因此直接忽略
-        voltage = (uint16_t)(sum/count);
-
-    return voltage;
-}
-
-uint16_t get_gnd_vol(__IO uint16_t pBuff[][2], uint16_t length)
-{
-    static uint16_t voltage;
-    uint16_t base_voltage;
-    uint16_t temp = 0;
-    uint32_t sum = 0, count = 0;
-
-    for(uint32_t i = 0; i < length; i++){
-        sum += pBuff[i][1];
-    }
-    base_voltage = (uint16_t)(sum/length);
-
-    for(uint32_t i = 0; i < length; i++){
-        voltage += abs((int32_t)pBuff[i][1]-(int32_t)base_voltage);
-    }
-    voltage /= length;
-
-    return voltage;
 }
 
 /**
