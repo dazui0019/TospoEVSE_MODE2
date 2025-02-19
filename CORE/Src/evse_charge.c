@@ -87,13 +87,13 @@ static void task_entry_evse_main(void *parameter)
 {
     uint16_t cp_val = 0;                       // CP电平和接地检测的ADC Raw值。
 
-    evse_state_t evse_state;
+    evse_state_t evse_state = EVSE_REBOOT;
 
     log_i("EVSE_REBOOT.");
     
     /* 初始化继电器 */
     evse_relay_init();
-    evse.evse_relay_ctrl(open);
+    evse_relay_ctrl(open);
 
     /* 获取内部1.2V基准电压的ADC值 */
     adc_verf_config();
@@ -140,7 +140,7 @@ static void task_entry_evse_main(void *parameter)
     #endif
 
     /* 初始化按键 */
-    evse_key_init();
+    // evse_key_init();
 
     bos_delay_ms(4000); // 电流互感器上电会有一个比较大的值，需要延时一下(等它上电完成)
 
