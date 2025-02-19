@@ -50,6 +50,7 @@ extern __IO uint8_t rcd_error_flag;     // rcd自检失败
 __IO uint8_t cp_lost_flag = false;      // cp丢失
 __IO uint8_t cp_error_flag = false;     // cp电平故障
 __IO uint8_t s1_lost_flag = false;      // s1二极管缺失
+__IO uint8_t adh_error_flag = false;    // 粘连检测标志
 
 // 掉电保存的配置信息
 static evse_cfg_t evse_cfg;
@@ -140,7 +141,7 @@ static void task_entry_evse_main(void *parameter)
     #endif
 
     /* 初始化按键 */
-    // evse_key_init();
+    evse_key_init();
 
     bos_delay_ms(4000); // 电流互感器上电会有一个比较大的值，需要延时一下(等它上电完成)
 
@@ -153,6 +154,7 @@ static void task_entry_evse_main(void *parameter)
     evse.evse_relay_ctrl(open);
     bos_delay_ms(200);
     if(evse_ac_adh_ck() == ERROR){
+        adh_error_flag = true;
         log_d("ADH error.");
     }else{
         log_d("ADH success.");
@@ -711,6 +713,7 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
         // 粘连检测
         bos_delay_ms(150);
         if(evse_ac_adh_ck() == ERROR){
+            adh_error_flag = true;
             log_d("ADH error.");
         }else{
             log_d("ADH success.");

@@ -6,7 +6,7 @@
 
 /* 功能参数 */
 // #define RFID_ENABLE             // RFID开启    
-#define S1_CK_ENABLE            // S1检测开启
+// #define S1_CK_ENABLE            // S1检测开启
 // #define CUR_ERR_CAN_BE_CLEAR    // 过流警告可以被清除
 #define RCD_CK_ENABLE           // RCD检测开启
 
