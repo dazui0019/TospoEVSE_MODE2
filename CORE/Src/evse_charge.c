@@ -144,6 +144,20 @@ static void task_entry_evse_main(void *parameter)
 
     bos_delay_ms(4000); // 电流互感器上电会有一个比较大的值，需要延时一下(等它上电完成)
 
+    // 初始化完成
+    evse.evse_state = EVSE_IDLE;
+    evse_state = EVSE_IDLE;
+    evse.inited = true;
+    
+    // 粘连检测
+    evse.evse_relay_ctrl(open);
+    bos_delay_ms(200);
+    if(evse_ac_adh_ck() == ERROR){
+        log_d("ADH error.");
+    }else{
+        log_d("ADH success.");
+    }
+
     for(;;){
         // 先检测一下错误标志
         if(g_p_cp_buff != NULL){
@@ -654,6 +668,8 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     switch (cp_state)
     {
     case CP_9V:
+        evse.evse_relay_ctrl(open);
+        evse.relay_state = open;
         return EVSE_DONE;
     case CP_12V:
         cp_lost_flag = true;
@@ -692,6 +708,13 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     }
 
     if(evse.evse_state != EVSE_DONE){
+        // 粘连检测
+        bos_delay_ms(150);
+        if(evse_ac_adh_ck() == ERROR){
+            log_d("ADH error.");
+        }else{
+            log_d("ADH success.");
+        }
         evse_set_state(EVSE_DONE);
         log_i("EVSE_DONE.");
     }
