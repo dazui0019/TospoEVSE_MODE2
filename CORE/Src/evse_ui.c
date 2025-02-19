@@ -1,5 +1,5 @@
 #include "evse_ui.h"
-#include "GC9A01.h"
+#include "st7735.h"
 #include "ugui.h"
 #include "basic_os.h"
 #include "evse_comm.h"
@@ -13,7 +13,8 @@
 #define LOG_TAG "evse.ui"
 #include "elog.h"
 
-UG_GUI lcd;
+UG_GUI gui;
+#define UI_FONT FONT_8X14
 
 evse_ui_data_t evse_ui_data = {
     .state          = EVSE_REBOOT,
@@ -94,29 +95,30 @@ static void task_entry_ui_upgrade(void *parameter)
         bos_delay_ms(10);
     }
 }
-bos_task_export(ui_upgrade, task_entry_ui_upgrade, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(ui_upgrade, task_entry_ui_upgrade, BOS_MAX_PRIORITY, NULL);
 
 static void task_entry_ui_test(void *parameter)
 {
-    float kwh = 15.2f;
-    float vol = 220.0f;
+    evse_ui_init();
+    // float kwh = 15.2f;
+    // float vol = 220.0f;
     for(;;){
-        bos_delay_ms(1000);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
-        vol = 220.6f;
-        evse_ui_update(UI_CMD_UPDATE_VOLTAGE, NULL, &vol);
-        evse_ui_update(UI_CMD_UPDATE_CURRENT, 6, NULL);
-        kwh = 6.2f;
-        evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
-        evse_ui_update(UI_CMD_UPDATE_TIME, 3000, NULL);
-        bos_delay_ms(1000);
-        evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
-        vol = 220.0f;
-        evse_ui_update(UI_CMD_UPDATE_VOLTAGE, NULL, &vol);
-        evse_ui_update(UI_CMD_UPDATE_CURRENT, 16, NULL);
-        kwh = 15.1f;
-        evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
-        evse_ui_update(UI_CMD_UPDATE_TIME, 0, NULL);
+        // bos_delay_ms(1000);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_IDLE, NULL);
+        // vol = 220.6f;
+        // evse_ui_update(UI_CMD_UPDATE_VOLTAGE, NULL, &vol);
+        // evse_ui_update(UI_CMD_UPDATE_CURRENT, 6, NULL);
+        // kwh = 6.2f;
+        // evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
+        // evse_ui_update(UI_CMD_UPDATE_TIME, 3000, NULL);
+        // bos_delay_ms(1000);
+        // evse_ui_update(UI_CMD_UPDATE_STATE, EVSE_9V_PWM, NULL);
+        // vol = 220.0f;
+        // evse_ui_update(UI_CMD_UPDATE_VOLTAGE, NULL, &vol);
+        // evse_ui_update(UI_CMD_UPDATE_CURRENT, 16, NULL);
+        // kwh = 15.1f;
+        // evse_ui_update(UI_CMD_UPDATE_KWH, NULL, &kwh);
+        // evse_ui_update(UI_CMD_UPDATE_TIME, 0, NULL);
 
         // _display_update_current(16);
         // _display_update_state(EVSE_9V_PWM);
@@ -128,21 +130,28 @@ static void task_entry_ui_test(void *parameter)
         // _display_update_fault(2);
         // _display_update_kwh(151);
         // _display_update_voltage(220);
-        // bos_delay_ms(1000);
+        bos_delay_ms(1000);
     }
 }
-// bos_task_export(ui_test, task_entry_ui_test, BOS_MAX_PRIORITY, NULL);
+bos_task_export(ui_test, task_entry_ui_test, BOS_MAX_PRIORITY, NULL);
 
 static void evse_ui_init(void)
 {
-    gpio_bit_reset(LCD_BLK_GPIO_Port, LCD_BLK_Pin);
+    ST7735_BLK_OFF();
     lcd_gpio_config();
     lcd_spi_config();
-    GC9A01_init();
-    GC9A01_setRotation(0);
-    UG_Init(&lcd, GC9A01_drawPixel, 240, 240);
-    UG_FillScreen(GC9A01_Color565(0x00, 0x00, 0x00));
-    gpio_bit_set(LCD_BLK_GPIO_Port, LCD_BLK_Pin);
+    ST7735_Init();
+    UG_Init(&gui, ST7735_DrawPixel, 160, 128);
+    // UG_DriverRegister(DRIVER_FILL_FRAME, ST7735_FillRectangle);
+    UG_FontSelect(&FONT_8X14);
+    UG_FillScreen(C_BLACK);
+    // 显示UI框架
+    UG_PutString(2, 2, "V_L1: ");
+    UG_PutString(2, 2+UI_FONT.char_height, "V_L2: ");
+    UG_PutString(2, 2+UI_FONT.char_height*2, "V_L3: ");
+    UG_PutString(2, 2+UI_FONT.char_height*3, "Ts: ");
+    UG_PutString(2, 2+UI_FONT.char_height*4, "Te: ");
+    ST7735_BLK_ON();
 }
 
 static void _display_update_time(uint16_t time)
