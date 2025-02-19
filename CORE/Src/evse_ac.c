@@ -77,6 +77,11 @@ static void evse_ac_timer0_config(uint16_t f);
 static void evse_ac_timer1_config(uint16_t f);
 static void freq_exti_config(void);
 
+uint16_t raw_l_out = 0;
+uint16_t raw_n_out = 0;
+uint16_t raw_cur = 0;
+uint16_t raw_pe = 0;
+uint16_t raw_l_in = 0;
 float vol = 0.0f;
 float cur = 0.0f;
 float power = 0.0f;
@@ -87,12 +92,6 @@ float power = 0.0f;
  */
 static void task_entry_voltage_sample(void *parameter)
 {
-    uint16_t raw_l_out = 0;
-    uint16_t raw_n_out = 0;
-    uint16_t raw_cur = 0;
-    uint16_t raw_pe = 0;
-    uint16_t raw_l_in = 0;
-
     uint8_t max_cur;
 
     uint16_t vol_err_cnt = 0;   // 电压错误计数
@@ -201,6 +200,7 @@ static void task_entry_voltage_sample(void *parameter)
             }
             #endif
             // log_d("cur: %.3f, vol: %.3f, power: %0.3f", cur, vol, power);
+            // log_d("raw_l_out: %d, raw_l_in: %d, raw_n_out: %d", raw_l_out, raw_l_in, raw_n_out);
             // log_i("pe_val: %d, l1_val: %d, c_val: %d", raw_pe, raw_l_in, raw_cur);
             /* 重新开启中断 */
             exti_interrupt_flag_clear(TRIG_LINE);
@@ -218,37 +218,6 @@ static void task_entry_voltage_sample(void *parameter)
     }
 }
 bos_task_export(voltage_sample, task_entry_voltage_sample, BOS_MAX_PRIORITY, NULL);
-
-/**
- * @brief  计算kwh
- * @note   目前只是用来实时更新充电功率。
- */
-static void task_entry_kwh_calc(void *parameter)
-{
-    /* 等待充电桩主任务完成初始化 */
-    while (evse_get_state() == EVSE_REBOOT)
-    {
-        bos_delay_ms(10);
-    }
-    second_flag = false;
-    for(;;){
-        if(second_flag){
-            second_flag = false;
-            // if(cur > 0.2f)
-            //     g_kwh += (float)((double)power/(double)3600000.0);
-            // log_d("cur: %.3f, vol: %.3f, power: %0.3f, kwh: %0.4f", cur, vol, power, g_kwh);
-            
-            /* 功率小于50W时，显示0W */
-            if(power < 50.0f){
-                power = 0;
-            }
-            evse_ui_update(UI_CMD_UPDATE_POWER, NULL, &power);
-            // log_d("power: %0.3f", power);
-        }
-        bos_delay_ms(100);
-    }
-}
-// bos_task_export(kwh_calc, task_entry_kwh_calc, BOS_MAX_PRIORITY, NULL);
 
 void evse_ac_init(void)
 {
@@ -482,22 +451,6 @@ static void evse_ac_adc_config(void)
     adc0_dma_config(CH_NUM*SAMPLE_NUM);
 }
 
-/*!
-    \brief      this function handles external lines 10 to 15 interrupt request
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void EXTI5_9_IRQHandler(void)
-{
-    if(RESET != (EXTI_PD & (uint32_t)TRIG_LINE)){  // 开启电压采集: 开启定时器
-        // TIMER_CNT(TIMER0) = 0U; //timer_counter_value_config(TIMER0, 0);  // 定时器配置为向下计数
-        // timer_enable(TIMER0); // timer_enable(TIMER0);
-        // log_i("start adc.");
-        EXTI_PD = (uint32_t)TRIG_LINE;         // exti_interrupt_flag_clear(TRIG_LINE);
-    }
-}
-
 void EXTI4_IRQHandler(void)
 {
     if(RESET != (EXTI_PD & (uint32_t)TRIG_LINE)){  // 开启电压采集: 开启定时器
@@ -549,6 +502,12 @@ static uint16_t get_sin_val(__IO const uint16_t pBuff[][CH_NUM], uint16_t length
     val /= length;
 
     return (uint16_t)val;
+}
+
+ErrStatus evse_ac_adh_ck(void)
+{
+    log_d("raw_l_out: %d", raw_l_out);
+    return (raw_l_out > 400 ? ERROR : SUCCESS);
 }
 
 void task_entery_evse_ac_test(void *parameter)
