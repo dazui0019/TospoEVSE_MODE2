@@ -5,13 +5,13 @@ static uint32_t GPIO_PORT[LEDn]             = {LED0_GPIO_PORT,  LED1_GPIO_PORT, 
 static uint32_t GPIO_PIN[LEDn]              = {LED0_PIN,        LED1_PIN,       LED2_PIN};
 static rcu_periph_enum GPIO_CLK[LEDn]       = {LED0_GPIO_CLK,   LED1_GPIO_CLK,  LED2_GPIO_CLK};
 
-static uint32_t KEY_PORT[KEYn]              = {KEY0_GPIO_PORT,          KEY1_GPIO_PORT,         };
-static uint32_t KEY_PIN[KEYn]               = {KEY0_PIN,                KEY1_PIN,               };
-static rcu_periph_enum KEY_CLK[KEYn]        = {KEY0_GPIO_CLK,           KEY1_GPIO_CLK,          };
-static exti_line_enum KEY_EXTI_LINE[KEYn]   = {KEY0_EXTI_LINE,          KEY1_EXTI_LINE,         };
-static uint8_t KEY_PORT_SOURCE[KEYn]        = {KEY0_EXTI_PORT_SOURCE,   KEY1_EXTI_PORT_SOURCE,  };
-static uint8_t KEY_PIN_SOURCE[KEYn]         = {KEY0_EXTI_PIN_SOURCE,    KEY1_EXTI_PIN_SOURCE,   };
-static uint8_t KEY_IRQn[KEYn]               = {KEY0_EXTI_IRQn,          KEY1_EXTI_IRQn,         };
+static uint32_t KEY_PORT[KEYn]              = {KEY0_GPIO_PORT,          KEY1_GPIO_PORT,         KEY2_GPIO_PORT,         KEY3_GPIO_PORT,         };
+static uint32_t KEY_PIN[KEYn]               = {KEY0_PIN,                KEY1_PIN,               KEY2_PIN,               KEY3_PIN,               };
+static rcu_periph_enum KEY_CLK[KEYn]        = {KEY0_GPIO_CLK,           KEY1_GPIO_CLK,          KEY2_GPIO_CLK,          KEY3_GPIO_CLK,          };
+static exti_line_enum KEY_EXTI_LINE[KEYn]   = {KEY0_EXTI_LINE,          KEY1_EXTI_LINE,         KEY2_EXTI_LINE,         KEY3_EXTI_LINE,         };
+static uint8_t KEY_PORT_SOURCE[KEYn]        = {KEY0_EXTI_PORT_SOURCE,   KEY1_EXTI_PORT_SOURCE,  KEY2_EXTI_PORT_SOURCE,  KEY3_EXTI_PORT_SOURCE,  };
+static uint8_t KEY_PIN_SOURCE[KEYn]         = {KEY0_EXTI_PIN_SOURCE,    KEY1_EXTI_PIN_SOURCE,   KEY2_EXTI_PIN_SOURCE,   KEY3_EXTI_PIN_SOURCE,   };
+static uint8_t KEY_IRQn[KEYn]               = {KEY0_EXTI_IRQn,          KEY1_EXTI_IRQn,         KEY2_EXTI_IRQn,         KEY3_EXTI_IRQn,         };
 /*!
     \brief      configure led GPIO
     \param[in]  lednum: specify the led to be configured
@@ -88,7 +88,7 @@ void gd_key_init(key_typedef_enum key_num, keymode_typedef_enum key_mode)
 
     if (key_mode == KEY_MODE_EXTI) {
         /* enable and set key EXTI interrupt to the lowest priority */
-        nvic_irq_enable(KEY_IRQn[key_num], 4U, 0U);
+        nvic_irq_enable(KEY_IRQn[key_num], 5U, 0U);
 
         /* connect key EXTI line to key GPIO pin */
         gpio_exti_source_select(KEY_PORT_SOURCE[key_num], KEY_PIN_SOURCE[key_num]);

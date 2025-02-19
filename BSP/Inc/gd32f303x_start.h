@@ -53,6 +53,8 @@ typedef enum
 {
     KEY0 = 0,
     KEY1,
+    KEY2,
+    KEY3
 } key_typedef_enum;
 
 typedef enum 
@@ -76,7 +78,7 @@ typedef enum
 #define LED2_GPIO_PORT                  GPIOC
 #define LED2_GPIO_CLK                   RCU_GPIOC
 
-#define KEYn                            2U
+#define KEYn                            4U
 
 /* KEY0 push-button */
 #define KEY0_PIN                        GPIO_PIN_1
@@ -95,6 +97,24 @@ typedef enum
 #define KEY1_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOC
 #define KEY1_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_2
 #define KEY1_EXTI_IRQn                  EXTI2_IRQn
+
+/* KEY2 push-button */
+#define KEY2_PIN                        GPIO_PIN_11
+#define KEY2_GPIO_PORT                  GPIOA
+#define KEY2_GPIO_CLK                   RCU_GPIOA
+#define KEY2_EXTI_LINE                  EXTI_11
+#define KEY2_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOA
+#define KEY2_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_11
+#define KEY2_EXTI_IRQn                  EXTI10_15_IRQn
+
+/* KEY3 push-button */
+#define KEY3_PIN                        GPIO_PIN_12
+#define KEY3_GPIO_PORT                  GPIOA
+#define KEY3_GPIO_CLK                   RCU_GPIOA
+#define KEY3_EXTI_LINE                  EXTI_12
+#define KEY3_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOA
+#define KEY3_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_12
+#define KEY3_EXTI_IRQn                  EXTI10_15_IRQn
 
 /* function declarations */
 /* configure led GPIO */
