@@ -60,17 +60,12 @@ void evse_rcd_port_init()
     rcu_periph_clock_enable(RCD_ZERO_GPIO_CLK);
     gpio_init(RCD_ZERO_PORT,GPIO_MODE_OUT_PP,GPIO_OSPEED_50MHZ,RCD_ZERO_GPIO_PIN);
 
-    //RCD校有效值脚位-输出初始化
-    rcu_periph_clock_enable(RCD_RMS_GPIO_CLK);
-    gpio_init(RCD_RMS_PORT,GPIO_MODE_OUT_PP,GPIO_OSPEED_50MHZ,RCD_RMS_GPIO_PIN);
-
     //RCD TRIP初始化为IO输入模式
     rcu_periph_clock_enable(RCD_TRIP_GPIO_CLK);
     gpio_init(RCD_TRIP_GPIO_PORT,GPIO_MODE_IN_FLOATING,GPIO_OSPEED_50MHZ,RCD_TRIP_PIN);
 
     RCD_TEST_CLOSE();   //关闭RCD测试模式
     RCD_ZERO_CLOSE();   //关闭RCD校准模式
-    RCD_RMS_CLOSE();    //关闭RCD校有效值模式
     delay_ms(100);  //T1 等待100MS
 }
 
@@ -112,7 +107,6 @@ void evse_rcd_init()
     evse_rcd_zero();        //校零操作
     evse_rcd_trip_init();   //配置为中断模式
     evse_rcd_timer_init(5); // 过滤掉5ms以内的脉冲干扰信号
-    // timer2_init(1000);
 }
 
 /**
@@ -123,15 +117,14 @@ void evse_rcd_init()
  */
 void evse_rcd_zero(void)
 {
-    RCD_TEST_CLOSE();   //关闭RCD测试模式
-    RCD_RMS_CLOSE();    //关闭RCD校有效值模式
-    RCD_ZERO_CLOSE();   //关闭校零
-    delay_ms(20);   //等待20MS
+    RCD_TEST_CLOSE();   // 关闭RCD测试模式
+    RCD_ZERO_CLOSE();   // 关闭校零
+    delay_ms(20);       // 等待20MS
 
-    RCD_ZERO_OPEN();    //开启校零
-    delay_ms(80);   //T2  等待80MS
-    RCD_ZERO_CLOSE();   //关闭校零
-    delay_ms(550);  //T3  等待550MS
+    RCD_ZERO_OPEN();    // 开启校零
+    delay_ms(80);       // T2 等待80MS
+    RCD_ZERO_CLOSE();   // 关闭校零
+    delay_ms(550);      // T3 等待550MS
 }
 
 
@@ -147,19 +140,19 @@ uint8_t evse_rcd_test(void)
 
     exti_interrupt_disable(RCD_TRIP_EXTI_LINE);
 
-    RCD_ZERO_CLOSE();      //关闭校零
-    RCD_TEST_OPEN();       //启动测试
+    RCD_ZERO_CLOSE();   //关闭校零
+    RCD_TEST_OPEN();    //启动测试
 
-    delay_ms(250);     //等待250MS
+    delay_ms(250);      //等待250MS
 
     for(i=0;i<10;i++){   
         if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == RESET){
             test_state = RESET;  //测试失败
             break;
         }
-        delay_ms(15);//等待25MS
+        delay_ms(15);           //等待25MS
     }
-    RCD_TEST_CLOSE();  //停止测试
+    RCD_TEST_CLOSE();           //停止测试
 
     //测试通过
     if(test_state == SET){
@@ -177,27 +170,23 @@ uint8_t evse_rcd_test(void)
 
 extern relay_t g_relay;
 __IO uint8_t rcd_error_flag = false;    // rcd自检失败
-void EXTI10_15_IRQHandler(void)
+void EXTI5_9_IRQHandler(void)
 {
-    if(RESET != exti_interrupt_flag_get(EXTI_13)){
-        // g_relay.ctrl(open);
-        // rcd_error_flag = true;
-        // GPIO_BC(RLY_PORT) = (uint32_t)RLY_PIN; // gpio_bit_reset(RLY_PORT, RLY_PIN);
-        // g_relay.relay_state = open;
+    if(RESET != exti_interrupt_flag_get(RCD_TRIP_EXTI_LINE)){
         if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
             // 开启定时器
             timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
             timer_counter_value_config(TIMER3, 0);
             timer_enable(TIMER3);
         }
-        exti_interrupt_flag_clear(EXTI_13);
+        exti_interrupt_flag_clear(RCD_TRIP_EXTI_LINE);
     }
 }
 
 void TIMER3_IRQHandler(void)
 {
     timer_disable(TIMER3);
-    if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT,RCD_TRIP_PIN) == SET){
+    if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT, RCD_TRIP_PIN) == SET){
         g_relay.ctrl(open);
         rcd_error_flag = true;
     }
