@@ -512,7 +512,7 @@ void DMA0_Channel0_IRQHandler(void)
 {
     if(dma_interrupt_flag_get(DMA0, DMA_CH0, DMA_INT_FLAG_FTF)){    // 完成采样后, 先暂停采样
         DMA_INTC(DMA0) |= DMA_FLAG_ADD(DMA_INT_FLAG_FTF, DMA_CH0); // dma_interrupt_flag_clear(DMA0, DMA_CH0, DMA_INT_FLAG_FTF);
-        TIMER_CTL0(TIMER0) &= ~(uint32_t)TIMER_CTL0_CEN;    // timer_disable(TIMER0);
+        TIMER_CTL0(TIMER1) &= ~(uint32_t)TIMER_CTL0_CEN;    // timer_disable(TIMER1);
         EXTI_INTEN &= ~(uint32_t)TRIG_LINE;    // exti_interrupt_disable(TRIG_LINE);
 
         cplt_flag = true;
