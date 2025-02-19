@@ -85,23 +85,15 @@ evse_state_t (*state_func[])(cp_state_t) = {
 // uint16_t debug_cnt = 0;
 static void task_entry_evse_main(void *parameter)
 {
-    uint16_t cp_val, gnd_val;                       // CP电平和接地检测的ADC Raw值。
-    uint16_t adh_l = 0, adh_n = 0;
+    uint16_t cp_val = 0;                       // CP电平和接地检测的ADC Raw值。
 
-    uint8_t cp_state_cnt = 0;
-    cp_state_t lase_cp_state = CP_INIT;
-    
-    /* 错误次数累计 */
-    uint8_t gndd_error_cnt = 0;
-    uint8_t cp_error_cnt = 0;
-
-    evse_state_t last_evse_state, evse_state;
+    evse_state_t evse_state;
 
     log_i("EVSE_REBOOT.");
     
     /* 初始化继电器 */
     evse_relay_init();
-    evse_relay_ctrl(open);
+    evse.evse_relay_ctrl(open);
 
     /* 获取内部1.2V基准电压的ADC值 */
     adc_verf_config();
@@ -117,9 +109,9 @@ static void task_entry_evse_main(void *parameter)
     log_d("Vrefint: %d", g_Vrefint);
 
     /* 初始化CP */
-    g_cp.init(1000);    // CP输出和检测初始化
-    g_cp.pwm_ctrl(DISABLE);
-    g_cp.ck_ctrl(ENABLE);
+    evse.p_cp->init(1000);    // CP输出和检测初始化
+    evse.p_cp->pwm_ctrl(DISABLE);
+    evse.p_cp->ck_ctrl(ENABLE);
     evse_cfg_get_last(&evse_cfg);
     max_cur_index = evse_cfg.max_cur_idx;
     evse_set_max_current(max_cur_index); // 设置最大电流

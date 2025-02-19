@@ -62,12 +62,12 @@ typedef enum{
  * @brief   CP结构体
  */
 typedef struct{
-    __IO evse_state_t evse_state;       // 充电桩状态
-    __IO relay_state_t relay_state;     // 继电器状态
-    __IO uint8_t inited;           // 充电桩是否初始化
-    cp_t* p_cp;                         // cp控制
+    evse_state_t evse_state;        // 充电桩状态
+    relay_state_t relay_state;      // 继电器状态
+    uint8_t inited;                 // 充电桩是否初始化
+    cp_t* p_cp;                     // cp控制
     void (*evse_relay_ctrl)(relay_state_t state);
-}evse_t;
+}__IO evse_t;
 
 /**
  * @brief   S1检测初始化
