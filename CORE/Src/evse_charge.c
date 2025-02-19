@@ -51,8 +51,8 @@ __IO uint8_t cp_lost_flag = false;      // cp丢失
 __IO uint8_t cp_error_flag = false;     // cp电平故障
 __IO uint8_t s1_lost_flag = false;      // s1二极管缺失
 
+// 掉电保存的配置信息
 static evse_cfg_t evse_cfg;
-
 static uint32_t max_cur_index = 0;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
 
