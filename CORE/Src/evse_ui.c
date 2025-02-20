@@ -53,7 +53,8 @@ static void task_entry_ui_upgrade(void *parameter)
     UG_PutString(2, 2+UI_FONT.char_height, "STA: ");
     UG_PutString(2, 2+UI_FONT.char_height*2, "VOL: ");
     UG_PutString(2, 2+UI_FONT.char_height*3, "KWH: ");
-    UG_PutString(2, 2+UI_FONT.char_height*4, "ERR: ");
+    UG_PutString(2, 2+UI_FONT.char_height*4, "TIME:");
+    UG_PutString(2, 2+UI_FONT.char_height*5, "ERR: ");
 
     _display_update_all(&evse_ui_data);
     evse_ui_data_last = evse_ui_data;
@@ -69,9 +70,9 @@ static void task_entry_ui_upgrade(void *parameter)
             if(evse_ui_data.voltage != evse_ui_data_last.voltage){
                 _display_update_voltage(evse_ui_data.voltage);
             }
-            // if(evse_ui_data.time != evse_ui_data_last.time){
-                // _display_update_time(evse_ui_data.time);
-            // }
+            if(evse_ui_data.time != evse_ui_data_last.time){
+                _display_update_time(evse_ui_data.time);
+            }
             if(evse_ui_data.power != evse_ui_data_last.power){
                 _display_update_power(evse_ui_data.power);
             }
@@ -130,27 +131,13 @@ static void evse_ui_init(void)
 
 static void _display_update_time(uint16_t time)
 {
+    /* 将uint16_t的time转换成字符串 */
     char str_time[6];
     sprintf(str_time, "%02d:%02d", time>>8, time&0xFF);
-    UG_PutString(195-26, 115, str_time);
-}
-
-static void _display_update_clock(ControlStatus status)
-{
-    switch (status)
-    {
-    case ENABLE:    // 显示时钟图标
-        UG_FillCircle(195, 94, 16, 0x039f);
-        UG_FillCircle(195, 94, 15, 0x0000);
-
-        UG_DrawLine(195, 94, 195, 94-7, 0xFFFF);
-        UG_DrawLine(195, 94, 195+10, 94, 0xFFFF);
-        break;
-    case DISABLE:   // 隐藏时钟图标
-        UG_FillCircle(195, 94, 16, 0x0000);
-    default:
-        break;
-    }
+    /* 清除旧的显示区域 */
+    UG_FillFrame(2+UI_FONT.char_width*6, 2+UI_FONT.char_height*4-1, 2+UI_FONT.char_width*11, 2+UI_FONT.char_height*5-1, C_BLACK);
+    /* 重新显示 */
+    UG_PutString(2+UI_FONT.char_width*6, 2+UI_FONT.char_height*4, str_time);
 }
 
 static void _display_update_current(uint16_t current)
@@ -183,7 +170,6 @@ static void _display_update_state_mode2(uint8_t state)
 {
     /* 清除状态文字区域 */
     UG_FillFrame(2+UI_FONT.char_width*5, 2+UI_FONT.char_height, 2+UI_FONT.char_width*14, 2+UI_FONT.char_height*2, C_BLACK);
-    _display_update_clock(DISABLE);  // 隐藏时钟图标
     switch (state)
     {
     case EVSE_REBOOT:
@@ -195,6 +181,7 @@ static void _display_update_state_mode2(uint8_t state)
         break;
     case EVSE_WAIT_DELAY:
         // _display_update_clock(ENABLE);  // 显示时钟图标
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height, "Waiting");
         break;
     case EVSE_9V:
     case EVSE_6V:
@@ -226,25 +213,25 @@ static void _display_update_state_mode2(uint8_t state)
 static void _display_update_fault(evse_ui_fault_t fault)
 {
     /* 清除故障显示区域 */
-    UG_FillFrame(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, 2+UI_FONT.char_width*14, 2+UI_FONT.char_height*5, C_BLACK);
+    UG_FillFrame(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, 2+UI_FONT.char_width*14, 2+UI_FONT.char_height*6, C_BLACK);
     if (0 != fault.e_cur_leak){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "Leakage");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "Leakage");
     }else if (0 != fault.e_vol_err){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "Voltage");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "Voltage");
     }else if (0 != fault.e_over_cur){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "Current");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "Current");
     }else if (0 != fault.e_pe_lost){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "Ground");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "Ground");
     }else if (0 != fault.e_relay_adh){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "Adhesion");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "Adhesion");
     }else if (0 != fault.e_over_heat){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "OverTemp");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "OverTemp");
     }else if (0 != fault.e_cp_error){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "CPerror");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "CPerror");
     }else if (0 != fault.e_s1_lost){
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "Diode");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "Diode");
     }else{
-        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*4, "No fault");
+        UG_PutString(2+UI_FONT.char_width*5, 2+UI_FONT.char_height*5, "No fault");
     }
 }
 

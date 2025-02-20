@@ -305,7 +305,7 @@ evse_state_t evse_get_state(void)
 static void evse_idle_handle_before(void)
 {
     charging_time_total = 0;
-    evse_ui_update(UI_CMD_UPDATE_TIME, charging_time_total, NULL);
+    evse_ui_update(UI_CMD_UPDATE_TIME, g_evse_delay, NULL);
 }
 
 evse_state_t evse_idle_handle(cp_state_t cp_state)

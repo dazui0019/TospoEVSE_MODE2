@@ -51,11 +51,6 @@ static void _display_update_kwh(uint16_t kwh);
 static void _display_update_power(uint16_t power);
 
 /**
- * @brief 标记倒计时状态
- */
-static void _display_update_clock(ControlStatus status);
-
-/**
  * @brief 更新倒计时时间
  */
 static void _display_update_time(uint16_t time);
