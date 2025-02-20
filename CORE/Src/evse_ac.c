@@ -55,9 +55,9 @@
 #define SAMPLE_FREQ             (5000)  // 采样频率
 
 /* 全局变量 */
-__IO uint8_t  g_over_cur_flag = false;
-__IO uint8_t  g_over_vol_flag = false;
-__IO uint8_t  g_under_vol_flag = false;
+__IO uint8_t g_over_cur_flag = false;
+__IO uint8_t g_over_vol_flag = false;
+__IO uint8_t g_under_vol_flag = false;
 __IO uint8_t g_pe_error_flag = false;
 __IO uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
 __IO double g_kwh = 0;

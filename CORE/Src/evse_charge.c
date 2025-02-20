@@ -70,6 +70,9 @@ evse_t evse = {
     .p_cp = &g_cp
 };
 
+// 标记错误标志
+evse_fault_bit_t evse_fault_bit = {0};
+
 evse_state_t (*state_func[])(cp_state_t) = {
     /* EVSE_REBOOT,             EVSE_IDLE,              EVSE_WAIT_PLUGIN, */
     evse_idle_handle,           evse_idle_handle,       evse_wait_plugin_handle,
@@ -971,4 +974,42 @@ static uint8_t evse_check_before_charging(void)
     #endif
 
     return error_code;
+}
+
+void evse_set_fault_flag(evse_fault_t fault)
+{
+    switch (fault) {
+        case FAULT_OVER_CURRENT : evse_fault_bit.over_cur = 1; break;
+        case FAULT_OVER_VOLTAGE : evse_fault_bit.over_voltage = 1; break;
+        case FAULT_UNDER_VOLTAGE : evse_fault_bit.under_voltage = 1; break;
+        case FAULT_OVER_HEAT : evse_fault_bit.over_heat = 1; break;
+        case FAULT_LEAKAGE : evse_fault_bit.leakage = 1; break;
+        case FAULT_RELAY_ADH : evse_fault_bit.relay_adh = 1; break;
+        case FAULT_CP_LOST : evse_fault_bit.cp_lost = 1; break;
+        case FAULT_CP_ERROR : evse_fault_bit.cp_error = 1; break;
+        case FAULT_S2_TIMEOUT : evse_fault_bit.s2_timeout = 1; break;
+        case FAULT_PE_LOST : evse_fault_bit.pe_lost = 1; break;
+        case FAULT_S1_LOST : evse_fault_bit.s1_lost = 1; break;
+        case FAULT_UNKNOWN :
+        default : evse_fault_bit.unknown = 1; break;
+    }
+}
+
+void evse_clear_fault_flag(evse_fault_t fault)
+{
+    switch (fault) {
+        case FAULT_OVER_CURRENT : evse_fault_bit.over_cur = 0; break;
+        case FAULT_OVER_VOLTAGE : evse_fault_bit.over_voltage = 0; break;
+        case FAULT_UNDER_VOLTAGE : evse_fault_bit.under_voltage = 0; break;
+        case FAULT_OVER_HEAT : evse_fault_bit.over_heat = 0; break;
+        case FAULT_LEAKAGE : evse_fault_bit.leakage = 0; break;
+        case FAULT_RELAY_ADH : evse_fault_bit.relay_adh = 0; break;
+        case FAULT_CP_LOST : evse_fault_bit.cp_lost = 0; break;
+        case FAULT_CP_ERROR : evse_fault_bit.cp_error = 0; break;
+        case FAULT_S2_TIMEOUT : evse_fault_bit.s2_timeout = 0; break;
+        case FAULT_PE_LOST : evse_fault_bit.pe_lost = 0; break;
+        case FAULT_S1_LOST : evse_fault_bit.s1_lost = 0; break;
+        case FAULT_UNKNOWN :
+        default : evse_fault_bit.unknown = 0; break;
+    }
 }

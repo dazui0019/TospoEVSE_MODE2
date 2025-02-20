@@ -69,6 +69,23 @@ typedef struct{
     void (*evse_relay_ctrl)(relay_state_t state);
 }__IO evse_t;
 
+typedef struct
+{
+    uint32_t over_cur       :1;
+    uint32_t over_voltage   :1;
+    uint32_t under_voltage  :1;
+    uint32_t over_heat      :1;
+    uint32_t leakage        :1;
+    uint32_t relay_adh      :1;
+    uint32_t cp_lost        :1;
+    uint32_t cp_error       :1;
+    uint32_t s2_timeout     :1;
+    uint32_t pe_lost        :1;
+    uint32_t s1_lost        :1;
+    uint32_t unknown        :1;
+    uint32_t reserved       :25;
+}evse_fault_bit_t;
+
 /**
  * @brief   S1检测初始化
  */
@@ -156,3 +173,13 @@ evse_state_t evse_wait_delay(cp_state_t cp_state);
  * @brief   6V_PWM
  */
 evse_state_t evse_6v_pwm_handle(cp_state_t cp_state);
+
+/**
+ * @brief   设置错误标志位
+ */
+void evse_set_fault_flag(evse_fault_t fault);
+
+/**
+ * @brief   清除错误标志位
+ */
+void evse_clear_fault_flag(evse_fault_t fault);
