@@ -105,12 +105,12 @@ void evse_ntc_get_raw(uint16_t *ob_raw, uint16_t *pl_raw)
     *pl_raw = pl_ntc;
 }
 
-__IO uint8_t g_overheat_flag = false;
 extern __IO uint16_t g_Vrefint;  // evse_ac
 
 static void task_entry_ntc_sample(void *parameter)
 {
     uint16_t ob_ntc, pl_ntc, overheat_cnt = 0;
+    static uint8_t overheat_flag = false;
 
     /* 等待充电桩主任务完成初始化 */
     while (evse_get_state() == EVSE_REBOOT)
@@ -125,14 +125,16 @@ static void task_entry_ntc_sample(void *parameter)
 
         // log_d("ob_ntc: %d, pl_ntc: %d", ob_ntc, pl_ntc);
 
-        if(ob_ntc < 817 && g_overheat_flag == false){   // 70°C
+        if(ob_ntc < 817 && overheat_flag == false){   // 70°C
             if(overheat_cnt++ > 10){
-                g_overheat_flag = true;
+                // g_overheat_flag = true;
+                evse_set_fault_flag(FAULT_OVER_HEAT);
                 log_e("overheat: %d", ob_ntc);
             }
-        }else if (ob_ntc > 1112 && g_overheat_flag == true){    // 60°C
+        }else if (ob_ntc > 1112 && overheat_flag == true){    // 60°C
             overheat_cnt = 0;
-            g_overheat_flag = false;
+            // g_overheat_flag = false;
+            evse_clear_fault_flag(FAULT_OVER_HEAT);
             log_i("clear overheat flag: %d", ob_ntc);
         }
         bos_delay_ms(1000);

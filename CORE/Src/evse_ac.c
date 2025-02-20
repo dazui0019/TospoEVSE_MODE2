@@ -55,10 +55,6 @@
 #define SAMPLE_FREQ             (5000)  // 采样频率
 
 /* 全局变量 */
-__IO uint8_t g_over_cur_flag = false;
-__IO uint8_t g_over_vol_flag = false;
-__IO uint8_t g_under_vol_flag = false;
-__IO uint8_t g_pe_error_flag = false;
 __IO uint16_t g_Vrefint = 0;  // 芯片内部1.2V参考电压的 ADC 原始值
 __IO double g_kwh = 0;
 
@@ -92,6 +88,11 @@ float power = 0.0f;
  */
 static void task_entry_voltage_sample(void *parameter)
 {
+    static uint8_t over_cur_flag = false;
+    static uint8_t over_vol_flag = false;
+    static uint8_t under_vol_flag = false;
+    static uint8_t pe_error_flag = false;
+
     uint8_t max_cur;
 
     uint16_t vol_err_cnt = 0;   // 电压错误计数
@@ -126,76 +127,86 @@ static void task_entry_voltage_sample(void *parameter)
             power = cur*vol;
 
             /* 设置过压标志位(Urms>253) */
-            if(raw_l_in > 674 && g_over_vol_flag == false){
+            if(raw_l_in > 674 && over_vol_flag == false){
                 if(vol_err_cnt++ > 2){
                     vol_err_cnt = 0;
-                    g_over_vol_flag = true;
+                    over_vol_flag = true;
+                    evse_set_fault_flag(FAULT_OVER_VOLTAGE);
                     log_e("over_vol: %d", raw_l_in);
                 }
-            }else if(raw_l_in < 639 && g_over_vol_flag == true){ // 当Urms<242时清除过压标志
+            }else if(raw_l_in < 639 && over_vol_flag == true){ // 当Urms<242时清除过压标志
                 if(vol_err_cnt++ > 2){
                     vol_err_cnt = 0;
-                    g_over_vol_flag = false;
+                    over_vol_flag = false;
+                    evse_clear_fault_flag(FAULT_OVER_VOLTAGE);
                     log_i("clear over_vol flag: %d", raw_l_in);
                 }
             }
             /* 设置欠压标志(Urms<187) */
-            if(raw_l_in < 492 && g_under_vol_flag == false){
+            if(raw_l_in < 492 && under_vol_flag == false){
                 if(vol_err_cnt++ > 15){
                     vol_err_cnt = 0;
-                    g_under_vol_flag = true;
+                    under_vol_flag = true;
+                    evse_set_fault_flag(FAULT_UNDER_VOLTAGE);
                     log_e("under_vol: %d", raw_l_in);
                 }
-            }else if(raw_l_in > 513 && g_under_vol_flag == true){ // 当Urms<242时清除欠压标志
+            }else if(raw_l_in > 513 && under_vol_flag == true){ // 当Urms<242时清除欠压标志
                 if(vol_err_cnt++ > 15){
                     vol_err_cnt = 0;
-                    g_under_vol_flag = false;
+                    under_vol_flag = false;
+                    evse_clear_fault_flag(FAULT_UNDER_VOLTAGE);
                     log_i("clear under_vol flag: %d", raw_l_in);
                 }
             }
 
             /* 断地检测 */
             if(raw_pe > 350){
-                if(g_pe_error_flag == false && raw_pe <= 550){
+                if(pe_error_flag == false && raw_pe <= 550){
                     if(pe_err_cnt++ > 2){
                         pe_err_cnt = 0;
-                        g_pe_error_flag = true;
+                        pe_error_flag = true;
+                        evse_set_fault_flag(FAULT_PE_LOST);
                         log_e("pe_error: %d", raw_pe);
                     }
-                }else if(g_pe_error_flag == true && raw_pe >= 700){
+                }else if(pe_error_flag == true && raw_pe >= 700){
                     if(pe_err_cnt++ > 2){
                         pe_err_cnt = 0;
-                        g_pe_error_flag = false;
+                        pe_error_flag = false;
+                        evse_clear_fault_flag(FAULT_PE_LOST);
                         log_i("clear pe_error flag: %d", raw_pe);
                     }
                 }
             }else{
-                if(g_pe_error_flag == false && raw_pe >= 120){
+                if(pe_error_flag == false && raw_pe >= 120){
                     if(pe_err_cnt++ > 2){
                         pe_err_cnt = 0;
-                        g_pe_error_flag = true;
+                        pe_error_flag = true;
+                        evse_set_fault_flag(FAULT_PE_LOST);
                         log_e("pe_error: %d", raw_pe);
                     }
-                }else if(g_pe_error_flag == true && raw_pe <= 10){
+                }else if(pe_error_flag == true && raw_pe <= 10){
                     if(pe_err_cnt++ > 2){
                         pe_err_cnt = 0;
-                        g_pe_error_flag = false;
+                        pe_error_flag = false;
+                        evse_clear_fault_flag(FAULT_PE_LOST);
                         log_i("clear pe_error flag: %d", raw_pe);
                     }
                 }
             }
 
             max_cur = evse_get_max_current();
-            if(cur > 1.15f*max_cur && g_over_cur_flag == false){// cur > 1.15*I_RMS 时触发过流报警(单位mA)
+            if(cur > 1.15f*max_cur && over_cur_flag == false){// cur > 1.15*I_RMS 时触发过流报警(单位mA)
                 if(cur_err_cnt++ > 2){
-                    g_over_cur_flag = true;
+                    over_cur_flag = true;
+                    evse_set_fault_flag(FAULT_OVER_CURRENT);
                     log_e("cur error: %0.2f", cur);
                 }
             }
             #if defined(CUR_ERR_CAN_BE_CLEAR)   // 判断过流报警是否可以被清除
-            else if(cur < 1.1f*max_cur && g_over_cur_flag == true){// cur < 1.1*I_RMS 时恢复过流报警(单位mA)
+            else if(cur < 1.1f*max_cur && over_cur_flag == true){// cur < 1.1*I_RMS 时恢复过流报警(单位mA)
                 cur_err_cnt = 0;
-                g_over_cur_flag = false;
+                over_cur_flag = false;
+                evse_clear_fault_flag(FAULT_OVER_CURRENT);
                 log_i("clear cur error: %0.2f", cur);
             }
             #endif

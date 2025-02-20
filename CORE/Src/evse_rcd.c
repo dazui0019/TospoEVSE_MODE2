@@ -4,6 +4,7 @@
 #include "drv_delay.h"
 #include "evse_relay.h"
 #include "drv_timer.h"
+#include "evse_charge.h"
 
 #define LOG_TAG "evse.rcd"
 #include "elog.h"
@@ -169,7 +170,6 @@ uint8_t evse_rcd_test(void)
 }
 
 extern relay_t g_relay;
-__IO uint8_t rcd_error_flag = false;    // rcd自检失败
 void EXTI5_9_IRQHandler(void)
 {
     if(RESET != exti_interrupt_flag_get(RCD_TRIP_EXTI_LINE)){
@@ -187,8 +187,7 @@ void TIMER3_IRQHandler(void)
 {
     timer_disable(TIMER3);
     if(gpio_input_bit_get(RCD_TRIP_GPIO_PORT, RCD_TRIP_PIN) == SET){
-        g_relay.ctrl(open);
-        rcd_error_flag = true;
+        evse_set_fault_flag(FAULT_LEAKAGE);
     }
     timer_interrupt_flag_clear(TIMER3, TIMER_INT_FLAG_UP);
 }
