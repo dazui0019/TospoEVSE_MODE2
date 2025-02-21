@@ -26,9 +26,9 @@ void evse_ntc_init(void)
     adc_deinit(ADC1);
 
     rcu_periph_clock_enable(ON_BOARD_NTC_PORT_RCU);
-    rcu_periph_clock_enable(PLUG_NTC_PORT_RCU);
+    // rcu_periph_clock_enable(PLUG_NTC_PORT_RCU);
     gpio_init(ON_BOARD_NTC_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, ON_BOARD_NTC_PIN);
-    gpio_init(PLUG_NTC_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, PLUG_NTC_PIN);
+    // gpio_init(PLUG_NTC_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, PLUG_NTC_PIN);
 
     rcu_periph_clock_enable(RCU_ADC1);
     /* ADC mode config */
@@ -38,9 +38,10 @@ void evse_ntc_init(void)
     /* ADC SCAN function enable */
     adc_special_function_config(ADC1, ADC_SCAN_MODE, ENABLE);
 
-    adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 2);
+    // adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 2);
+    adc_channel_length_config(ADC1, ADC_INSERTED_CHANNEL, 1);
     adc_inserted_channel_config(ADC1, 0, ON_BOARD_NTC_ADC_CH, ADC_SAMPLETIME_239POINT5);
-    adc_inserted_channel_config(ADC1, 1, PLUG_NTC_ADC_CH, ADC_SAMPLETIME_239POINT5);
+    // adc_inserted_channel_config(ADC1, 1, PLUG_NTC_ADC_CH, ADC_SAMPLETIME_239POINT5);
 
     /* ADC external trigger enable */
     adc_external_trigger_config(ADC1, ADC_INSERTED_CHANNEL, ENABLE);
@@ -105,11 +106,30 @@ void evse_ntc_get_raw(uint16_t *ob_raw, uint16_t *pl_raw)
     *pl_raw = pl_ntc;
 }
 
+void evse_ntc_get_raw_ob(uint16_t* ob_raw)
+{
+    static uint16_t ob_ntc = 0;
+    // adc_flag_clear(ADC1, ADC_FLAG_EOIC);
+    ADC_STAT(ADC1) = ~((uint32_t)ADC_FLAG_EOIC);
+    
+    // adc_software_trigger_enable(ADC1, ADC_INSERTED_CHANNEL);
+    ADC_CTL1(ADC1) |= ADC_CTL1_SWICST;
+    
+    // while (adc_flag_get(ADC1, ADC_FLAG_EOIC) == RESET){}
+    while((ADC_STAT(ADC1) & ADC_FLAG_EOIC) == RESET){}
+    // adc_flag_clear(ADC1, ADC_FLAG_EOIC);
+    ADC_STAT(ADC1) = ~((uint32_t)ADC_FLAG_EOIC);
+
+    ob_ntc = 0.4f*(float)ob_ntc + 0.6f*(float)ADC_IDATA0(ADC1);
+
+    *ob_raw = ob_ntc;
+}
+
 extern __IO uint16_t g_Vrefint;  // evse_ac
 
 static void task_entry_ntc_sample(void *parameter)
 {
-    uint16_t ob_ntc, pl_ntc, overheat_cnt = 0;
+    uint16_t ob_ntc, overheat_cnt = 0;
     static uint8_t overheat_flag = false;
 
     /* 等待充电桩主任务完成初始化 */
@@ -120,20 +140,22 @@ static void task_entry_ntc_sample(void *parameter)
 
     for(;;){
         EventStartA(2);
-        evse_ntc_get_raw(&ob_ntc, &pl_ntc);
+        // evse_ntc_get_raw(&ob_ntc, &pl_ntc);
+        evse_ntc_get_raw_ob(&ob_ntc);
         EventStopA(2);
 
         // log_d("ob_ntc: %d, pl_ntc: %d", ob_ntc, pl_ntc);
+        log_d("ob_ntc: %d", ob_ntc);
 
         if(ob_ntc < 817 && overheat_flag == false){   // 70°C
             if(overheat_cnt++ > 10){
-                // g_overheat_flag = true;
+                overheat_flag = true;
                 evse_set_fault_flag(FAULT_OVER_HEAT);
                 log_e("overheat: %d", ob_ntc);
             }
         }else if (ob_ntc > 1112 && overheat_flag == true){    // 60°C
             overheat_cnt = 0;
-            // g_overheat_flag = false;
+            overheat_flag = false;
             evse_clear_fault_flag(FAULT_OVER_HEAT);
             log_i("clear overheat flag: %d", ob_ntc);
         }
