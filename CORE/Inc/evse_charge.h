@@ -87,9 +87,10 @@ typedef struct
 }evse_fault_bit_t;
 
 /**
- * @brief   S1检测初始化
+ * @brief   设置充电桩状态
  */
-static void s1_ck_init(void);
+static void evse_set_state(evse_state_t state);
+
 /**
  * @brief   检查车端二极管S1是否存在
  */
