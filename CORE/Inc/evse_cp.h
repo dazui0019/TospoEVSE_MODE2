@@ -70,3 +70,11 @@ int32_t abs(int32_t x);
 void quickSort(uint16_t arr[], int low, int high);
 
 cp_state_t get_cp_state(float vol);
+
+/**
+ * @brief   s1二极管检测
+ * @return  s1状态
+ * @retval  1: 二极管缺失
+ *          0: 二极管存在
+ */
+int evse_s1_ck(void);

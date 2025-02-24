@@ -90,13 +90,13 @@ typedef enum
 #define KEY0_EXTI_IRQn                  EXTI1_IRQn
 
 /* KEY1 push-button */
-#define KEY1_PIN                        GPIO_PIN_2
+#define KEY1_PIN                        GPIO_PIN_3
 #define KEY1_GPIO_PORT                  GPIOC
 #define KEY1_GPIO_CLK                   RCU_GPIOC
-#define KEY1_EXTI_LINE                  EXTI_2
+#define KEY1_EXTI_LINE                  EXTI_3
 #define KEY1_EXTI_PORT_SOURCE           GPIO_PORT_SOURCE_GPIOC
-#define KEY1_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_2
-#define KEY1_EXTI_IRQn                  EXTI2_IRQn
+#define KEY1_EXTI_PIN_SOURCE            GPIO_PIN_SOURCE_3
+#define KEY1_EXTI_IRQn                  EXTI3_IRQn
 
 /* KEY2 push-button */
 #define KEY2_PIN                        GPIO_PIN_11

@@ -13,10 +13,10 @@
 #define ON_BOARD_NTC_PIN        GPIO_PIN_1
 #define ON_BOARD_NTC_ADC_CH     ADC_CHANNEL_11
 /* 电源插头NTC(NTC1) */
-#define PLUG_NTC_PORT           GPIOC
-#define PLUG_NTC_PORT_RCU       RCU_GPIOC
-#define PLUG_NTC_PIN            GPIO_PIN_2
-#define PLUG_NTC_ADC_CH         ADC_CHANNEL_12
+// #define PLUG_NTC_PORT           GPIOC
+// #define PLUG_NTC_PORT_RCU       RCU_GPIOC
+// #define PLUG_NTC_PIN            GPIO_PIN_2
+// #define PLUG_NTC_ADC_CH         ADC_CHANNEL_12
 
 /**
  * @brief   温度采集通道
@@ -138,6 +138,9 @@ static void task_entry_ntc_sample(void *parameter)
         bos_delay_ms(100);
     }
 
+    /* 初始化NTC */
+    // evse_ntc_init();
+
     for(;;){
         EventStartA(2);
         // evse_ntc_get_raw(&ob_ntc, &pl_ntc);
@@ -145,7 +148,7 @@ static void task_entry_ntc_sample(void *parameter)
         EventStopA(2);
 
         // log_d("ob_ntc: %d, pl_ntc: %d", ob_ntc, pl_ntc);
-        log_d("ob_ntc: %d", ob_ntc);
+        // log_d("ob_ntc: %d", ob_ntc);
 
         if(ob_ntc < 817 && overheat_flag == false){   // 70°C
             if(overheat_cnt++ > 10){
