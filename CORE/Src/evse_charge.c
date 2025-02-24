@@ -483,25 +483,21 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     if(evse.p_cp->pwm_state == DISABLE){
         evse.p_cp->pwm_ctrl(ENABLE);
         evse.p_cp->pwm_state = ENABLE;
-
-        #if defined(S1_CK_ENABLE)
-            bos_delay_ms(20);
-            if(1 == evse_s1_ck()){
-                log_e("s1_lost");
-                evse_set_fault_flag(FAULT_S1_LOST);
-                return EVSE_9V_PWM;
-            }else{
-                log_d("s1 ok.");
-            }
-        #else
-            log_d("skip s1_ck.");
-        #endif
     }
 
     if(evse.evse_state != EVSE_9V_PWM){
         evse_set_state(EVSE_9V_PWM);
         log_i("EVSE_9V_PWM.");
     }
+
+    #if defined(S1_CK_ENABLE)
+        bos_delay_ms(20);
+        if(1 == evse_s1_ck()){
+            log_e("s1_lost");
+            evse_set_fault_flag(FAULT_S1_LOST);
+            return EVSE_9V_PWM;
+        }
+    #endif
 
     switch (cp_state)
     {
@@ -876,18 +872,6 @@ evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
     if(evse.p_cp->pwm_state == DISABLE){
         evse.p_cp->pwm_ctrl(ENABLE);
         evse.p_cp->pwm_state = ENABLE;
-        #if defined(S1_CK_ENABLE)
-            bos_delay_ms(20);
-            if(1 == evse_s1_ck()){
-                log_e("s1_lost");
-                evse_set_fault_flag(FAULT_S1_LOST);
-                return EVSE_9V_PWM;
-            }else{
-                log_d("s1 ok.");
-            }
-        #else
-            log_d("skip s1_ck.");
-        #endif
     }
 
     if(evse.evse_state != EVSE_6V_PWM){
@@ -895,6 +879,15 @@ evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
         // evse_set_state(EVSE_6V_PWM); // 不需要设置状态，因为EVSE_6V_PWM状态是临时状态
         log_i("EVSE_6V_PWM.");
     }
+
+    #if defined(S1_CK_ENABLE)
+        bos_delay_ms(20);
+        if(1 == evse_s1_ck()){
+            log_e("s1_lost");
+            evse_set_fault_flag(FAULT_S1_LOST);
+            return EVSE_6V_PWM;
+        }
+    #endif
 
     switch (cp_state)
     {

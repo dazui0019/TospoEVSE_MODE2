@@ -465,7 +465,7 @@ void task_entry_s1_ck(void *parameter)
         bos_delay_ms(500);
     }
 }
-bos_task_export(evse_s1, task_entry_s1_ck, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(evse_s1, task_entry_s1_ck, BOS_MAX_PRIORITY, NULL);
 
 void task_entry_cp_test(void *parameter)
 {
