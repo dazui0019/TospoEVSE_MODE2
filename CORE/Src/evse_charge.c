@@ -19,11 +19,7 @@
 #define LOG_TAG "evse.evse"
 #include "elog.h"
 
-/**
- * @brief   充电前检查
- * @return  0: 检查通过, 1: 车端二极管检测失败, 2: RCD检测失败, 3: 车端二极管检测失败且RCD检测失败
- */
-static uint8_t evse_check_before_charging(void);
+void evse_relay_open(void);
 
 /* 全局变量 */
 extern __IO uint16_t *g_p_cp_buff;  // CP采样数据DMA缓冲区
@@ -129,16 +125,8 @@ static void task_entry_evse_main(void *parameter)
     evse_state = EVSE_IDLE;
     evse.inited = true;
     
-    // 粘连检测
-    evse.evse_relay_ctrl(open);
-    bos_delay_ms(200);
-    if(evse_ac_adh_ck() == ERROR){
-        evse_set_fault_flag(FAULT_RELAY_ADH);
-        log_d("ADH error.");
-    }else{
-        evse_clear_fault_flag(FAULT_RELAY_ADH);
-        log_d("ADH success.");
-    }
+    // 断开继电器
+    evse_relay_open();
 
     evse_set_state(EVSE_IDLE);
 
@@ -171,8 +159,7 @@ static ErrStatus evse_error_ck(void)
         if(*((uint32_t*)p_evse_fault_bit) != 0){
             /* 继电器是检测到错误就关闭 */
             if(evse.relay_state == close){
-                evse.evse_relay_ctrl(open);
-                evse.relay_state = open;
+                
             }
             error_flag = true;
         }
@@ -300,8 +287,7 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -347,8 +333,7 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -392,8 +377,7 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -442,8 +426,7 @@ evse_state_t evse_wait_delay(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -494,8 +477,7 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == DISABLE){
@@ -565,8 +547,7 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -645,8 +626,7 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == open){
-        evse.evse_relay_ctrl(close);
-        evse.relay_state = close;
+        evse_relay_open();
     }
 
     if(evse.evse_state != EVSE_CHARGING){
@@ -666,8 +646,6 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     switch (cp_state)
     {
     case CP_9V:
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
         return EVSE_DONE;
     case CP_12V:
         evse_set_fault_flag(FAULT_CP_LOST);
@@ -701,8 +679,7 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.evse_state != EVSE_DONE){
@@ -821,8 +798,7 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.evse_state != EVSE_STOP){
@@ -987,5 +963,19 @@ void evse_clear_fault_flag(evse_fault_t fault)
         case FAULT_S1_LOST : evse_fault_bit.s1_lost = 0; break;
         case FAULT_UNKNOWN :
         default : evse_fault_bit.unknown = 0; break;
+    }
+}
+
+void evse_relay_open(void)
+{
+    evse.evse_relay_ctrl(open);
+    evse.relay_state = open;
+    bos_delay_ms(500);
+    if(evse_ac_adh_ck() == ERROR){
+        evse_set_fault_flag(FAULT_RELAY_ADH);
+        log_d("ADH error.");
+    }else{
+        evse_clear_fault_flag(FAULT_RELAY_ADH);
+        log_d("ADH success.");
     }
 }
