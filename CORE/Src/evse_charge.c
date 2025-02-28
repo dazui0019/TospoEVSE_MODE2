@@ -622,7 +622,8 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == open){
-        evse_relay_open();
+        evse_relay_ctrl(close);
+        evse.relay_state = close;
     }
 
     if(evse.evse_state != EVSE_CHARGING){
