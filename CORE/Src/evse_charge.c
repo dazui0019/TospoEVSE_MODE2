@@ -159,7 +159,7 @@ static ErrStatus evse_error_ck(void)
         if(*((uint32_t*)p_evse_fault_bit) != 0){
             /* 继电器是检测到错误就关闭 */
             if(evse.relay_state == close){
-                
+                evse_relay_open();
             }
             error_flag = true;
         }
