@@ -11,7 +11,7 @@
 #define LOG_TAG "evse.rgb"
 #include  "elog.h"
 
-#define RGB_NUM 12
+#define RGB_NUM 8
 
 static void evse_rgb_memset(uint32_t arr[], uint32_t val, int n);
 
@@ -47,12 +47,10 @@ static uint32_t led_state_plugged[2][RGB_NUM] = {
     {
         0x000050U, 0x000050U, 0x000050U, 0x000050U,
         0x000050U, 0x000050U, 0x000050U, 0x000050U,
-        0x000050U, 0x000050U, 0x000050U, 0x000050U
     },
     {
         0x000000U, 0x000000U, 0x000000U, 0x000000U,
         0x000000U, 0x000000U, 0x000000U, 0x000000U,
-        0x000000U, 0x000000U, 0x000000U, 0x000000U
     }
 };
 
@@ -63,34 +61,25 @@ static uint32_t led_state_fault[2][RGB_NUM] = {
     {
         0x000000U, 0x000000U, 0x000000U, 0x000000U,
         0x000000U, 0x000000U, 0x000000U, 0x000000U,
-        0x000000U, 0x000000U, 0x000000U, 0x000000U
     },
     {
         0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U,
         0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U,
-        0x9F0000U, 0x9F0000U, 0x9F0000U, 0x9F0000U
     }
 };
 
 // 充电中绿色渐变(流水灯)
 static uint32_t fluid_buffer_green[3*RGB_NUM] = {
-    0x0000FFU, 0x0000F5U, 0x0000EBU, 0x0000E1U,
-    0x0000D7U, 0x0000CDU, 0x0000C3U, 0x0000B9U,
     0x0000AFU, 0x0000A5U, 0x00009BU, 0x000091U,
     0x000087U, 0x00007DU, 0x000073U, 0x000069U,
     0x00005FU, 0x000055U, 0x00004BU, 0x000041U,
     0x000037U, 0x00002DU, 0x000023U, 0x000019U,
-    0x000010U, 0x000010U, 0x000000U, 0x000000U,
+    0x00000FU, 0x000005U, 0x000000U, 0x000000U,
+    0x000000U, 0x000000U, 0x000000U, 0x000000U,
 };
 
 // 蓝灯呼吸
 static uint32_t fluid_buffer_blue[RGB_NUM] = {0xFFFFFFU, 0x000000U, 0x000000U, 0x000000U};
-// static uint32_t fluid_buffer_rainbow[RGB_NUM] = {
-//     COLOR_RGB888_SKYBLUE, COLOR_RGB888_VIOLET, COLOR_RGB888_BROWN,
-//     COLOR_RGB888_GOLD, COLOR_RGB888_SEAGREEN, COLOR_RGB888_FORESTGREEN,
-//     COLOR_RGB888_SEAGREEN, COLOR_RGB888_CRIMSON, COLOR_RGB888_PINK
-// };
-
 static evse_state_t evse_state = EVSE_REBOOT;
 
 /**
@@ -213,7 +202,7 @@ void evse_rgb_set_color(uint32_t color, uint8_t Brightness, uint8_t index)
         led_color[index] = color;
     }
 
-    ws2812b_write(&ws2812b, led_color, RGB_NUM, led_buffer, 2048);
+    ws2812b_write(&ws2812b, led_color, RGB_NUM, led_buffer, 4096);
 }
 
 // void evse_rgb_clear(uint8_t index)

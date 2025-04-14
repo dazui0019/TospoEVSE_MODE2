@@ -1,11 +1,13 @@
 #include "printf_port.h"
+#include "SEGGER_RTT.h"
 
 static uint32_t pUART = 0;       // printf重定向使用
 
 void _putchar(char character)
 {
-    USART_DATA(pUART) = USART_DATA_DATA & character;
-    while(RESET == (USART_REG_VAL(pUART, USART_FLAG_TBE) & BIT(USART_BIT_POS(USART_FLAG_TBE))));
+    // USART_DATA(pUART) = USART_DATA_DATA & character;
+    // while(RESET == (USART_REG_VAL(pUART, USART_FLAG_TBE) & BIT(USART_BIT_POS(USART_FLAG_TBE))));
+    SEGGER_RTT_PutChar(0, character);
 }
 
 void retarget_printf(GD_COMxTypedef com_num)

@@ -62,17 +62,35 @@ typedef enum{
  * @brief   CP结构体
  */
 typedef struct{
-    __IO evse_state_t evse_state;       // 充电桩状态
-    __IO relay_state_t relay_state;     // 继电器状态
-    __IO uint8_t inited;           // 充电桩是否初始化
-    cp_t* p_cp;                         // cp控制
+    evse_state_t evse_state;        // 充电桩状态
+    relay_state_t relay_state;      // 继电器状态
+    uint8_t inited;                 // 充电桩是否初始化
+    cp_t* p_cp;                     // cp控制
     void (*evse_relay_ctrl)(relay_state_t state);
-}evse_t;
+}__IO evse_t;
+
+typedef struct
+{
+    uint32_t over_cur       :1;
+    uint32_t over_voltage   :1;
+    uint32_t under_voltage  :1;
+    uint32_t over_heat      :1;
+    uint32_t leakage        :1;
+    uint32_t relay_adh      :1;
+    uint32_t cp_lost        :1;
+    uint32_t cp_error       :1;
+    uint32_t s2_timeout     :1;
+    uint32_t pe_lost        :1;
+    uint32_t s1_lost        :1;
+    uint32_t unknown        :1;
+    uint32_t reserved       :25;
+}evse_fault_bit_t;
 
 /**
- * @brief   S1检测初始化
+ * @brief   设置充电桩状态
  */
-static void s1_ck_init(void);
+static void evse_set_state(evse_state_t state);
+
 /**
  * @brief   检查车端二极管S1是否存在
  */
@@ -156,3 +174,13 @@ evse_state_t evse_wait_delay(cp_state_t cp_state);
  * @brief   6V_PWM
  */
 evse_state_t evse_6v_pwm_handle(cp_state_t cp_state);
+
+/**
+ * @brief   设置错误标志位
+ */
+void evse_set_fault_flag(evse_fault_t fault);
+
+/**
+ * @brief   清除错误标志位
+ */
+void evse_clear_fault_flag(evse_fault_t fault);

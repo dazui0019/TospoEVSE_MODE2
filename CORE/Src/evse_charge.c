@@ -5,13 +5,9 @@
 #include "evse_charge.h"
 #include "basic_os.h"
 #include "evse_relay.h"
-#include "evse_gndd.h"
-#include "evse_adh.h"
 #include "evse_ac.h"
-#include "evse_comm.h"
 #include "evse_ui.h"
 #include "evse_rgb.h"
-#include "evse_beep.h"
 #include "drv_rtc.h"
 #include "evse_rcd.h"
 #include "evse_cfg.h"
@@ -19,16 +15,11 @@
 #include "evse_key.h"
 #include "evse_timer.h"
 #include "drv_delay.h"
-#include "evse_s1_ck.h"
 
 #define LOG_TAG "evse.evse"
 #include "elog.h"
 
-/**
- * @brief   充电前检查
- * @return  0: 检查通过, 1: 车端二极管检测失败, 2: RCD检测失败, 3: 车端二极管检测失败且RCD检测失败
- */
-static uint8_t evse_check_before_charging(void);
+void evse_relay_open(void);
 
 /* 全局变量 */
 extern __IO uint16_t *g_p_cp_buff;  // CP采样数据DMA缓冲区
@@ -40,19 +31,8 @@ extern __IO uint16_t g_evse_delay;  // 延时上电时间
 extern __IO uint8_t g_rfid_flag;    // rfid 刷卡标志
 #endif /* RFID_ENABLE */
 
-/* 错误标志位 */
-extern __IO uint8_t g_overheat_flag;    // evse_ntc
-extern __IO uint8_t g_over_cur_flag;    // evse_ac
-extern __IO uint8_t g_over_vol_flag;    // evse_ac
-extern __IO uint8_t g_under_vol_flag;   // evse_ac
-extern __IO uint8_t g_pe_error_flag;    // evse_ac
-extern __IO uint8_t rcd_error_flag;     // rcd自检失败
-__IO uint8_t cp_lost_flag = false;      // cp丢失
-__IO uint8_t cp_error_flag = false;     // cp电平故障
-__IO uint8_t s1_lost_flag = false;      // s1二极管缺失
-
+// 掉电保存的配置信息
 static evse_cfg_t evse_cfg;
-
 static uint32_t max_cur_index = 0;
 static uint8_t max_cur_table[] = MAX_CUR_TABLE_VAL;
 
@@ -68,6 +48,10 @@ evse_t evse = {
     .relay_state = open,
     .p_cp = &g_cp
 };
+
+// 标记错误标志
+evse_fault_bit_t evse_fault_bit = {0};
+evse_fault_bit_t* p_evse_fault_bit = &evse_fault_bit;
 
 evse_state_t (*state_func[])(cp_state_t) = {
     /* EVSE_REBOOT,             EVSE_IDLE,              EVSE_WAIT_PLUGIN, */
@@ -85,17 +69,9 @@ evse_state_t (*state_func[])(cp_state_t) = {
 // uint16_t debug_cnt = 0;
 static void task_entry_evse_main(void *parameter)
 {
-    uint16_t cp_val, gnd_val;                       // CP电平和接地检测的ADC Raw值。
-    uint16_t adh_l = 0, adh_n = 0;
+    uint16_t cp_val = 0;                       // CP电平和接地检测的ADC Raw值。
 
-    uint8_t cp_state_cnt = 0;
-    cp_state_t lase_cp_state = CP_INIT;
-    
-    /* 错误次数累计 */
-    uint8_t gndd_error_cnt = 0;
-    uint8_t cp_error_cnt = 0;
-
-    evse_state_t last_evse_state, evse_state;
+    evse_state_t evse_state = EVSE_REBOOT;
 
     log_i("EVSE_REBOOT.");
     
@@ -117,9 +93,9 @@ static void task_entry_evse_main(void *parameter)
     log_d("Vrefint: %d", g_Vrefint);
 
     /* 初始化CP */
-    g_cp.init(1000);    // CP输出和检测初始化
-    g_cp.pwm_ctrl(DISABLE);
-    g_cp.ck_ctrl(ENABLE);
+    evse.p_cp->init(1000);    // CP输出和检测初始化
+    evse.p_cp->pwm_ctrl(DISABLE);
+    evse.p_cp->ck_ctrl(ENABLE);
     evse_cfg_get_last(&evse_cfg);
     max_cur_index = evse_cfg.max_cur_idx;
     evse_set_max_current(max_cur_index); // 设置最大电流
@@ -131,26 +107,28 @@ static void task_entry_evse_main(void *parameter)
     if(evse_rcd_test() == SET){
         /* RCD 测试成功需要的操作 */
         log_i("RCD test success! ");
-        rcd_error_flag = false;
+        evse_clear_fault_flag(FAULT_LEAKAGE);
     }else{
         /* RCD 测试失败需要的操作 */
         log_e("RCD test fail! ");
-        rcd_error_flag = true;
+        evse_set_fault_flag(FAULT_LEAKAGE);
     }
     #endif /* RCD_CK_ENABLE */
-
-    /* 初始化NTC */
-    evse_ntc_init();
-
-    #if defined(S1_CK_ENABLE)
-    /* 车端二极管检测(与NTC共用ADC1) */
-    evse_s1_ck_init();
-    #endif
 
     /* 初始化按键 */
     evse_key_init();
 
     bos_delay_ms(4000); // 电流互感器上电会有一个比较大的值，需要延时一下(等它上电完成)
+
+    // 初始化完成
+    evse.evse_state = EVSE_IDLE;
+    evse_state = EVSE_IDLE;
+    evse.inited = true;
+    
+    // 断开继电器
+    evse_relay_open();
+
+    evse_set_state(EVSE_IDLE);
 
     for(;;){
         // 先检测一下错误标志
@@ -178,19 +156,17 @@ static ErrStatus evse_error_ck(void)
     uint8_t error_flag = false;
 
     for(;;){
-        if( g_over_cur_flag|g_pe_error_flag|cp_error_flag|s1_lost_flag|rcd_error_flag|
-            cp_lost_flag|g_overheat_flag|g_under_vol_flag|g_over_vol_flag){
+        if(*((uint32_t*)p_evse_fault_bit) != 0){
             /* 继电器是检测到错误就关闭 */
             if(evse.relay_state == close){
-                evse.evse_relay_ctrl(open);
-                evse.relay_state = open;
+                evse_relay_open();
             }
             error_flag = true;
         }
 
         evse_ui_update(UI_CMD_ERR_CLR_ALL, NULL, NULL);
         /* 不可恢复错误(需要关闭PWM输出) */
-        if(g_over_cur_flag == true){    // 过流
+        if(evse_fault_bit.over_cur){    // 过流
             /* PWM需要根据具体的错误类型来控制关闭 */
             if(evse.p_cp->pwm_state == ENABLE){
                 evse.p_cp->pwm_ctrl(DISABLE);
@@ -198,8 +174,16 @@ static ErrStatus evse_error_ck(void)
             }
             evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_CURRENT, NULL);
         }
-        
-        if(rcd_error_flag == true){
+
+        if(evse_fault_bit.relay_adh){
+            if(evse.p_cp->pwm_state == ENABLE){
+                evse.p_cp->pwm_ctrl(DISABLE);
+                evse.p_cp->pwm_state = DISABLE;
+            }
+            evse_ui_update(UI_CMD_SET_ERR, FAULT_RELAY_ADH, NULL);
+        }
+
+        if(evse_fault_bit.leakage){
             /* PWM需要根据具体的错误类型来控制关闭 */
             if(evse.p_cp->pwm_state == ENABLE){
                 evse.p_cp->pwm_ctrl(DISABLE);
@@ -208,32 +192,31 @@ static ErrStatus evse_error_ck(void)
             evse_ui_update(UI_CMD_SET_ERR, FAULT_LEAKAGE, NULL);
         }
         /* 可恢复错误(不用关闭PWM输出) */
-        if(g_overheat_flag == true){
+        if(evse_fault_bit.over_heat){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_HEAT, NULL);
-            error_flag = true;
         }
         
-        if(g_under_vol_flag == true){
+        if(evse_fault_bit.under_voltage){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_UNDER_VOLTAGE, NULL);
         }
         
-        if(g_over_vol_flag == true){
+        if(evse_fault_bit.over_voltage){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_OVER_VOLTAGE, NULL);
         }
 
-        if(g_pe_error_flag == true){
+        if(evse_fault_bit.pe_lost){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_PE_LOST, NULL);
         }
 
-        if(cp_lost_flag == true){
+        if(evse_fault_bit.cp_lost){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_CP_LOST, NULL);
         }
 
-        if(cp_error_flag == true){
+        if(evse_fault_bit.cp_error){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_CP_ERROR, NULL);
         }
 
-        if(s1_lost_flag == true){
+        if(evse_fault_bit.s1_lost){
             evse_ui_update(UI_CMD_SET_ERR, FAULT_S1_LOST, NULL);
         }
 
@@ -294,7 +277,7 @@ evse_state_t evse_get_state(void)
 static void evse_idle_handle_before(void)
 {
     charging_time_total = 0;
-    evse_ui_update(UI_CMD_UPDATE_TIME, charging_time_total, NULL);
+    evse_ui_update(UI_CMD_UPDATE_TIME, g_evse_delay, NULL);
 }
 
 evse_state_t evse_idle_handle(cp_state_t cp_state)
@@ -304,8 +287,7 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -335,7 +317,7 @@ evse_state_t evse_idle_handle(cp_state_t cp_state)
     case CP_6V:
         return EVSE_6V;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     default:
         break;
@@ -351,8 +333,7 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -380,7 +361,7 @@ evse_state_t evse_wait_plugin_handle(cp_state_t cp_state)
     case CP_6V:
         return EVSE_6V;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     default:
         break;
@@ -396,8 +377,7 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -428,7 +408,7 @@ evse_state_t evse_9v_handle(cp_state_t cp_state)
     case CP_6V: // 在未输出PWM的情况下，如果汽车进入CP_6V状态，那么说明是简易导引
         return EVSE_6V;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     default:
         break;
@@ -446,8 +426,7 @@ evse_state_t evse_wait_delay(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -481,7 +460,7 @@ evse_state_t evse_wait_delay(cp_state_t cp_state)
         evse_idle_handle_before();
         return EVSE_IDLE;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     case CP_9V:
     default:
@@ -498,8 +477,7 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == DISABLE){
@@ -511,6 +489,15 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
         evse_set_state(EVSE_9V_PWM);
         log_i("EVSE_9V_PWM.");
     }
+
+    #if defined(S1_CK_ENABLE)
+        bos_delay_ms(20);
+        if(1 == evse_s1_ck()){
+            log_e("s1_lost");
+            evse_set_fault_flag(FAULT_S1_LOST);
+            return EVSE_9V_PWM;
+        }
+    #endif
 
     switch (cp_state)
     {
@@ -525,26 +512,21 @@ evse_state_t evse_9v_pwm_handle(cp_state_t cp_state)
     #endif
         break;
     case CP_6V:
-        switch (evse_check_before_charging())
-        {
-        case 0:
+        #if defined(RCD_CK_ENABLE)
+            if(SET == evse_rcd_test()){
+                log_d("rcd ok.");
+                return EVSE_CHARGING;
+            }else{
+                evse_set_fault_flag(FAULT_LEAKAGE);
+                log_d("rcd error.");
+                break;
+            }
+        #else
+            log_d("skip rcd_ck.");
             return EVSE_CHARGING;
-        case 1:
-            s1_lost_flag = true;
-            break;
-        case 2:
-            rcd_error_flag = true;
-            break;
-        case 3:
-            s1_lost_flag = true;
-            rcd_error_flag = true;
-            break;
-        default:
-            break;
-        }
-        break;
+        #endif
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     default:
         break;
@@ -561,8 +543,7 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.p_cp->pwm_state == ENABLE){
@@ -587,10 +568,10 @@ evse_state_t evse_6v_handle(cp_state_t cp_state)
     #endif
         break;
     case CP_12V:
-        cp_lost_flag = true;
+        evse_set_fault_flag(FAULT_CP_LOST);
         break;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     default:
         break;
@@ -620,7 +601,7 @@ evse_state_t evse_sim_6v_handle(cp_state_t cp_state)
     case CP_9V:
         return EVSE_9V;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
     case CP_6V:
     default:
         break;
@@ -641,7 +622,7 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == open){
-        evse.evse_relay_ctrl(close);
+        evse_relay_ctrl(close);
         evse.relay_state = close;
     }
 
@@ -664,10 +645,10 @@ evse_state_t evse_charging_handle(cp_state_t cp_state)
     case CP_9V:
         return EVSE_DONE;
     case CP_12V:
-        cp_lost_flag = true;
+        evse_set_fault_flag(FAULT_CP_LOST);
         break;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     case CP_6V:
     default:
@@ -695,11 +676,19 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.evse_state != EVSE_DONE){
+        // 粘连检测
+        bos_delay_ms(150);
+        if(evse_ac_adh_ck() == ERROR){
+            evse_set_fault_flag(FAULT_RELAY_ADH);
+            log_d("ADH error.");
+        }else{
+            evse_clear_fault_flag(FAULT_RELAY_ADH);
+            log_d("ADH success.");
+        }
         evse_set_state(EVSE_DONE);
         log_i("EVSE_DONE.");
     }
@@ -720,7 +709,7 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
     case CP_6V:
         return EVSE_6V;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     default:
         break;
@@ -730,58 +719,61 @@ evse_state_t evse_done_handle(cp_state_t cp_state)
 }
 
 evse_state_t evse_fault_handle(cp_state_t cp_state){
+    static uint32_t fault_bit_last = 0xFFFFFFFF;
     if(evse.evse_state != EVSE_FAULT){
         evse_set_state(EVSE_FAULT);
         log_e("EVSE_FAULT.");
-        /* 打印错误标志 */
-        // todo: 有一个问题，如果已经在错误状态，那么新增加的错误标志，就不会打印了
-        if(cp_lost_flag == true){
+    }
+
+    if(*((uint32_t*)p_evse_fault_bit) != 0 && fault_bit_last != *((uint32_t*)p_evse_fault_bit)){
+        fault_bit_last = *((uint32_t*)p_evse_fault_bit);
+        if(evse_fault_bit.cp_lost){
             log_e("CP_LOST.");
         }
-        if(cp_error_flag == true){
+        if(evse_fault_bit.cp_error){
             log_e("CP_ERROR.");
         }
-        if(g_over_cur_flag == true){
+        if(evse_fault_bit.over_cur){
             log_e("OVER_CUR.");
         }
-        if(g_over_vol_flag == true){
+        if(evse_fault_bit.over_voltage){
             log_e("OVER_VOLT.");
         }
-        if(g_overheat_flag == true){
+        if(evse_fault_bit.over_heat){
             log_e("OVER_TEMP.");
         }
-        if(g_under_vol_flag == true){
+        if(evse_fault_bit.under_voltage){
             log_e("UNDER_VOLT.");
         }
-        if(g_pe_error_flag == true){
+        if(evse_fault_bit.pe_lost){
             log_e("PE_ERROR.");
         }
-        if(s1_lost_flag == true){
+        if(evse_fault_bit.s1_lost){
             log_e("S1_LOST.");
         }
-        if(rcd_error_flag == true){
+        if(evse_fault_bit.leakage){
             log_e("RCD_ERROR.");
         }
     }
 
-    if(cp_lost_flag == true && cp_state != CP_12V){
-        cp_lost_flag = false;
+    if(evse_fault_bit.cp_lost && cp_state != CP_12V){
+        evse_fault_bit.cp_lost = 0;
     }
 
-    if(cp_error_flag == true && cp_state != CP_ERROR){
-        cp_error_flag = false;
+    if(evse_fault_bit.cp_error && cp_state != CP_ERROR){
+        evse_clear_fault_flag(FAULT_CP_ERROR);
     }
 
-    if(s1_lost_flag == true){
+    // 处理s1缺失的情况
+    if(evse_fault_bit.s1_lost){
         switch (cp_state)
         {
         case CP_12V:    // 拔下枪头或者汽车断开S2，清除s1_lost_flag
-        case CP_9V:
-            s1_lost_flag = false;
+            evse_clear_fault_flag(FAULT_S1_LOST);
             break;
-        case CP_6V:
+        case CP_9V:
             if(evse.p_cp->pwm_state == ENABLE){
-                s1_lost_flag = (SUCCESS == evse_s1_ck()) ? false : true;
+                (0 == evse_s1_ck()) ? evse_clear_fault_flag(FAULT_S1_LOST) : evse_set_fault_flag(FAULT_S1_LOST);
             }
             break;
         default:
@@ -803,8 +795,7 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     }
 
     if(evse.relay_state == close){
-        evse.evse_relay_ctrl(open);
-        evse.relay_state = open;
+        evse_relay_open();
     }
 
     if(evse.evse_state != EVSE_STOP){
@@ -822,7 +813,7 @@ evse_state_t evse_stop_handle(cp_state_t cp_state)
     case CP_6V:
         return EVSE_6V;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     default:
         break;
@@ -857,9 +848,9 @@ evse_state_t evse_wait_s2_open_handle(cp_state_t cp_state)
     case CP_9V:
         return EVSE_STOP;
     case CP_12V:
-        cp_lost_flag = true;
+        evse_set_fault_flag(FAULT_CP_LOST);
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     case CP_6V:
     default:
@@ -890,6 +881,15 @@ evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
         log_i("EVSE_6V_PWM.");
     }
 
+    #if defined(S1_CK_ENABLE)
+        bos_delay_ms(20);
+        if(1 == evse_s1_ck()){
+            log_e("s1_lost");
+            evse_set_fault_flag(FAULT_S1_LOST);
+            return EVSE_6V_PWM;
+        }
+    #endif
+
     switch (cp_state)
     {
     case CP_9V:
@@ -898,26 +898,22 @@ evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
         evse_idle_handle_before();
         return EVSE_IDLE;
     case CP_ERROR:
-        cp_error_flag = true;
+        evse_set_fault_flag(FAULT_CP_ERROR);
         break;
     case CP_6V:
-        switch (evse_check_before_charging())
-        {
-        case 0:
+        #if defined(RCD_CK_ENABLE)
+            if(SET == evse_rcd_test()){
+                log_d("rcd ok.");
+                return EVSE_CHARGING;
+            }else{
+                evse_set_fault_flag(FAULT_LEAKAGE);
+                log_d("rcd error.");
+                break;
+            }
+        #else
+            log_d("skip rcd_ck.");
             return EVSE_CHARGING;
-        case 1:
-            s1_lost_flag = true;
-            break;
-        case 2:
-            rcd_error_flag = true;
-            break;
-        case 3:
-            s1_lost_flag = true;
-            rcd_error_flag = true;
-            break;
-        default:
-            break;
-        }
+        #endif
         break;
     default:
         break;
@@ -926,31 +922,54 @@ evse_state_t evse_6v_pwm_handle(cp_state_t cp_state)
     return EVSE_6V_PWM;
 }
 
-static uint8_t evse_check_before_charging(void)
+void evse_set_fault_flag(evse_fault_t fault)
 {
-    uint8_t error_code = 0;
-    
-    #if defined(S1_CK_ENABLE)
-        if(SUCCESS == evse_s1_ck()){
-            log_d("s1_ck ok.");
-        }else{
-            s1_lost_flag = true;
-            log_d("s1_ck error.");
-        }
-    #else
-        log_d("skip s1_ck.");
-    #endif
+    switch (fault) {
+        case FAULT_OVER_CURRENT : evse_fault_bit.over_cur = 1; break;
+        case FAULT_OVER_VOLTAGE : evse_fault_bit.over_voltage = 1; break;
+        case FAULT_UNDER_VOLTAGE : evse_fault_bit.under_voltage = 1; break;
+        case FAULT_OVER_HEAT : evse_fault_bit.over_heat = 1; break;
+        case FAULT_LEAKAGE : evse_fault_bit.leakage = 1; break;
+        case FAULT_RELAY_ADH : evse_fault_bit.relay_adh = 1; break;
+        case FAULT_CP_LOST : evse_fault_bit.cp_lost = 1; break;
+        case FAULT_CP_ERROR : evse_fault_bit.cp_error = 1; break;
+        case FAULT_S2_TIMEOUT : evse_fault_bit.s2_timeout = 1; break;
+        case FAULT_PE_LOST : evse_fault_bit.pe_lost = 1; break;
+        case FAULT_S1_LOST : evse_fault_bit.s1_lost = 1; break;
+        case FAULT_UNKNOWN :
+        default : evse_fault_bit.unknown = 1; break;
+    }
+}
 
-    #if defined(RCD_CK_ENABLE)
-        if(SET == evse_rcd_test()){
-            log_d("rcd ok.");
-        }else{
-            rcd_error_flag = true;
-            log_d("rcd error.");
-        }
-    #else
-        log_d("skip rcd_ck.");
-    #endif
+void evse_clear_fault_flag(evse_fault_t fault)
+{
+    switch (fault) {
+        case FAULT_OVER_CURRENT : evse_fault_bit.over_cur = 0; break;
+        case FAULT_OVER_VOLTAGE : evse_fault_bit.over_voltage = 0; break;
+        case FAULT_UNDER_VOLTAGE : evse_fault_bit.under_voltage = 0; break;
+        case FAULT_OVER_HEAT : evse_fault_bit.over_heat = 0; break;
+        case FAULT_LEAKAGE : evse_fault_bit.leakage = 0; break;
+        case FAULT_RELAY_ADH : evse_fault_bit.relay_adh = 0; break;
+        case FAULT_CP_LOST : evse_fault_bit.cp_lost = 0; break;
+        case FAULT_CP_ERROR : evse_fault_bit.cp_error = 0; break;
+        case FAULT_S2_TIMEOUT : evse_fault_bit.s2_timeout = 0; break;
+        case FAULT_PE_LOST : evse_fault_bit.pe_lost = 0; break;
+        case FAULT_S1_LOST : evse_fault_bit.s1_lost = 0; break;
+        case FAULT_UNKNOWN :
+        default : evse_fault_bit.unknown = 0; break;
+    }
+}
 
-    return error_code;
+void evse_relay_open(void)
+{
+    evse.evse_relay_ctrl(open);
+    evse.relay_state = open;
+    bos_delay_ms(500);
+    if(evse_ac_adh_ck() == ERROR){
+        evse_set_fault_flag(FAULT_RELAY_ADH);
+        log_d("ADH error.");
+    }else{
+        evse_clear_fault_flag(FAULT_RELAY_ADH);
+        log_d("ADH success.");
+    }
 }

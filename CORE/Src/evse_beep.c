@@ -17,7 +17,7 @@ static void task_entry_beep(void *parameter)
         bos_delay_ms(200);
     }
 }
-bos_task_export(fault_beep, task_entry_beep, BOS_MAX_PRIORITY, NULL);
+// bos_task_export(fault_beep, task_entry_beep, BOS_MAX_PRIORITY, NULL);
 
 void evse_beep_init(void){
     rcu_periph_clock_enable(RCU_AF);

@@ -13,22 +13,26 @@
 #define ADC_TH          (0x30)  // ADC限幅滤波阈值
 
 /* CP输出 */
-#define CP_TIMER        (TIMER1)
-#define CP_TIMER_RCU    (RCU_TIMER1)
-#define CP_TIMER_CH     (TIMER_CH_1)
-#define CP_TIMER_IRQ    (TIMER1_IRQn)
+#define CP_TIMER        (TIMER0)
+#define CP_TIMER_RCU    (RCU_TIMER0)
+#define CP_TIMER_CH     (TIMER_CH_0)
+#define CP_TIMER_IRQ    (TIMER0_UP_IRQn)
 #define CP_PORT         (GPIOA)
-#define CP_PIN          (GPIO_PIN_1)
+#define CP_PIN          (GPIO_PIN_8)
 #define CP_PORT_RCU     (RCU_GPIOA)
 #define CP_PWM_MODE     (TIMER_OC_MODE_PWM1)
-#define CK_ADC          ADC2
-#define CK_ADC_RCU      RCU_ADC2
+#define CK_ADC          (ADC2)
+#define CK_ADC_RCU      (RCU_ADC2)
 /* CP检测 */
-#define CK_CP_PORT      GPIOA
-#define CK_CP_RCU       RCU_GPIOA
-#define CK_CP_PIN       GPIO_PIN_0
-
-#define CK_CP_ADC_CH    ADC_CHANNEL_0
+#define CK_CP_PORT      (GPIOA)
+#define CK_CP_RCU       (RCU_GPIOA)
+#define CK_CP_PIN       (GPIO_PIN_0)
+#define CK_CP_ADC_CH    (ADC_CHANNEL_0)
+/* S1检测 */
+#define CK_S1_PORT      (GPIOC)
+#define CK_S1_RCU       (RCU_GPIOC)
+#define CK_S1_PIN       (GPIO_PIN_1)
+#define CK_S1_ADC_CH    (ADC_CHANNEL_11)
 
 // 定义CP电平阈值
 // #define CP_12V_TH   3500
@@ -39,14 +43,6 @@
 #define CP_9V_TH    2.1f    // 2.1V
 #define CP_6V_TH    1.4f    // 1.4V
 #define CP_OFFSET   0.24f   // 0.26V
-
-// 定义CP电压状态
-#define STATE_CP_12V    (1<<0)
-#define STATE_CP_9V     (1<<1)
-#define STATE_CP_6V     (1<<2)
-#define STATE_CP_3V     (1<<3)
-#define STATE_CP_UNK    (1<<4)  // 未知状态
-#define STATE_CP_ERROR  (1<<5)
 
 extern __IO uint16_t g_Vrefint;  // 芯片内部1.2V参考电压的 ADC 原始值
 uint16_t gnd_base = 0;
@@ -65,7 +61,7 @@ const static uint16_t duty_table[] = {
 
 cp_t g_cp = {
     .pwm_state  = DISABLE,
-    .ck_state   = CK_OFF,
+    .ck_state   = DISABLE,
     .state      = CP_INIT,
     .init       = cp_pwm_init,
     .set_cur    = cp_cur_set,
@@ -108,8 +104,12 @@ void cp_pwm_init(uint32_t f)
     timer_init(CP_TIMER, &timer_initpara);
 
     /* configurate CHx in PWM modex */
-    timer_ocintpara.ocpolarity  = TIMER_OC_POLARITY_HIGH;
-    timer_ocintpara.outputstate = TIMER_CCX_ENABLE;
+    timer_ocintpara.outputstate  = TIMER_CCX_ENABLE;
+    timer_ocintpara.outputnstate = TIMER_CCXN_DISABLE;
+    timer_ocintpara.ocpolarity   = TIMER_OC_POLARITY_HIGH;
+    timer_ocintpara.ocnpolarity  = TIMER_OCN_POLARITY_HIGH;
+    timer_ocintpara.ocidlestate  = TIMER_OC_IDLE_STATE_LOW;
+    timer_ocintpara.ocnidlestate = TIMER_OCN_IDLE_STATE_LOW;    
     timer_channel_output_config(CP_TIMER, CP_TIMER_CH, &timer_ocintpara);
 
     timer_update_event_enable(CP_TIMER);                                  // 配置TIMERx_CTL0的UPDIS
@@ -117,17 +117,25 @@ void cp_pwm_init(uint32_t f)
     timer_update_source_config(CP_TIMER, TIMER_UPDATE_SRC_GLOBAL);        // 配置TIMERx_CTL0的UPS
 
     /* TIMERx channelx duty cycle = (((TIMER_CAR(CP_TIMER)+1)/20)/ TIMER_CAR(CP_TIMER))* 100  = 5% */    
-    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, CP_PWM_MODE);        // 先输出低电平
-    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 950); //
-    timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_ENABLE);  // 使能CHxCV寄存器的影子寄存器
+    timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_HIGH);    // 先输出高电平
+    timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 500); //
+    timer_channel_output_shadow_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_SHADOW_DISABLE);  // 使能CHxCV寄存器的影子寄存器
 
-    timer_primary_output_config(CP_TIMER, DISABLE);
+    timer_primary_output_config(CP_TIMER, ENABLE);  // 只有TIMER0和TIMER7需要配置这个
     /* auto-reload preload enable */
     timer_auto_reload_shadow_enable(CP_TIMER);
 
+    timer_master_slave_mode_config(CP_TIMER, TIMER_MASTER_SLAVE_MODE_ENABLE);
+    timer_master_output_trigger_source_select(CP_TIMER, TIMER_TRI_OUT_SRC_CH0);
+
+    /* 更新事件 */
     timer_interrupt_flag_clear(CP_TIMER, TIMER_INT_UP);
     timer_interrupt_disable(CP_TIMER, TIMER_INT_UP);
-    nvic_irq_enable(CP_TIMER_IRQ, 4, 0);
+    nvic_irq_enable(TIMER0_UP_IRQn, 4, 0);
+    /* 比较/捕获事件 */
+    // timer_interrupt_flag_clear(CP_TIMER, TIMER_INT_CH0);
+    // timer_interrupt_disable(CP_TIMER, TIMER_INT_CH0);
+    // nvic_irq_enable(TIMER0_Channel_IRQn, 4, 0);
 
     timer_enable(CP_TIMER);
 
@@ -138,21 +146,35 @@ void cp_pwm_init(uint32_t f)
 /**
  * @brief   在定时器中断中，软件触发ADC转换
  */
-void TIMER2_IRQHandler(void)
-{
-    /* TIMER2只开了一个中断，所以就不判断了 */
-    ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
-    TIMER_INTF(TIMER2) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
-}
+// void TIMER2_IRQHandler(void)
+// {
+//     /* TIMER2只开了一个中断，所以就不判断了 */
+//     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
+//     TIMER_INTF(TIMER2) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
+// }
 
 /**
  * @brief   在定时器中断中，软件触发ADC转换
  */
-void TIMER1_IRQHandler(void)
+// void TIMER1_IRQHandler(void)
+// {
+//     /* TIMER1只开了一个中断，所以就不判断了 */
+//     ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
+//     TIMER_INTF(TIMER1) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
+// }
+
+void TIMER0_UP_IRQHandler(void)
 {
-    /* TIMER1只开了一个中断，所以就不判断了 */
-    ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换
-    TIMER_INTF(TIMER1) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
+    ADC_CTL1(CK_ADC) |= ADC_CTL1_SWRCST;    // 软件触发ADC转换(CP检测)
+    TIMER_INTF(TIMER0) = (~(uint32_t)TIMER_INT_UP); // 清除中断标志位
+}
+
+void TIMER0_Channel_IRQHandler(void)
+{
+    if(timer_interrupt_flag_get(TIMER0, TIMER_INT_CH0)){
+        ADC_CTL1(CK_ADC) |= ADC_CTL1_SWICST;    // 软件触发ADC转换(CK检测)
+        TIMER_INTF(TIMER0) = (~(uint32_t)TIMER_INT_CH0);
+    }
 }
 
 /**
@@ -196,6 +218,8 @@ void cp_check_init(void)
     /* GPIO配置 */
     rcu_periph_clock_enable(CK_CP_RCU);
     gpio_init(CK_CP_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, CK_CP_PIN);
+    rcu_periph_clock_enable(CK_S1_RCU);
+    gpio_init(CK_S1_PORT, GPIO_MODE_AIN, GPIO_OSPEED_MAX, CK_S1_PIN);
     /* enable ADC clock */
     rcu_periph_clock_enable(CK_ADC_RCU);
     /* config ADC clock */
@@ -209,13 +233,17 @@ void cp_check_init(void)
     /* 关闭连续模式(触发一次转换一次) */
     adc_special_function_config(CK_ADC, ADC_CONTINUOUS_MODE, DISABLE);
     /* ADC channel length config */
-    adc_channel_length_config(CK_ADC, ADC_REGULAR_CHANNEL, 1);
+    adc_channel_length_config(CK_ADC, ADC_REGULAR_CHANNEL, 1);  // CP检测
+    adc_channel_length_config(CK_ADC, ADC_INSERTED_CHANNEL, 1); // S1检测
     /* ADC0_CHx config */
-    adc_regular_channel_config(CK_ADC, 0, CK_CP_ADC_CH, ADC_SAMPLETIME_7POINT5);
+    adc_regular_channel_config(CK_ADC, 0, CK_CP_ADC_CH, ADC_SAMPLETIME_7POINT5);    // CP检测
+    adc_inserted_channel_config(CK_ADC, 0, CK_S1_ADC_CH, ADC_SAMPLETIME_239POINT5);   // S1检测
     /* ADC trigger config */
-    adc_external_trigger_source_config(CK_ADC, ADC_REGULAR_CHANNEL, ADC0_1_2_EXTTRIG_REGULAR_NONE); // 由软件触发
+    adc_external_trigger_source_config(CK_ADC, ADC_REGULAR_CHANNEL, ADC0_1_2_EXTTRIG_REGULAR_NONE);     // 由软件触发
+    adc_external_trigger_source_config(CK_ADC, ADC_INSERTED_CHANNEL, ADC2_EXTTRIG_INSERTED_T0_TRGO);    // 由软件触发
     /* ADC external trigger enable */
     adc_external_trigger_config(CK_ADC, ADC_REGULAR_CHANNEL, ENABLE);   // 软件触发也算外部触发的。
+    adc_external_trigger_config(CK_ADC, ADC_INSERTED_CHANNEL, ENABLE);  // 软件触发也算外部触发的。
     /* enable ADC interface */
     adc_enable(CK_ADC);
     
@@ -253,74 +281,10 @@ void DMA1_Channel3_4_IRQHandler(void)
 void pwm_ctrl(ControlStatus status){
     switch(status){
     case ENABLE:
-        cp_enable();
+        timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, CP_PWM_MODE);
         break;
     case DISABLE:
-        cp_disable();
-        break;
-    default:
-        break;
-    }
-}
-
-/**
- * @brief   开启PWM输出
- * @note    参考timer_channel_output_mode_config()函数
-*/
-void cp_enable(void)
-{
-    switch(CP_TIMER_CH){
-    /* configure TIMER_CH_0 */
-    case TIMER_CH_0:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH0COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)CP_PWM_MODE;
-        break;
-    /* configure TIMER_CH_1 */
-    case TIMER_CH_1:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH1COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)((uint32_t)(CP_PWM_MODE) << 8U);
-        break;
-    /* configure TIMER_CH_2 */
-    case TIMER_CH_2:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH2COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)CP_PWM_MODE;
-        break;
-    /* configure TIMER_CH_3 */
-    case TIMER_CH_3:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH3COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)((uint32_t)(CP_PWM_MODE) << 8U);
-        break;
-    default:
-        break;
-    }
-}
-
-/**
- * @brief   关闭PWM输出(强制输出高电平)
- * @note    参考timer_channel_output_mode_config()函数
-*/
-void cp_disable(void)
-{
-    switch(CP_TIMER_CH){
-    /* configure TIMER_CH_0 */
-    case TIMER_CH_0:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH0COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_HIGH;
-        break;
-    /* configure TIMER_CH_1 */
-    case TIMER_CH_1:
-        TIMER_CHCTL0(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL0_CH1COMCTL);
-        TIMER_CHCTL0(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_HIGH) << 8U);
-        break;
-    /* configure TIMER_CH_2 */
-    case TIMER_CH_2:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH2COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)TIMER_OC_MODE_HIGH;
-        break;
-    /* configure TIMER_CH_3 */
-    case TIMER_CH_3:
-        TIMER_CHCTL1(CP_TIMER) &= (~(uint32_t)TIMER_CHCTL1_CH3COMCTL);
-        TIMER_CHCTL1(CP_TIMER) |= (uint32_t)((uint32_t)(TIMER_OC_MODE_HIGH) << 8U);
+        timer_channel_output_mode_config(CP_TIMER, CP_TIMER_CH, TIMER_OC_MODE_HIGH);
         break;
     default:
         break;
@@ -340,27 +304,6 @@ uint8_t cp_cur_set(uint8_t cur)
         return 1;
     }
     g_cp.current = cur; // 更新电流大小
-
-    // if(CP_TIMER_CH == TIMER_CH_0){
-    //     pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH0COMCTL));
-    // }else if(CP_TIMER_CH == TIMER_CH_1){
-    //     pwm_flag = (uint16_t)((TIMER_CHCTL0(CP_TIMER)) & ((uint32_t)TIMER_CHCTL0_CH1COMCTL));
-    //     pwm_flag >>= 8;
-    // }else{
-    //     log_e("timer_ch_%d is not supported", CP_TIMER_CH);
-    //     return 1;
-    // }
-
-    // if(TIMER_OC_MODE_PWM0 == pwm_flag){
-    //     timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
-    //     log_d("PWM0");
-    // }
-    // else if (TIMER_OC_MODE_PWM1 == (pwm_flag)){
-    //     timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, 1000-duty_table[cur]);
-    //     log_d("PWM1");
-    // }else{
-    //     log_e("CH%dCOMCTL[2:0]: 0x%X", CP_TIMER_CH, pwm_flag);
-    // }
 
     if(CP_PWM_MODE == TIMER_OC_MODE_PWM0){
         timer_channel_output_pulse_value_config(CP_TIMER, CP_TIMER_CH, duty_table[cur]);
@@ -382,70 +325,16 @@ uint8_t cp_cur_set(uint8_t cur)
 void ck_ctrl(ControlStatus status){
     switch(status){
     case ENABLE:
-        timer_interrupt_enable(CP_TIMER, TIMER_INT_UP); // 开启更新中断
+        timer_interrupt_enable(CP_TIMER, TIMER_INT_UP);     // 开启更新中断
+        timer_interrupt_enable(CP_TIMER, TIMER_INT_CH0);    // 开启比较中断
         break;
     case DISABLE:
-        timer_interrupt_disable(CP_TIMER, TIMER_INT_UP); // 关闭更新中断
+        timer_interrupt_disable(CP_TIMER, TIMER_INT_UP);    // 关闭更新中断
+        timer_interrupt_disable(CP_TIMER, TIMER_INT_CH0);   // 关闭比较中断
         break;
     default:
         break;
     }
-}
-
-uint16_t get_cp_vol(__IO uint16_t pBuff[][2], uint16_t length)
-{
-    static uint16_t voltage;
-    uint16_t temp = 0;
-    uint32_t sum = 0, count = 0;
-    uint16_t temp_buff[SAMPLE_NUM] = {0};
-
-    /* 检测CP */
-    /**
-     * 在采样数据中找到第一个大于100的数(正常的ADC_RAW值会大于2000)，赋值给temp，作为滤波器的初始值。
-     * 这一步是为了防止temp设置过小，导致滤波结果不准确。
-    */
-    for(uint32_t i = 0; i < (length-1); i++){
-        if(abs(pBuff[i][0] - pBuff[i+1][0]) <= ADC_TH){
-            temp = pBuff[i][0];
-            if (temp > 100){
-                break;
-            }
-        }
-    }
-
-    for(uint32_t i = 0; i < length; i++){
-        if(abs((int32_t)(pBuff[i][0] - temp)) <= ADC_TH){
-            sum += pBuff[i][0];
-            temp = pBuff[i][0];
-            temp_buff[i] = pBuff[i][0];
-            count++;
-        }
-    }
-
-    if(count >= (length/2))  // 如果求和数量太少的话(小于一半), 本次计算出来的数据可信度就会比较低，因此直接忽略
-        voltage = (uint16_t)(sum/count);
-
-    return voltage;
-}
-
-uint16_t get_gnd_vol(__IO uint16_t pBuff[][2], uint16_t length)
-{
-    static uint16_t voltage;
-    uint16_t base_voltage;
-    uint16_t temp = 0;
-    uint32_t sum = 0, count = 0;
-
-    for(uint32_t i = 0; i < length; i++){
-        sum += pBuff[i][1];
-    }
-    base_voltage = (uint16_t)(sum/length);
-
-    for(uint32_t i = 0; i < length; i++){
-        voltage += abs((int32_t)pBuff[i][1]-(int32_t)base_voltage);
-    }
-    voltage /= length;
-
-    return voltage;
 }
 
 /**
@@ -512,6 +401,18 @@ cp_state_t get_cp_state(float vol)
     }
 }
 
+int evse_s1_ck(void)
+{
+    uint16_t idata = 0;
+    // while (adc_flag_get(ADC1, ADC_FLAG_EOIC) == RESET){}
+    while((ADC_STAT(ADC2) & ADC_FLAG_EOIC) == RESET){}
+    idata = (uint16_t)ADC_IDATA0(ADC2);
+    // adc_flag_clear(ADC1, ADC_FLAG_EOIC);
+    ADC_STAT(ADC2) = ~((uint32_t)ADC_FLAG_EOIC);
+
+    return (idata > 2500) ? 0 : 1;
+}
+
 /* 快速排序算法 ------------------------ */
 int32_t abs(int32_t x) {
     int32_t y = x >> 31;
@@ -546,6 +447,26 @@ void quickSort(uint16_t arr[], int low, int high) {
     }
 }
 
+void task_entry_s1_ck(void *parameter)
+{
+    uint16_t idata = 0;
+    /* 等待充电桩主任务完成初始化 */
+    while (evse_get_state() == EVSE_REBOOT)
+    {
+        bos_delay_ms(100);
+    }
+    for(;;){
+        // while (adc_flag_get(ADC1, ADC_FLAG_EOIC) == RESET){}
+        while((ADC_STAT(ADC2) & ADC_FLAG_EOIC) == RESET){}
+        // adc_flag_clear(ADC1, ADC_FLAG_EOIC);
+        ADC_STAT(ADC2) = ~((uint32_t)ADC_FLAG_EOIC);
+        idata = (uint16_t)ADC_IDATA0(ADC2);
+        log_d("s1_ck: %d", idata);
+        bos_delay_ms(500);
+    }
+}
+// bos_task_export(evse_s1, task_entry_s1_ck, BOS_MAX_PRIORITY, NULL);
+
 void task_entry_cp_test(void *parameter)
 {
     uint16_t vol;
@@ -560,6 +481,7 @@ void task_entry_cp_test(void *parameter)
             log_i("vol: %d", vol);
             g_p_cp_buff = NULL;
         }
+        // log_i("EVSE.");
         bos_delay_ms(1);
     }
 }
