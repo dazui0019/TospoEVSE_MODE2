@@ -82,25 +82,25 @@
                 "color": "white",
                 "singleInstance": true,
                 "saveAll": true,
-                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
             },
             {
                 "cwd": "${workspaceFolder}",
                 "name": "\ud83e\udd70Flash",
                 "color": "white",
                 "singleInstance": true,
-                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "\ud83d\udc25Run Keil",
+                "name": "\ud83d\udc25Keil",
                 "color": "white",
                 "singleInstance": true,
                 "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "\ud83e\udd14RTT Viewer",
+                "name": "\ud83e\udd14RTT",
                 "color": "white",
                 "singleInstance": true,
                 "command": "openocd -f ./openocd_daplink.cfg -f ./openocd_rtt.cfg & telnet localhost 8888"
