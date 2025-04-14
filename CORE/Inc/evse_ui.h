@@ -42,3 +42,16 @@ typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))){
 }evse_ui_data_t;
 
 uint8_t evse_ui_update(uint8_t cmd, uint16_t arg_int, void *arg_ptr);
+
+static void _display_update_current(uint16_t current);
+static void _display_update_voltage(uint16_t voltage);
+static void _display_update_state_mode2(uint8_t state);
+static void _display_update_fault(evse_ui_fault_t fault);
+static void _display_update_kwh(uint16_t kwh);
+static void _display_update_power(uint16_t power);
+
+/**
+ * @brief 更新倒计时时间
+ */
+static void _display_update_time(uint16_t time);
+static void _display_update_all(evse_ui_data_t* ui_data);

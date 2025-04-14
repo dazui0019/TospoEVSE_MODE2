@@ -5,7 +5,7 @@ import os
 import sys
 
 settings_json_path = '.vscode/settings.json'
-mdk_prj_path = 'project.uvprojx'
+mdk_prj_path = 'MDK-ARM/mode2.uvprojx'
 
 # 检查是否存在.uvprojx文件
 if (len(mdk_prj_path) == 0):
@@ -29,8 +29,6 @@ if(IncludePath != None):
     raw_list = re.findall(r'(?:\.{2}|\\)[\\/]([^;]+)(?:;|$)', IncludePath) # 这样提取出来后是一个list
 else:
     raw_list = []
-
-print(raw_list)
 
 compare_flag = False
 path_list = []

@@ -48,16 +48,11 @@ int main(){
     
     elog_init();
     elog_start();
-    // elog_set_filter_lvl(ELOG_LVL_ERROR);
 
     delay_init();   // 初始化延时函数
-    evse_beep_init();
     /* 需要纯延时的初始化函数 */
 
-    // delay_deinit(); // 重置用于延时的定时器
-
     /* 函数测试 */
-    // a_ws2812b_write_one_frame(0xFF0000, temp_array);
 
     /* 启动BasicOS */
     systick_config();

@@ -1,6 +1,6 @@
 {
     "editor.fontSize": 16,
-    "editor.fontFamily": "'Cascadia Mono', Consolas, 'Courier New', monospace",
+    "editor.fontFamily": "'Cascadia Code', Consolas, 'Courier New', monospace",
     "files.associations": {
         "app.h": "c",
         "main.h": "c",
@@ -70,51 +70,54 @@
         "evse_rcd.h": "c",
         "drv_flash.h": "c",
         "evse_timer.h": "c",
-        "evse_key.h": "c"
+        "evse_key.h": "c",
+        "evse_s1_ck.h": "c",
+        "segger_rtt.h": "c"
     },
     "actionButtons": {
         "commands": [
             {
                 "cwd": "${workspaceFolder}",
-                "name": "🥹Rebuild",
+                "name": "\ud83e\udd79Rebuild",
                 "color": "white",
                 "singleInstance": true,
                 "saveAll": true,
-                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build/build.log -c 'UV4 -r ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "🥰Flash",
+                "name": "\ud83e\udd70Flash",
                 "color": "white",
                 "singleInstance": true,
-                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build_log/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
+                "command": ".vscode/Uv4Caller.exe -o ${workspaceFolder}/MDK-ARM/build/build.log -c 'UV4 -f ${workspaceFolder}/MDK-ARM/mode2.uvprojx -j0'"
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "🐥Run Keil",
+                "name": "\ud83d\udc25Keil",
                 "color": "white",
                 "singleInstance": true,
                 "command": "UV4 ${workspaceFolder}/MDK-ARM/mode2.uvprojx"
             },
             {
                 "cwd": "${workspaceFolder}",
-                "name": "🤔RTT Viewer",
+                "name": "\ud83e\udd14RTT",
                 "color": "white",
                 "singleInstance": true,
                 "command": "openocd -f ./openocd_daplink.cfg -f ./openocd_rtt.cfg & telnet localhost 8888"
             },
             {
-                "cwd": "${workspaceFolder}", 
-                "name": "🧐Monitor",
+                "cwd": "${workspaceFolder}",
+                "name": "\ud83e\uddd0Monitor",
                 "color": "white",
                 "singleInstance": true,
                 "command": ".vscode/monitor.ps1"
             }
         ],
         "defaultColor": "white",
-        "reloadButton": "🫡",
+        "reloadButton": "\ud83e\udee1",
         "loadNpmCommands": false
     },
+    "editor.cursorStyle": "line",
     "C_Cpp.default.includePath": [
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS\\GD\\GD32F30x\\Include",
         "Drivers\\GD32F30x_Firmware_Library_V2.2.0\\CMSIS",

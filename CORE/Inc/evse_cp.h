@@ -11,35 +11,6 @@ typedef enum{
 } cp_state_t;
 
 /**
- * @brief   充电桩状态切换事件
- * @note    用来触发充电桩状态切换
- */
-typedef enum{
-    EVENT_CP_NONE,
-    EVENT_CP_12V,
-    EVENT_CP_9V,
-    EVENT_CP_6V,
-    EVENT_CP_LOST,
-    EVENT_CP_ERROR,
-}cp_event_t;
-
-/**
- * @brief   PWM输出状态标志
- */
-typedef enum{
-    PWM_ENABLE = 0,
-    PWM_DISABLE
-}out_state_t;
-
-/**
- * @brief   PWM输出状态标志
- */
-typedef enum{
-    CK_OFF = 0,
-    CK_ON
-}ck_state_t;
-
-/**
  * @brief   CP结构体
  */
 typedef struct{
@@ -47,7 +18,7 @@ typedef struct{
     __IO uint8_t current;                   // 记录最大输出电流
     __IO cp_state_t state;                  // 记录CP状态
     __IO ControlStatus pwm_state;           // 记录PWM输出状态
-    __IO uint8_t ck_state;                  // 记录电平检测是否开启
+    __IO ControlStatus ck_state;            // 记录电平检测是否开启
     void (*init)(uint32_t f);               // 初始化
     uint8_t (*set_cur)(uint8_t);            // 设置最大电流
     void (*pwm_ctrl)(ControlStatus status); // 控制PWM输出
@@ -74,16 +45,6 @@ void cp_pwm_init(uint32_t f);
  */
 void pwm_ctrl(ControlStatus status);
 /**
- * @brief   开启PWM输出
- * @note    参考timer_channel_output_mode_config()函数
-*/
-void cp_enable(void);
-/**
- * @brief   关闭PWM输出(强制输出低电平)
- * @note    参考timer_channel_output_mode_config()函数
-*/
-void cp_disable(void);
-/**
  * @brief      设置充电电流最大值
  * @param[in]  cur: 1 ~ 63
 */
@@ -108,6 +69,12 @@ int32_t abs(int32_t x);
 */
 void quickSort(uint16_t arr[], int low, int high);
 
-uint16_t get_cp_vol(__IO uint16_t pBuff[][2], uint16_t length);
-uint16_t get_gnd_vol(__IO uint16_t pBuff[][2], uint16_t length);
 cp_state_t get_cp_state(float vol);
+
+/**
+ * @brief   s1二极管检测
+ * @return  s1状态
+ * @retval  1: 二极管缺失
+ *          0: 二极管存在
+ */
+int evse_s1_ck(void);

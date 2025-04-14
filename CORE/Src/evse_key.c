@@ -6,7 +6,6 @@
 #include "evse_charge.h"
 #include "gd32f303x_start.h"
 #include "evse_timer.h"
-#include "evse_beep.h"
 #include "evse_cfg.h"
 
 #define LOG_TAG "evse.key"
@@ -14,6 +13,8 @@
 
 uint8_t Key0_isPressed = false;
 uint8_t Key1_isPressed = false;
+uint8_t Key2_isPressed = false;
+uint8_t Key3_isPressed = false;
 
 static evse_state_t evse_state;
 
@@ -44,42 +45,40 @@ static void task_entry_key_scan(void *parameter)
     }
     
     for(;;){
-        if(Key0_isPressed){
+        if(Key2_isPressed){
             tick_last = bos_time();
-            if(Key1_isPressed == true){
-                Key0_isPressed = false;
-                Key1_isPressed = false;
+            if(Key3_isPressed == true){
+                Key2_isPressed = false;
+                Key3_isPressed = false;
                 continue;
             }
             evse_state = evse_get_state();
             if(EVSE_IDLE == evse_state || EVSE_WAIT_PLUGIN == evse_state || EVSE_9V == evse_state){
-                log_d("Key0 is pressed!");
+                log_d("Key2 is pressed!");
                 evse_max_current_switch();
                 cur_changed = true;
             }else{
                 log_d("Busy.");
                 cur_changed = false;
             }
-            evse_beep();
-            Key0_isPressed = false;
-            continue;   // beep就当延时了。
+            Key2_isPressed = false;
+            continue;
         }
-        if(Key1_isPressed){
+        if(Key3_isPressed){
             tick_last = bos_time();
-            if(Key0_isPressed == true){
-                Key0_isPressed = false;
-                Key1_isPressed = false;
+            if(Key2_isPressed == true){
+                Key2_isPressed = false;
+                Key3_isPressed = false;
                 continue;
             }
             evse_state = evse_get_state();
             if(EVSE_IDLE == evse_state || EVSE_WAIT_PLUGIN == evse_state || EVSE_9V == evse_state){
-                log_d("Key1 is pressed!");
+                log_d("Key3 is pressed!");
                 evse_delay_inc();
             }else{
                 log_d("Busy.");
             }
-            evse_beep();
-            Key1_isPressed = false;
+            Key3_isPressed = false;
             continue;   // beep就当延时了。所以跳过后面大循环的 bos_delay_ms(10);
         }
 
@@ -104,40 +103,35 @@ bos_task_export(key_scan, task_entry_key_scan, BOS_MAX_PRIORITY, NULL);
 
 void evse_key_init(void)
 {
-    gd_key_init(KEY0, KEY_MODE_EXTI);
-    gd_key_init(KEY1, KEY_MODE_EXTI);
+    gd_key_init(KEY2, KEY_MODE_EXTI);
+    gd_key_init(KEY3, KEY_MODE_EXTI);
 }
 
-uint32_t Key0_StartTick = 0; 	//记录上升沿中断触发时的Tick
-uint32_t Key0_StopTick = 0;	//记录下降沿中断触发时的Tick
-void EXTI1_IRQHandler(void)
+uint32_t Key2_StartTick = 0;    //记录上升沿中断触发时的Tick
+uint32_t Key2_StopTick = 0;     //记录下降沿中断触发时的Tick
+uint32_t Key3_StartTick = 0;    //记录上升沿中断触发时的Tick
+uint32_t Key3_StopTick = 0;     //记录下降沿中断触发时的Tick
+void EXTI10_15_IRQHandler(void)
 {
-    if(RESET != exti_interrupt_flag_get(EXTI_1)) {
-        if(SET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){ Key0_StartTick = getTick(); } // 记录上升沿时刻的Tick值
-        else if(RESET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){ // 按键释放后，才算一次完整的按键输入
-            Key0_StopTick = getTick();
-            if(SET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){return;} // 防止两个按键(Key0和Key1)同时按下
-            if(Key0_StopTick > (Key0_StartTick+50)){
-                Key0_isPressed = true;
+    if(RESET != exti_interrupt_flag_get(EXTI_11)) {
+        if(SET == gpio_input_bit_get(KEY2_GPIO_PORT, KEY2_PIN)){ Key2_StartTick = getTick(); } // 记录上升沿时刻的Tick值
+        else if(RESET == gpio_input_bit_get(KEY2_GPIO_PORT, KEY2_PIN)){ // 按键释放后，才算一次完整的按键输入
+            Key2_StopTick = getTick();
+            if(SET == gpio_input_bit_get(KEY3_GPIO_PORT, KEY3_PIN)){return;} // 防止两个按键(Key0和Key1)同时按下
+            if(Key2_StopTick > (Key2_StartTick+50)){
+                Key2_isPressed = true;
             }
         }
-        exti_interrupt_flag_clear(EXTI_1);
-    }
-}
-
-uint32_t Key1_StartTick = 0; 	//记录上升沿中断触发时的Tick
-uint32_t Key1_StopTick = 0;	//记录下降沿中断触发时的Tick
-void EXTI2_IRQHandler(void)
-{
-    if(RESET != exti_interrupt_flag_get(EXTI_2)) {
-        if(SET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){ Key1_StartTick = getTick(); } // 记录上升沿时刻的Tick值
-        else if(RESET == gpio_input_bit_get(KEY1_GPIO_PORT, KEY1_PIN)){ // 按键释放后，才算一次完整的按键输入
-            Key1_StopTick = getTick();
-            if(SET == gpio_input_bit_get(KEY0_GPIO_PORT, KEY0_PIN)){return;} // 防止两个按键(Key0和Key1)同时按下
-            if(Key1_StopTick > (Key1_StartTick+50)){
-                Key1_isPressed = true;
+        exti_interrupt_flag_clear(EXTI_11);
+    }else if(RESET != exti_interrupt_flag_get(EXTI_12)) {
+        if(SET == gpio_input_bit_get(KEY3_GPIO_PORT, KEY3_PIN)){ Key3_StartTick = getTick(); } // 记录上升沿时刻的Tick值
+        else if(RESET == gpio_input_bit_get(KEY3_GPIO_PORT, KEY3_PIN)){ // 按键释放后，才算一次完整的按键输入
+            Key3_StopTick = getTick();
+            if(SET == gpio_input_bit_get(KEY3_GPIO_PORT, KEY3_PIN)){return;} // 防止两个按键(Key0和Key1)同时按下
+            if(Key3_StopTick > (Key3_StartTick+50)){
+                Key3_isPressed = true;
             }
         }
-        exti_interrupt_flag_clear(EXTI_2);
+        exti_interrupt_flag_clear(EXTI_12);
     }
 }
